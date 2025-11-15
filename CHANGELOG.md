@@ -38,6 +38,11 @@ All notable changes to this project will be documented here.
   - `app/(tabs)/organize.tsx` — “Draft hub” to Resume/Edit/Discard draft and Create New Event.
 - Published events (MVP):
   - `lib/eventsStore.ts` — `publishDraft()` converts draft → `EventRecord` in memory.
+  - Introduced initial `src` directory structure (`src/components`, `src/theme`, `src/data`, etc.).
+- Added `module-resolver` Babel plugin with alias paths (`@components`, `@theme`, `@data`, etc.).
+- Added shared color theme at `src/theme/colors.ts`.
+- Added `DevDebugBanner` component for environment/debugging visibility.
+- Added initial `tsconfig.json` path mappings to sync TypeScript with alias imports.
 
 ### Changed
 - Tabs layout in `app/(tabs)/_layout.tsx`:
@@ -48,6 +53,7 @@ All notable changes to this project will be documented here.
   - Venue → Ticketing uses relative navigation and route is registered in `create/_layout`.
 - Color palette:
   - All new screens uses gold (#FFEB99) background with black/gray text.
+  - Updated Babel and TypeScript configuration to support project aliasing (`module-resolver` + TS `paths`).
 
 ### Fixed
 - Multiple path import issues by switching to correct relative imports.
@@ -55,6 +61,7 @@ All notable changes to this project will be documented here.
 - Resolved duplicate `<Tabs>` element that caused “Adjacent JSX elements” bundling error.
 
 ### Known Issues / To Triage Next
+- **Migration to `src/` structure needed**: Components and data files currently reside in root-level `components/` and `data/`. Plan to migrate all non-route files into `src/` and update imports to use alias paths (`@components`, `@data`, `@theme`). Migration scheduled for next working session.
 - **Review screen shows empty**: verify `updateDraft` is called on each step before navigating; ensure Review reads from `getDraft()` (no accidental store redefinition).
 - **Basics screen missing “Review Now”** for some builds: ensure the button is present and its `updateDraft(...)` call runs, then `router.push('/event/create/review')`.
 - Router warnings:
