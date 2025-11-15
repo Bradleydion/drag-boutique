@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented here.
 
-## [0.1.0] - 2025-09-20
+## [0.2.0] - 2025-11-15
 ### Added
 - Initial MVP scaffold with Expo Router.
 - Custom `PrimaryButton` component (black/gold theme).
