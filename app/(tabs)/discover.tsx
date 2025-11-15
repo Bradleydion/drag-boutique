@@ -6,6 +6,7 @@ import { events } from '@/data/events';
 import { AdSlot } from '@/components/AdSlot';
 import { EventCard } from '@/components/EventCard';
 import { ThemedText } from '@/components/ThemedText';
+import DevDebugBanner from "@components/DevDebugBanner";
 
 export default function Discover() {
   return (
@@ -13,6 +14,7 @@ export default function Discover() {
       <AdSlot slot="discover" />
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 }}>
         <ThemedText type="title" style={{ fontSize: 28, fontWeight: '900' }}>Discover</ThemedText>
+        <DevDebugBanner />
         <ThemedText type="subtitle" style={{ marginTop: 4 }}>Find local shows & support artists</ThemedText>
       </View>
       <FlatList

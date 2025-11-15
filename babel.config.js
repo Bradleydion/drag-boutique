@@ -1,16 +1,26 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [
-      ['babel-preset-expo', { reanimated: false }],
-    ],
+    presets: ["babel-preset-expo"],
     plugins: [
-      ['module-resolver', {
-        root: ['.'],
-        alias: { '@': './' },
-        extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
-      }],
-      'react-native-worklets/plugin', // MUST be last
+      "expo-router/babel",
+      [
+        "module-resolver",
+        {
+          root: ["./src"],
+          alias: {
+            "@": "./src",
+            "@components": "./src/components",
+            "@lib": "./src/lib",
+            "@hooks": "./src/hooks",
+            "@theme": "./src/theme",
+            "@types": "./src/types",
+          },
+        },
+      ],
+      // If you use worklets / reanimated, keep this last:
+      "react-native-worklets/plugin",
+      // or "react-native-reanimated/plugin" depending on your setup
     ],
   };
 };
