@@ -1,4 +1,7 @@
 import { Redirect } from 'expo-router';
+import { hasRole } from '../lib/userStore';
+
 export default function Index() {
-  return <Redirect href="/(tabs)/discover" />;
+  // Send new users to role selection, returning users straight to the app
+  return <Redirect href={hasRole() ? '/(tabs)/discover' : '/onboarding'} />;
 }

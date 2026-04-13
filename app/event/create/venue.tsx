@@ -2,12 +2,13 @@
 import * as Linking from 'expo-linking';
 import { Stack, router } from 'expo-router';
 import { useState } from 'react';
-import { Button, Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, updateDraft } from '../../../lib/createEventStore';
+import { colors as C } from '../../../src/theme/colors';
 
-const colors = { bg: '#FFEB99', text: '#000', sub: '#333', muted: '#555', field: '#fff3c2' };
+const s = { bg: C.navy, text: C.textPrimary, muted: C.textMuted, field: C.surface };
 
 function buildMapsUrl(addr?: string, city?: string, state?: string, zip?: string) {
   const parts = [addr, city, state, zip].filter(Boolean).join(', ');
@@ -40,114 +41,83 @@ export default function CreateEvent_Venue() {
     router.push('/event/create/ticketing');
   }
 
+  const inputStyle = { backgroundColor: s.field, borderRadius: 10, padding: 12, color: s.text, marginTop: 6 };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: s.bg }}>
       <Stack.Screen
         options={{
           title: 'Create Event • Venue',
-          headerLeft: () => <Button title="Back" onPress={() => router.back()} />,
+          headerStyle: { backgroundColor: C.navy },
+          headerTitleStyle: { color: C.textPrimary },
+          headerTintColor: C.teal,
         }}
       />
 
-      <View style={{ padding: 16 }}>
-        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900' }}>Venue details</Text>
-        <Text style={{ color: colors.muted, marginTop: 4 }}>
-          Add the location so fans can get directions.
-        </Text>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <Text style={{ color: s.text, fontSize: 22, fontWeight: '900' }}>Venue details</Text>
+        <Text style={{ color: s.muted, marginTop: 4 }}>Add the location so fans can get directions.</Text>
 
-        {/* Venue name */}
         <View style={{ height: 16 }} />
-        <Text style={{ color: colors.text, fontWeight: '800' }}>Venue name</Text>
+        <Text style={{ color: s.text, fontWeight: '800' }}>Venue name</Text>
         <TextInput
-          value={venueName}
-          onChangeText={setVenueName}
-          placeholder="Club Nebula"
-          placeholderTextColor="#666"
-          style={{ backgroundColor: colors.field, borderRadius: 10, padding: 12, color: '#000', marginTop: 6 }}
+          value={venueName} onChangeText={setVenueName}
+          placeholder="Club Nebula" placeholderTextColor={C.textMuted}
+          style={inputStyle}
         />
 
-        {/* Address */}
         <View style={{ height: 14 }} />
-        <Text style={{ color: colors.text, fontWeight: '800' }}>Street address</Text>
+        <Text style={{ color: s.text, fontWeight: '800' }}>Street address</Text>
         <TextInput
-          value={venueAddress}
-          onChangeText={setVenueAddress}
-          placeholder="123 Main St"
-          placeholderTextColor="#666"
-          style={{ backgroundColor: colors.field, borderRadius: 10, padding: 12, color: '#000', marginTop: 6 }}
+          value={venueAddress} onChangeText={setVenueAddress}
+          placeholder="123 Main St" placeholderTextColor={C.textMuted}
+          style={inputStyle}
         />
 
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontWeight: '800' }}>City</Text>
-            <TextInput
-              value={venueCity}
-              onChangeText={setVenueCity}
-              placeholder="Los Angeles"
-              placeholderTextColor="#666"
-              style={{ backgroundColor: colors.field, borderRadius: 10, padding: 12, color: '#000', marginTop: 6 }}
-            />
+            <Text style={{ color: s.text, fontWeight: '800' }}>City</Text>
+            <TextInput value={venueCity} onChangeText={setVenueCity} placeholder="Portland" placeholderTextColor={C.textMuted} style={inputStyle} />
+          </View>
+          <View style={{ width: 80 }}>
+            <Text style={{ color: s.text, fontWeight: '800' }}>State</Text>
+            <TextInput value={venueState} onChangeText={setVenueState} placeholder="OR" placeholderTextColor={C.textMuted} autoCapitalize="characters" maxLength={2} style={inputStyle} />
           </View>
           <View style={{ width: 100 }}>
-            <Text style={{ color: colors.text, fontWeight: '800' }}>State</Text>
-            <TextInput
-              value={venueState}
-              onChangeText={setVenueState}
-              placeholder="CA"
-              placeholderTextColor="#666"
-              autoCapitalize="characters"
-              maxLength={2}
-              style={{ backgroundColor: colors.field, borderRadius: 10, padding: 12, color: '#000', marginTop: 6 }}
-            />
-          </View>
-          <View style={{ width: 110 }}>
-            <Text style={{ color: colors.text, fontWeight: '800' }}>ZIP</Text>
-            <TextInput
-              value={venueZip}
-              onChangeText={setVenueZip}
-              placeholder="90012"
-              placeholderTextColor="#666"
-              keyboardType="number-pad"
-              maxLength={10}
-              style={{ backgroundColor: colors.field, borderRadius: 10, padding: 12, color: '#000', marginTop: 6 }}
-            />
+            <Text style={{ color: s.text, fontWeight: '800' }}>ZIP</Text>
+            <TextInput value={venueZip} onChangeText={setVenueZip} placeholder="97201" placeholderTextColor={C.textMuted} keyboardType="number-pad" maxLength={10} style={inputStyle} />
           </View>
         </View>
 
-        {/* Instagram (optional) */}
         <View style={{ height: 14 }} />
-        <Text style={{ color: colors.text, fontWeight: '800' }}>Instagram (optional)</Text>
+        <Text style={{ color: s.text, fontWeight: '800' }}>Venue Instagram (optional)</Text>
         <TextInput
-          value={venueInstagram}
-          onChangeText={setVenueInstagram}
+          value={venueInstagram} onChangeText={setVenueInstagram}
           placeholder="https://instagram.com/yourvenue"
-          placeholderTextColor="#666"
-          autoCapitalize="none"
-          keyboardType="url"
-          style={{ backgroundColor: colors.field, borderRadius: 10, padding: 12, color: '#000', marginTop: 6 }}
+          placeholderTextColor={C.textMuted}
+          autoCapitalize="none" keyboardType="url"
+          style={inputStyle}
         />
 
-        {/* Map preview */}
-        <View style={{ height: 16 }} />
+        <View style={{ height: 20 }} />
         <PrimaryButton
-          title="Open in Maps"
+          title="Preview in Maps"
+          variant="ghost"
           onPress={() => {
             if (!canPreview) return;
             const url = buildMapsUrl(venueAddress, venueCity, venueState, venueZip);
             Linking.openURL(url).catch(() => {});
           }}
         />
-
-        {/* Next / Cancel */}
-        <View style={{ height: 16 }} />
-        <PrimaryButton title="Next: Ticketing" onPress={onNext} />
         <View style={{ height: 12 }} />
-        <Pressable onPress={() => router.replace('/')} accessibilityRole="button">
-          <Text style={{ color: '#333', textAlign: 'center', textDecorationLine: 'underline' }}>
-            Cancel and go back
+        <PrimaryButton title="Next: Ticketing →" onPress={onNext} />
+        <View style={{ height: 12 }} />
+        <Pressable onPress={() => router.replace('/(tabs)/discover')} accessibilityRole="button">
+          <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>
+            Cancel
           </Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

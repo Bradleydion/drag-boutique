@@ -15,7 +15,7 @@ export async function openVenmoPay(toHandle: string, amount?: number, note?: str
   if (Platform.OS === 'web') {
     Alert.alert(
       'Open Venmo on your phone',
-      `We can't open Venmo from the web preview. On your phone, use @${toHandle} and include this note:\n\n${note ?? ''}`
+      `We can’t open Venmo from the web preview. On your phone, use @${toHandle} and include this note:\n\n${note ?? ''}`
     );
     return;
   }

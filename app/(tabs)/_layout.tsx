@@ -1,18 +1,24 @@
 // app/(tabs)/_layout.tsx
-import { Tabs, router } from 'expo-router';
-import { Platform, Button } from 'react-native';
+import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 import { IconSymbol } from '../../components/ui/IconSymbol';
+import { colors } from '../../src/theme/colors';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#000',
-        tabBarInactiveTintColor: '#333',
-        tabBarStyle: Platform.select({ ios: { position: 'absolute' }, default: {} }),
-        headerStyle: { backgroundColor: '#FFEB99' },
-        headerTitleStyle: { color: '#000' },
-        headerTintColor: '#000',
+        tabBarActiveTintColor: colors.teal,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.navy,
+          borderTopColor: colors.border,
+          ...(Platform.OS === 'ios' ? { position: 'absolute' } : {}),
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        headerStyle: { backgroundColor: colors.navy },
+        headerTitleStyle: { color: colors.textPrimary, fontWeight: '800' },
+        headerTintColor: colors.teal,
       }}
     >
       {/* Discover tab */}
@@ -20,8 +26,8 @@ export default function TabLayout() {
         name="discover"
         options={{
           title: 'Discover',
-          headerTitle: 'Drag Boutique',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="sparkles" color={color} />,
+          headerTitle: 'Sequins',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="sparkles" color={color} />,
         }}
       />
 
@@ -30,26 +36,25 @@ export default function TabLayout() {
         name="organize"
         options={{
           title: 'Create',
-          headerLeft: () => <Button title="Back" onPress={() => router.back()} />,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="plus" color={color} />,
         }}
       />
 
-      {/* Tickets tab (placeholder) */}
+      {/* Tickets tab */}
       <Tabs.Screen
         name="tickets"
         options={{
           title: 'Tickets',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="ticket" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="ticket" color={color} />,
         }}
       />
 
-      {/* Profile tab (placeholder) */}
+      {/* Profile tab */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="person" color={color} />,
         }}
       />
     </Tabs>

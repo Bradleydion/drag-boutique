@@ -38,3 +38,13 @@ export function updateDraft(patch: Partial<DraftEvent>) {
 export function resetDraft() {
   _draft = {};
 }
+
+/** Returns true if any field has been filled in. */
+export function hasDraft(): boolean {
+  return Object.values(_draft).some((v) => v !== undefined && v !== '');
+}
+
+/** Returns a plain summary string for dev/debug use. */
+export function draftSummary(): string {
+  return JSON.stringify(_draft, null, 2);
+}

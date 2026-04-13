@@ -1,22 +1,22 @@
-// src/theme/colors.ts
+// src/components/DevDebugBanner.tsx
+// Only visible in development builds — shows env/debug info at the top of screens.
+import { View, Text } from 'react-native';
+import { colors } from '../theme/colors';
 
-export const colors = {
-  // Brand core
-  background: "#050505",
-  surface: "#121212",
-  gold: "#F8D34A",
-  goldSoft: "#FFEB99",
-  textPrimary: "#F5F5F5",
-  textSecondary: "#CCCCCC",
-  textMuted: "#9E9E9E",
-  border: "#2A2A2A",
-
-  // Status
-  success: "#4CAF50",
-  warning: "#FFC107",
-  error: "#FF5252",
-
-  // Accent options
-  accentPink: "#FF6FAF",
-  accentPurple: "#C084FC",
-};
+export default function DevDebugBanner() {
+  if (process.env.NODE_ENV !== 'development') return null;
+  return (
+    <View style={{
+      backgroundColor: colors.teal,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderRadius: 6,
+      alignSelf: 'flex-start',
+      marginBottom: 4,
+    }}>
+      <Text style={{ color: colors.offWhite, fontSize: 11, fontWeight: '700' }}>
+        DEV BUILD
+      </Text>
+    </View>
+  );
+}

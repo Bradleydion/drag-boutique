@@ -77,11 +77,11 @@ export default function CreateEvent_Basics() {
 
         {/* Description */}
         <View style={{ height: 14 }} />
-        <Text style={{ color: s.text, fontWeight: '800' }}>Description</Text>
+        <Text style={{ color: s.text, fontWeight: ‘800’ }}>Description</Text>
         <TextInput
           value={description}
           onChangeText={setDescription}
-          placeholder="What's the vibe? Hosts, themes, highlights…"
+          placeholder="What’s the vibe? Hosts, themes, highlights…"
           placeholderTextColor={C.textMuted}
           multiline
           style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6, minHeight: 96 }}
@@ -89,11 +89,11 @@ export default function CreateEvent_Basics() {
 
         {/* Start */}
         <View style={{ height: 14 }} />
-        <Text style={{ color: s.text, fontWeight: '800' }}>Start date & time</Text>
+        <Text style={{ color: s.text, fontWeight: ‘800’ }}>Start date & time</Text>
         <TextInput
           value={datetimeStart}
           onChangeText={setDatetimeStart}
-          placeholder={Platform.select({ default: '2026-06-01T20:00:00-07:00' })}
+          placeholder={Platform.select({ default: ‘2026-06-01T20:00:00-07:00’ })}
           autoCapitalize="none"
           placeholderTextColor={C.textMuted}
           style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
@@ -101,11 +101,11 @@ export default function CreateEvent_Basics() {
 
         {/* End */}
         <View style={{ height: 14 }} />
-        <Text style={{ color: s.text, fontWeight: '800' }}>End date & time</Text>
+        <Text style={{ color: s.text, fontWeight: ‘800’ }}>End date & time</Text>
         <TextInput
           value={datetimeEnd}
           onChangeText={setDatetimeEnd}
-          placeholder={Platform.select({ default: '2026-06-02T00:00:00-07:00' })}
+          placeholder={Platform.select({ default: ‘2026-06-02T00:00:00-07:00’ })}
           autoCapitalize="none"
           placeholderTextColor={C.textMuted}
           style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
@@ -113,11 +113,11 @@ export default function CreateEvent_Basics() {
 
         {/* Timezone */}
         <View style={{ height: 14 }} />
-        <Text style={{ color: s.text, fontWeight: '800' }}>Timezone</Text>
+        <Text style={{ color: s.text, fontWeight: ‘800’ }}>Timezone</Text>
         <TextInput
           value={timezone}
           onChangeText={setTimezone}
-          placeholder={Platform.select({ default: 'America/Los_Angeles' })}
+          placeholder={Platform.select({ default: ‘America/Los_Angeles’ })}
           autoCapitalize="none"
           placeholderTextColor={C.textMuted}
           style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
@@ -125,15 +125,15 @@ export default function CreateEvent_Basics() {
 
         {/* Errors */}
         {errors.length > 0 ? (
-          <Text style={{ color: C.danger, marginTop: 12 }}>{errors.join(' ')}</Text>
+          <Text style={{ color: C.danger, marginTop: 12 }}>{errors.join(‘ ‘)}</Text>
         ) : null}
 
         {/* Next */}
         <View style={{ height: 20 }} />
         <PrimaryButton title="Next: Venue →" onPress={onNext} />
         <View style={{ height: 12 }} />
-        <Pressable onPress={() => router.replace('/(tabs)/discover')} accessibilityRole="button">
-          <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>
+        <Pressable onPress={() => router.replace(‘/(tabs)/discover’)} accessibilityRole="button">
+          <Text style={{ color: C.textSecondary, textAlign: ‘center’, textDecorationLine: ‘underline’ }}>
             Cancel
           </Text>
         </Pressable>

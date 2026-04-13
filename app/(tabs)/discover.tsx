@@ -1,33 +1,30 @@
 // app/(tabs)/discover.tsx
 import { Link } from 'expo-router';
-import { FlatList, View, Pressable } from 'react-native';
+import { FlatList, View, Pressable, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { events } from '@/data/events';
-import { AdSlot } from '@/components/AdSlot';
 import { EventCard } from '@/components/EventCard';
-import { ThemedText } from '@/components/ThemedText';
-import DevDebugBanner from "@components/DevDebugBanner";
+import { colors } from '../../src/theme/colors';
 
 export default function Discover() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFEB99' }}>
-      <AdSlot slot="discover" />
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 }}>
-        <ThemedText type="title" style={{ fontSize: 28, fontWeight: '900' }}>Discover</ThemedText>
-        <DevDebugBanner />
-        <ThemedText type="subtitle" style={{ marginTop: 4 }}>Find local shows & support artists</ThemedText>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['left', 'right', 'bottom']}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase' }}>
+          Find local shows & support artists
+        </Text>
       </View>
       <FlatList
         data={events}
         keyExtractor={(e) => e.id}
         renderItem={({ item }) => (
           <Link href={`/event/${item.id}`} asChild>
-            <Pressable style={{ paddingHorizontal: 16, marginBottom: 14 }}>
+            <Pressable style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <EventCard event={item} />
             </Pressable>
           </Link>
         )}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
       />
     </SafeAreaView>
   );
