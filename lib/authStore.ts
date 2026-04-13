@@ -47,6 +47,12 @@ export async function loadAuth(): Promise<AuthState | null> {
   return _auth;
 }
 
+export async function updateDisplayName(name: string): Promise<void> {
+  if (!_auth) return;
+  _auth = { ..._auth, displayName: name.trim() };
+  await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(_auth));
+}
+
 export async function signOut(): Promise<void> {
   _auth = null;
   await AsyncStorage.removeItem(AUTH_KEY);
