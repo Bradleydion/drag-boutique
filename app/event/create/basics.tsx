@@ -1,0 +1,143 @@
+// app/event/create/basics.tsx
+import { PrimaryButton } from '../../../components/PrimaryButton';
+import { getDraft, updateDraft } from '../../../lib/createEventStore';
+import { Stack, router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors as C } from '../../../src/theme/colors';
+
+const s = {
+  bg: C.navy,
+  text: C.textPrimary,
+  sub: C.textSecondary,
+  muted: C.textMuted,
+  field: C.surface,
+  label: C.accent,
+};
+
+export default function CreateEvent_Basics() {
+  // Load any existing draft so this screen is resumable
+  const draft = getDraft();
+
+  const [title, setTitle] = useState(draft.title ?? '');
+  const [description, setDescription] = useState(draft.description ?? '');
+  const [datetimeStart, setDatetimeStart] = useState(draft.datetimeStart ?? '');
+  const [datetimeEnd, setDatetimeEnd] = useState(draft.datetimeEnd ?? '');
+  const [timezone, setTimezone] = useState(
+    draft.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
+
+  const errors = useMemo(() => {
+    const e: string[] = [];
+    if (!title.trim()) e.push('Title is required.');
+    if (datetimeStart && datetimeEnd) {
+      const s = Date.parse(datetimeStart);
+      const eMs = Date.parse(datetimeEnd);
+      if (!Number.isNaN(s) && !Number.isNaN(eMs) && eMs <= s) {
+        e.push('End time must be after start time.');
+      }
+    }
+    return e;
+  }, [title, datetimeStart, datetimeEnd]);
+
+  function onNext() {
+    updateDraft({ title, description, datetimeStart, datetimeEnd, timezone });
+    router.push('/event/create/venue');
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: s.bg }}>
+      <Stack.Screen
+        options={{
+          title: 'Create Event • Basics',
+          headerStyle: { backgroundColor: C.navy },
+          headerTitleStyle: { color: C.textPrimary },
+          headerTintColor: C.teal,
+        }}
+      />
+
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <Text style={{ color: s.text, fontSize: 22, fontWeight: '900' }}>Event basics</Text>
+        <Text style={{ color: s.muted, marginTop: 4 }}>
+          These details appear on the public event page.
+        </Text>
+
+        {/* Title */}
+        <View style={{ height: 16 }} />
+        <Text style={{ color: s.text, fontWeight: '800' }}>Title *</Text>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="e.g., Queen of the Night"
+          placeholderTextColor="#666"
+          autoCapitalize="sentences"
+          style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
+        />
+
+        {/* Description */}
+        <View style={{ height: 14 }} />
+        <Text style={{ color: s.text, fontWeight: '800' }}>Description</Text>
+        <TextInput
+          value={description}
+          onChangeText={setDescription}
+          placeholder="What's the vibe? Hosts, themes, highlights…"
+          placeholderTextColor={C.textMuted}
+          multiline
+          style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6, minHeight: 96 }}
+        />
+
+        {/* Start */}
+        <View style={{ height: 14 }} />
+        <Text style={{ color: s.text, fontWeight: '800' }}>Start date & time</Text>
+        <TextInput
+          value={datetimeStart}
+          onChangeText={setDatetimeStart}
+          placeholder={Platform.select({ default: '2026-06-01T20:00:00-07:00' })}
+          autoCapitalize="none"
+          placeholderTextColor={C.textMuted}
+          style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
+        />
+
+        {/* End */}
+        <View style={{ height: 14 }} />
+        <Text style={{ color: s.text, fontWeight: '800' }}>End date & time</Text>
+        <TextInput
+          value={datetimeEnd}
+          onChangeText={setDatetimeEnd}
+          placeholder={Platform.select({ default: '2026-06-02T00:00:00-07:00' })}
+          autoCapitalize="none"
+          placeholderTextColor={C.textMuted}
+          style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
+        />
+
+        {/* Timezone */}
+        <View style={{ height: 14 }} />
+        <Text style={{ color: s.text, fontWeight: '800' }}>Timezone</Text>
+        <TextInput
+          value={timezone}
+          onChangeText={setTimezone}
+          placeholder={Platform.select({ default: 'America/Los_Angeles' })}
+          autoCapitalize="none"
+          placeholderTextColor={C.textMuted}
+          style={{ backgroundColor: s.field, borderRadius: 10, padding: 12, color: C.textPrimary, marginTop: 6 }}
+        />
+
+        {/* Errors */}
+        {errors.length > 0 ? (
+          <Text style={{ color: C.danger, marginTop: 12 }}>{errors.join(' ')}</Text>
+        ) : null}
+
+        {/* Next */}
+        <View style={{ height: 20 }} />
+        <PrimaryButton title="Next: Venue →" onPress={onNext} />
+        <View style={{ height: 12 }} />
+        <Pressable onPress={() => router.replace('/(tabs)/discover')} accessibilityRole="button">
+          <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>
+            Cancel
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

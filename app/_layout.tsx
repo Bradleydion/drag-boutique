@@ -1,17 +1,18 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { colors } from '../src/theme/colors';
 
 export default function RootLayout() {
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerShown: true,
-          headerStyle: { backgroundColor: '#FFEB99' },
-          headerTitleStyle: { color: '#000' },
-          headerTintColor: '#000',
-          contentStyle: { backgroundColor: '#FFEB99' },
+          headerStyle: { backgroundColor: colors.navy },
+          headerTitleStyle: { color: colors.textPrimary },
+          headerTintColor: colors.teal,
+          contentStyle: { backgroundColor: colors.navy },
         }}
       >
         {/* Hide header for the tabs group so it doesn't show "(tabs)" */}
