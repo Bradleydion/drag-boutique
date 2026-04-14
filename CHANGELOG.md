@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented here.
 
+## [0.5.0] - 2026-04-13
+### Added
+- **Marketplace** — full browse, create, and detail flow
+  - `lib/marketplaceStore.ts` — listing types (sale/swap/commission), categories, conditions, seed data
+  - `app/(tabs)/marketplace.tsx` — Shop tab with category filter pills, 2-column grid, "List Something" CTA for Artists/Hosts
+  - `app/marketplace/create.tsx` — create listing form (type, category, condition, title, description, price, location, delivery, tags)
+  - `app/marketplace/[id].tsx` — listing detail with image, seller info, badges, tags, delivery info, contact CTA
+  - 5 seed listings across all categories with real Unsplash images
+- **Auth screen** (`app/auth/index.tsx`) — sign in/up toggle, email stub, Apple + Google stubs, guest mode
+- **Auth store** (`lib/authStore.ts`) — guest, email, display name, AsyncStorage persistence, signOut
+- **Role-aware Profile tab** — initials avatar, editable display name, role badge, role-specific feature sections, sign out, change role
+- **AsyncStorage persistence** for both role and auth — survives app restarts
+
+### Changed
+- Onboarding now routes to auth after role selection
+- `app/index.tsx` loads both role + auth before routing (no flash)
+- Category filter pills fixed — proper horizontal row layout, compact height
+- Marketplace grid always 2 columns regardless of item count (spacer padding)
+- Back button fixed on marketplace create screen (`headerBackTitle: 'Back'`)
+
 ## [0.4.0] - 2026-04-13
 ### Added
 - **Role selection onboarding screen** (`app/onboarding/index.tsx`)
