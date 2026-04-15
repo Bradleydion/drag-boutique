@@ -10,10 +10,10 @@ import { colors } from '../../src/theme/colors';
 export default function RoleSelectScreen() {
   const [selected, setSelected] = useState<UserRole | null>(null);
 
-  function confirm() {
+  async function confirm() {
     if (!selected) return;
-    setRole(selected);
-    router.replace('/(tabs)/discover');
+    await setRole(selected);
+    router.replace('/auth');
   }
 
   return (

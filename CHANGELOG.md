@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented here.
 
+## [0.5.0] - 2026-04-13
+### Added
+- **Marketplace** — full browse, create, and detail flow
+  - `lib/marketplaceStore.ts` — listing types (sale/swap/commission), categories, conditions, seed data
+  - `app/(tabs)/marketplace.tsx` — Shop tab with category filter pills, 2-column grid, "List Something" CTA for Artists/Hosts
+  - `app/marketplace/create.tsx` — create listing form (type, category, condition, title, description, price, location, delivery, tags)
+  - `app/marketplace/[id].tsx` — listing detail with image, seller info, badges, tags, delivery info, contact CTA
+  - 5 seed listings across all categories with real Unsplash images
+- **Auth screen** (`app/auth/index.tsx`) — sign in/up toggle, email stub, Apple + Google stubs, guest mode
+- **Auth store** (`lib/authStore.ts`) — guest, email, display name, AsyncStorage persistence, signOut
+- **Role-aware Profile tab** — initials avatar, editable display name, role badge, role-specific feature sections, sign out, change role
+- **AsyncStorage persistence** for both role and auth — survives app restarts
+
+### Changed
+- Onboarding now routes to auth after role selection
+- `app/index.tsx` loads both role + auth before routing (no flash)
+- Category filter pills fixed — proper horizontal row layout, compact height
+- Marketplace grid always 2 columns regardless of item count (spacer padding)
+- Back button fixed on marketplace create screen (`headerBackTitle: 'Back'`)
+
+## [0.4.0] - 2026-04-13
+### Added
+- **Role selection onboarding screen** (`app/onboarding/index.tsx`)
+  - Three selectable role cards: Fan, Artist, Host — each with tagline and feature perks
+  - Animated selection state (teal fill when selected)
+  - "Continue as [Role] →" CTA that activates only after a selection is made
+  - Header hidden for clean full-screen presentation
+- **User role store** (`lib/userStore.ts`)
+  - `UserRole` type: `'fan' | 'artist' | 'host'`
+  - `ROLES` config array drives the onboarding UI (emoji, title, tagline, perks)
+  - `getRole`, `setRole`, `hasRole` helpers
+- **Host role** defined with capabilities: create events, manage staff (DJs, door crew, tip takers), pay team via Venmo/Stripe, generate invoices, track finances
+- **`metro.config.js`** — Expo Metro config baseline
+- **`app/+not-found.tsx`** — rewritten with Sequins theme (removed stale ThemedText/ThemedView deps)
+
+### Changed
+- **App renamed from "Drag Boutique" to "Sequins"** across `app.json`, `package.json`, tab header, publish alert, colors comment, and URL scheme
+- **`app/index.tsx`** — now routes new users to `/onboarding` if no role is set, otherwise straight to Discover
+- **`babel.config.js`** — added `module-resolver` plugin mapping `@/` to project root, fixing all import alias errors across the app
+- **`hooks/useThemeColor.ts`** — rewritten to use `src/theme/colors.ts` directly (removed dependency on deleted `constants/Colors.ts`)
+- **Event detail screen** (`app/event/[id].tsx`) — header now shows event title dynamically; back button label changed from "(tabs)" to "Back"; header styled navy/teal
+
+### Removed (Cleanup Sprint)
+- Stale Expo starter template files: `HelloWave`, `Collapsible`, `ExternalLink`, `ThemedText`, `ThemedView`, `ParallaxScrollView`, `HapticTab`, `TabBarBackground`, `TabBarBackground.ios`, `AdSlot`
+- Dead tab routes: `app/(tabs)/index.tsx`, `app/(tabs)/explore.tsx`
+- Duplicate color file: `constants/Colors.ts` (consolidated into `src/theme/colors.ts`)
+- Boilerplate `README.md` and React logo template assets
+
+### Fixed
+- Smart/curly quotes (from ChatGPT copy-paste) in `basics.tsx` and `venmo.ts` causing Metro bundler syntax errors
+- `@/` path alias not resolving in Metro — fixed via Babel `module-resolver` plugin
+
+### Known Issues
+- Role selection is session-only (not persisted) — will add AsyncStorage persistence in auth sprint
+- App folder is still named `drag-boutique` on disk (cosmetic only, doesn't affect app)
+
 ## [0.2.0] - 2025-11-15
 ### Added
 - Initial MVP scaffold with Expo Router.

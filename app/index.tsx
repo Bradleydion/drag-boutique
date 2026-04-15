@@ -1,7 +1,27 @@
-import { Redirect } from 'expo-router';
-import { hasRole } from '../lib/userStore';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { isAuthenticated, loadAuth } from '../lib/authStore';
+import { hasRole, loadRole } from '../lib/userStore';
+import { colors } from '../src/theme/colors';
 
 export default function Index() {
-  // Send new users to role selection, returning users straight to the app
-  return <Redirect href={hasRole() ? '/(tabs)/discover' : '/onboarding'} />;
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    Promise.all([loadRole(), loadAuth()]).then(() => {
+      setReady(true);
+      if (!hasRole()) {
+        router.replace('/onboarding');
+      } else if (!isAuthenticated()) {
+        router.replace('/auth');
+      } else {
+        router.replace('/(tabs)/discover');
+      }
+    });
+  }, []);
+
+  // Blank navy screen while we check storage — feels instant in practice
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.navy }} />;
+  return null;
 }

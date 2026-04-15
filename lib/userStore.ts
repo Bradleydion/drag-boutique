@@ -1,8 +1,13 @@
 // lib/userStore.ts
-// Stores the current user's selected role for this session.
+// Stores the current user's selected role.
+// Persisted to AsyncStorage so it survives app restarts.
 // In a future auth sprint this will be backed by a real user record.
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export type UserRole = 'fan' | 'artist' | 'host';
+
+const ROLE_KEY = '@sequins/userRole';
 
 let _role: UserRole | null = null;
 
@@ -10,12 +15,26 @@ export function getRole(): UserRole | null {
   return _role;
 }
 
-export function setRole(role: UserRole): void {
+export async function setRole(role: UserRole): Promise<void> {
   _role = role;
+  await AsyncStorage.setItem(ROLE_KEY, role);
+}
+
+export async function loadRole(): Promise<UserRole | null> {
+  const stored = await AsyncStorage.getItem(ROLE_KEY);
+  if (stored === 'fan' || stored === 'artist' || stored === 'host') {
+    _role = stored;
+  }
+  return _role;
 }
 
 export function hasRole(): boolean {
   return _role !== null;
+}
+
+export async function clearRole(): Promise<void> {
+  _role = null;
+  await AsyncStorage.removeItem(ROLE_KEY);
 }
 
 export const ROLES: {
