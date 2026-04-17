@@ -1,6 +1,6 @@
 // app/(tabs)/marketplace.tsx
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -16,6 +16,7 @@ import {
   CONDITION_LABELS,
   ListingCategory,
   getListings,
+  loadListings,
 } from '../../lib/marketplaceStore';
 import { colors } from '../../src/theme/colors';
 
@@ -31,6 +32,14 @@ const CATEGORIES: { id: ListingCategory | 'all'; label: string; emoji: string }[
 export default function MarketplaceTab() {
   const role = getRole();
   const [activeCategory, setActiveCategory] = useState<ListingCategory | 'all'>('all');
+  const [, setRefresh] = useState(0);
+
+  // Reload from Supabase whenever the tab comes into focus.
+  useFocusEffect(
+    useCallback(() => {
+      loadListings().then(() => setRefresh(n => n + 1));
+    }, []),
+  );
 
   const rawListings = activeCategory === 'all' ? getListings() : getListings(activeCategory);
   // Pad to even count so the last row always has 2 columns

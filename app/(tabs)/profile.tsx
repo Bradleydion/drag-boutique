@@ -15,6 +15,7 @@ import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayNam
 import { events, performers } from '../../data/events';
 import { getFollowedIds } from '../../lib/followStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
+import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -65,11 +66,15 @@ export default function ProfileTab() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(displayNameFromMeta ?? '');
   const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  const [myListings, setMyListings] = useState<Listing[]>([]);
 
-  // Reload tickets whenever the profile tab comes into focus.
+  // Reload tickets + listings whenever the profile tab comes into focus.
   useFocusEffect(
     useCallback(() => {
-      if (!guest) loadTickets().then(() => setMyTickets(getTickets()));
+      if (!guest) {
+        loadTickets().then(() => setMyTickets(getTickets()));
+        loadListings().then(() => setMyListings(getMyListings()));
+      }
     }, [guest]),
   );
 
@@ -256,6 +261,7 @@ export default function ProfileTab() {
             const onPress = isMyTickets
               ? () => router.push('/(tabs)/tickets')
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
+            const isActive = isMyTickets && myTickets.length > 0;
             return (
               <Pressable
                 key={item.label}
@@ -267,14 +273,14 @@ export default function ProfileTab() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: isMyTickets && myTickets.length > 0 ? colors.teal + '55' : colors.border,
+                  borderColor: isActive ? colors.teal + '55' : colors.border,
                   gap: 14,
                 }}
               >
                 <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>{item.label}</Text>
-                  <Text style={{ color: isMyTickets && myTickets.length > 0 ? colors.teal : colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  <Text style={{ color: isActive ? colors.teal : colors.textSecondary, fontSize: 13, marginTop: 2 }}>
                     {sublabel}
                   </Text>
                 </View>
@@ -403,6 +409,114 @@ export default function ProfileTab() {
                 </Pressable>
               )}
             </View>
+          </>
+        )}
+
+        {/* My Listings — only shown for artist/host with active listings */}
+        {(role === 'artist' || role === 'host') && (
+          <>
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>
+              MY LISTINGS {myListings.length > 0 ? `(${myListings.length})` : ''}
+            </Text>
+            {myListings.length === 0 ? (
+              <Pressable
+                onPress={() => router.push('/marketplace/create')}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: 14,
+                  padding: 18,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderStyle: 'dashed',
+                  alignItems: 'center',
+                  marginBottom: 24,
+                  gap: 6,
+                }}
+              >
+                <Text style={{ fontSize: 24 }}>✦</Text>
+                <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 14 }}>List Something</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Post wigs, costumes, commissions & more</Text>
+              </Pressable>
+            ) : (
+              <View style={{
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                marginBottom: 24,
+                overflow: 'hidden',
+              }}>
+                {myListings.map((listing, index) => (
+                  <View
+                    key={listing.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 14,
+                      gap: 12,
+                      borderTopWidth: index === 0 ? 0 : 1,
+                      borderTopColor: colors.border,
+                    }}
+                  >
+                    <Image
+                      source={{ uri: listing.imageUrls[0] }}
+                      style={{ width: 44, height: 44, borderRadius: 8 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 14 }} numberOfLines={1}>
+                        {listing.title}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {listing.price === 0 ? 'Commission' : `$${listing.price}`} · {listing.category}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Pressable
+                        onPress={() =>
+                          Alert.alert('Mark as Sold?', `Remove "${listing.title}" from the marketplace?`, [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Mark Sold',
+                              onPress: async () => {
+                                await markSold(listing.id);
+                                setMyListings(getMyListings());
+                              },
+                            },
+                          ])
+                        }
+                        style={{ backgroundColor: colors.teal + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.teal }}
+                      >
+                        <Text style={{ color: colors.teal, fontSize: 11, fontWeight: '700' }}>Sold</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() =>
+                          Alert.alert('Delete Listing?', 'This will permanently remove your listing.', [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await deleteListing(listing.id);
+                                setMyListings(getMyListings());
+                              },
+                            },
+                          ])
+                        }
+                        style={{ backgroundColor: colors.danger + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.danger + '66' }}
+                      >
+                        <Text style={{ color: colors.danger, fontSize: 11, fontWeight: '700' }}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+                <Pressable
+                  onPress={() => router.push('/marketplace/create')}
+                  style={{ padding: 14, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center' }}
+                >
+                  <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 13 }}>+ Add Another Listing</Text>
+                </Pressable>
+              </View>
+            )}
           </>
         )}
 
