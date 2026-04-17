@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { isAuthenticated, loadAuth } from '../lib/authStore';
 import { loadFollows } from '../lib/followStore';
+import { loadTickets } from '../lib/ticketStore';
 import { hasRole, loadRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
 
@@ -11,7 +12,7 @@ export default function Index() {
 
   useEffect(() => {
     Promise.all([loadRole(), loadAuth()]).then(async () => {
-      await loadFollows();
+      await Promise.all([loadFollows(), loadTickets()]);
       setReady(true);
       if (!isAuthenticated()) {
         router.replace('/auth');
