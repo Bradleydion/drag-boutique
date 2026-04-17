@@ -1,6 +1,6 @@
 // app/(tabs)/profile.tsx
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
-import { performers } from '../../data/events';
+import { events, performers } from '../../data/events';
 import { getFollowedIds } from '../../lib/followStore';
+import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -63,6 +64,14 @@ export default function ProfileTab() {
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(displayNameFromMeta ?? '');
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+
+  // Reload tickets whenever the profile tab comes into focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (!guest) loadTickets().then(() => setMyTickets(getTickets()));
+    }, [guest]),
+  );
 
   async function saveName() {
     await updateDisplayName(nameInput);
@@ -239,29 +248,40 @@ export default function ProfileTab() {
           {roleLabel.toUpperCase().replace(/[^A-Z ]/g, '').trim()} FEATURES
         </Text>
         <View style={{ gap: 10, marginBottom: 24 }}>
-          {sections.map((item) => (
-            <Pressable
-              key={item.label}
-              onPress={() => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`)}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 14,
-                padding: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: colors.border,
-                gap: 14,
-              }}
-            >
-              <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>{item.label}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>{item.sublabel}</Text>
-              </View>
-              <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
-            </Pressable>
-          ))}
+          {sections.map((item) => {
+            const isMyTickets = item.label === 'My Tickets';
+            const sublabel = isMyTickets && myTickets.length > 0
+              ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
+              : item.sublabel;
+            const onPress = isMyTickets
+              ? () => router.push('/(tabs)/tickets')
+              : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
+            return (
+              <Pressable
+                key={item.label}
+                onPress={onPress}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: 14,
+                  padding: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: isMyTickets && myTickets.length > 0 ? colors.teal + '55' : colors.border,
+                  gap: 14,
+                }}
+              >
+                <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>{item.label}</Text>
+                  <Text style={{ color: isMyTickets && myTickets.length > 0 ? colors.teal : colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                    {sublabel}
+                  </Text>
+                </View>
+                <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Following section — only shown when the user follows at least one artist */}
@@ -315,6 +335,73 @@ export default function ProfileTab() {
                   </Pressable>
                 ))}
               </ScrollView>
+            </View>
+          </>
+        )}
+
+        {/* Upcoming tickets preview */}
+        {myTickets.length > 0 && (
+          <>
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>
+              MY TICKETS ({myTickets.length})
+            </Text>
+            <View style={{
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: colors.border,
+              marginBottom: 24,
+              overflow: 'hidden',
+            }}>
+              {myTickets.slice(0, 3).map((ticket, index) => {
+                const ev = events.find(e => e.id === ticket.event_id);
+                if (!ev) return null;
+                const dateStr = new Date(ev.dateTimeStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                return (
+                  <Pressable
+                    key={ticket.id}
+                    onPress={() => router.push('/(tabs)/tickets')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 14,
+                      gap: 12,
+                      borderTopWidth: index === 0 ? 0 : 1,
+                      borderTopColor: colors.border,
+                    }}
+                  >
+                    <Image source={{ uri: ev.imageUrl }} style={{ width: 44, height: 44, borderRadius: 8 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 14 }} numberOfLines={1}>
+                        {ev.title}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {dateStr} · {ev.city}
+                      </Text>
+                    </View>
+                    <View style={{
+                      backgroundColor: colors.teal + '22',
+                      borderRadius: 8,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderWidth: 1,
+                      borderColor: colors.teal,
+                    }}>
+                      <Text style={{ color: colors.teal, fontSize: 11, fontWeight: '700' }}>🎟️</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+              {myTickets.length > 3 && (
+                <Pressable
+                  onPress={() => router.push('/(tabs)/tickets')}
+                  style={{ padding: 14, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center' }}
+                >
+                  <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 13 }}>
+                    View all {myTickets.length} tickets →
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </>
         )}
