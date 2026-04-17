@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getAuth, signOut, updateDisplayName } from '../../lib/authStore';
+import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -53,11 +53,13 @@ function getInitials(name?: string, email?: string): string {
 }
 
 export default function ProfileTab() {
-  const auth = getAuth();
+  const email = getEmail();
+  const guest = isGuest();
+  const displayNameFromMeta = getSession()?.user?.user_metadata?.display_name as string | undefined;
   const role = getRole() ?? 'fan';
 
   const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(auth?.displayName ?? '');
+  const [nameInput, setNameInput] = useState(displayNameFromMeta ?? '');
 
   async function saveName() {
     await updateDisplayName(nameInput);
@@ -78,6 +80,42 @@ export default function ProfileTab() {
     ]);
   }
 
+  async function handleDeleteAccount() {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            // Second confirmation — makes it harder to do accidentally.
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Your account, tickets, listings, and profile will be gone forever.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, delete everything',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteAccount();
+                      router.replace('/auth');
+                    } catch {
+                      Alert.alert('Error', 'Could not delete account. Please try again or contact support.');
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+
   async function handleChangeRole() {
     Alert.alert('Change Role', 'This will take you back to role selection.', [
       { text: 'Cancel', style: 'cancel' },
@@ -95,8 +133,8 @@ export default function ProfileTab() {
   const sections = ROLE_SECTIONS[role] ?? ROLE_SECTIONS.fan;
   const roleColor = ROLE_COLORS[role] ?? colors.teal;
   const roleLabel = ROLE_LABELS[role] ?? 'Fan';
-  const initials = getInitials(auth?.displayName, auth?.email);
-  const displayName = auth?.displayName || (auth?.email ? auth.email.split('@')[0] : 'Guest');
+  const initials = getInitials(displayNameFromMeta, email);
+  const displayName = displayNameFromMeta || (email ? email.split('@')[0] : 'Guest');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
@@ -170,11 +208,11 @@ export default function ProfileTab() {
 
           {/* Auth method */}
           <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-            {auth?.method === 'guest' ? 'Browsing as guest' : auth?.email ?? ''}
+            {guest ? 'Browsing as guest' : email ?? ''}
           </Text>
 
           {/* Guest upgrade prompt */}
-          {auth?.method === 'guest' && (
+          {guest && (
             <Pressable
               onPress={() => router.push('/auth')}
               style={{
@@ -266,6 +304,29 @@ export default function ProfileTab() {
               <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 15 }}>Sign Out</Text>
             </View>
           </Pressable>
+
+          {/* Delete account — only shown to authenticated (non-guest) users */}
+          {!guest && (
+            <Pressable
+              onPress={handleDeleteAccount}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: colors.danger + '55',
+                gap: 14,
+              }}
+            >
+              <Text style={{ fontSize: 22 }}>🗑️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 15 }}>Delete Account</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2 }}>Permanently remove your account and data</Text>
+              </View>
+            </Pressable>
+          )}
         </View>
 
       </ScrollView>

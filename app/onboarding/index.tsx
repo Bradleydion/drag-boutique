@@ -13,7 +13,7 @@ export default function RoleSelectScreen() {
   async function confirm() {
     if (!selected) return;
     await setRole(selected);
-    router.replace('/auth');
+    router.replace('/(tabs)/discover');
   }
 
   return (

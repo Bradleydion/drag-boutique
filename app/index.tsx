@@ -11,10 +11,10 @@ export default function Index() {
   useEffect(() => {
     Promise.all([loadRole(), loadAuth()]).then(() => {
       setReady(true);
-      if (!hasRole()) {
-        router.replace('/onboarding');
-      } else if (!isAuthenticated()) {
+      if (!isAuthenticated()) {
         router.replace('/auth');
+      } else if (!hasRole()) {
+        router.replace('/onboarding');
       } else {
         router.replace('/(tabs)/discover');
       }
