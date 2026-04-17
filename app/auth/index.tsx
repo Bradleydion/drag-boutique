@@ -66,7 +66,8 @@ export default function AuthScreen() {
         }
       } else {
         await signInWithEmail(email.trim(), password);
-        nextScreen();
+        await clearRole();
+        router.replace('/onboarding');
       }
     } catch (e: any) {
       const msg: string = e?.message ?? '';

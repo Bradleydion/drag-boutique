@@ -30,13 +30,14 @@ const CATEGORIES: { id: ListingCategory | 'all'; label: string; emoji: string }[
 ];
 
 export default function MarketplaceTab() {
-  const role = getRole();
   const [activeCategory, setActiveCategory] = useState<ListingCategory | 'all'>('all');
   const [, setRefresh] = useState(0);
+  const [role, setRole] = useState(getRole());
 
-  // Reload from Supabase whenever the tab comes into focus.
+  // Re-read role + reload listings whenever the tab comes into focus.
   useFocusEffect(
     useCallback(() => {
+      setRole(getRole());
       loadListings().then(() => setRefresh(n => n + 1));
     }, []),
   );
@@ -50,14 +51,39 @@ export default function MarketplaceTab() {
   const canList = role === 'artist' || role === 'host';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['left', 'right', 'bottom']}>
+
+      {/* List Something banner — artists and hosts only */}
+      {canList && (
+        <Pressable
+          onPress={() => router.push('/marketplace/create')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.coral,
+            marginHorizontal: 16,
+            marginTop: 12,
+            marginBottom: 4,
+            borderRadius: 14,
+            paddingVertical: 13,
+            paddingHorizontal: 20,
+            gap: 8,
+          }}
+        >
+          <Text style={{ fontSize: 16 }}>✦</Text>
+          <Text style={{ color: colors.offWhite, fontWeight: '800', fontSize: 15 }}>
+            List Something
+          </Text>
+        </Pressable>
+      )}
 
       {/* Category filter pills */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8, flexDirection: 'row', alignItems: 'center' }}
+        style={{ flexGrow: 0, height: 52 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, flexDirection: 'row', alignItems: 'center' }}
       >
         {CATEGORIES.map(cat => {
           const active = activeCategory === cat.id;
@@ -95,7 +121,7 @@ export default function MarketplaceTab() {
         data={listings}
         keyExtractor={item => item.id}
         numColumns={2}
-        contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
         columnWrapperStyle={{ gap: 10 }}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
@@ -109,28 +135,7 @@ export default function MarketplaceTab() {
             </Text>
           </View>
         }
-        ListFooterComponent={
-          canList ? (
-            <Pressable
-              onPress={() => router.push('/marketplace/create')}
-              style={{
-                margin: 12,
-                backgroundColor: colors.coral,
-                borderRadius: 14,
-                padding: 16,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              <Text style={{ fontSize: 18 }}>✦</Text>
-              <Text style={{ color: colors.offWhite, fontWeight: '800', fontSize: 15 }}>
-                List Something
-              </Text>
-            </Pressable>
-          ) : null
-        }
+        ListFooterComponent={<View style={{ height: 8 }} />}
         renderItem={({ item }) => {
           if (item.id === '__spacer__') return <View style={{ flex: 1 }} />;
           return (
