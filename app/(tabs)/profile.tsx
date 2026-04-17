@@ -140,7 +140,6 @@ export default function ProfileTab() {
         text: 'Continue',
         onPress: async () => {
           await clearRole();
-          await signOut();
           router.replace('/onboarding');
         },
       },
