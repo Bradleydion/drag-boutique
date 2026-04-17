@@ -2,14 +2,21 @@
 import { InstagramGrid } from '@/components/InstagramGrid';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { performers as rawPerformers } from '@/data/events';
+import { isGuest } from '@/lib/authStore';
+import {
+  followPerformer,
+  getFollowerCount,
+  isFollowing,
+  unfollowPerformer,
+} from '@/lib/followStore';
 import { openVenmoPay } from '@/lib/venmo';
 import * as Linking from 'expo-linking';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { Alert, Image, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 
-// Minimal shape used here to make TS happy even if the data module lacks types
 type PerformerShape = {
   id: string;
   stageName: string;
@@ -26,7 +33,16 @@ export default function PerformerProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const performers = (rawPerformers as unknown as PerformerShape[]) || [];
   const p = performers.find((x) => x.id === id);
-  const userId = 'demoUser';
+
+  const [following, setFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  useEffect(() => {
+    if (!p) return;
+    setFollowing(isFollowing(p.id));
+    getFollowerCount(p.id).then(setFollowerCount);
+  }, [p?.id]);
 
   if (!p)
     return (
@@ -39,6 +55,36 @@ export default function PerformerProfile() {
         </View>
       </SafeAreaView>
     );
+
+  async function handleFollow() {
+    if (isGuest()) {
+      Alert.alert(
+        'Create an Account',
+        'You need an account to follow artists.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Up', onPress: () => router.push('/auth') },
+        ],
+      );
+      return;
+    }
+    setFollowLoading(true);
+    try {
+      if (following) {
+        await unfollowPerformer(p.id);
+        setFollowing(false);
+        setFollowerCount(c => Math.max(0, c - 1));
+      } else {
+        await followPerformer(p.id);
+        setFollowing(true);
+        setFollowerCount(c => c + 1);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not update follow. Please try again.');
+    } finally {
+      setFollowLoading(false);
+    }
+  }
 
   const igPhotos = Array.isArray(p.instagramPhotos) ? p.instagramPhotos : undefined;
 
@@ -60,8 +106,41 @@ export default function PerformerProfile() {
         ) : null}
 
         <View style={{ padding: 16 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: '900' }}>{p.stageName}</Text>
-          {p.bio ? <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 22 }}>{p.bio}</Text> : null}
+          {/* Name + follower count + follow button */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 28, fontWeight: '900' }}>{p.stageName}</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 4 }}>
+                {followerCount} {followerCount === 1 ? 'follower' : 'followers'}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={handleFollow}
+              disabled={followLoading}
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 9,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: following ? colors.teal : colors.teal,
+                backgroundColor: following ? colors.teal + '22' : colors.teal,
+                marginTop: 4,
+              }}
+            >
+              <Text style={{
+                color: following ? colors.teal : colors.navy,
+                fontWeight: '700',
+                fontSize: 14,
+              }}>
+                {followLoading ? '…' : following ? 'Following' : 'Follow'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {p.bio ? (
+            <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 22 }}>{p.bio}</Text>
+          ) : null}
           {p.bookingInfo ? (
             <Text style={{ color: colors.accent, marginTop: 6, fontWeight: '600' }}>📍 {p.bookingInfo}</Text>
           ) : null}
@@ -71,7 +150,7 @@ export default function PerformerProfile() {
               title="Tip via Venmo"
               onPress={() => {
                 if (p.venmoHandle && p.venmoHandle.trim().length > 0) {
-                  openVenmoPay(p.venmoHandle, undefined, `Tip-${p.id}-${userId}`);
+                  openVenmoPay(p.venmoHandle, undefined, `Tip-${p.id}`);
                 } else {
                   Alert.alert('Unavailable', 'This performer has not added a Venmo handle yet.');
                 }

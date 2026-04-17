@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -11,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
+import { performers } from '../../data/events';
+import { getFollowedIds } from '../../lib/followStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -130,6 +133,7 @@ export default function ProfileTab() {
     ]);
   }
 
+  const followedPerformers = performers.filter(p => getFollowedIds().includes(p.id));
   const sections = ROLE_SECTIONS[role] ?? ROLE_SECTIONS.fan;
   const roleColor = ROLE_COLORS[role] ?? colors.teal;
   const roleLabel = ROLE_LABELS[role] ?? 'Fan';
@@ -259,6 +263,61 @@ export default function ProfileTab() {
             </Pressable>
           ))}
         </View>
+
+        {/* Following section — only shown when the user follows at least one artist */}
+        {followedPerformers.length > 0 && (
+          <>
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>
+              FOLLOWING ({followedPerformers.length})
+            </Text>
+            <View style={{
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+              marginBottom: 24,
+            }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 16 }}
+              >
+                {followedPerformers.map(p => (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => router.push(`/performer/${p.id}`)}
+                    style={{ alignItems: 'center', width: 68 }}
+                  >
+                    {p.photoUrl ? (
+                      <Image
+                        source={{ uri: p.photoUrl }}
+                        style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: roleColor }}
+                      />
+                    ) : (
+                      <View style={{
+                        width: 56, height: 56, borderRadius: 28,
+                        backgroundColor: roleColor + '33',
+                        borderWidth: 2, borderColor: roleColor,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ color: roleColor, fontWeight: '800', fontSize: 18 }}>
+                          {p.stageName.slice(0, 1).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <Text
+                      numberOfLines={2}
+                      style={{ color: colors.textSecondary, fontSize: 11, marginTop: 6, textAlign: 'center', lineHeight: 14 }}
+                    >
+                      {p.stageName}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </>
+        )}
 
         {/* Settings */}
         <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>

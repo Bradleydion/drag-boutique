@@ -23,6 +23,13 @@ export type DraftEvent = {
   payoutVenmo?: string;   // @handle (without @ is fine too)
   salesStart?: string;    // ISO
   salesEnd?: string;      // ISO
+
+  // Recurring events
+  // TODO: wire into host create-event flow (host sprint)
+  isRecurring?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'monthly';
+  recurringDaysOfWeek?: number[];  // weekly only — 0=Sun, 6=Sat
+  recurringEndDate?: string;       // ISO — when the series stops
 };
 
 let _draft: DraftEvent = {};
