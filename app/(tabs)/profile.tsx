@@ -16,6 +16,7 @@ import { events, performers } from '../../data/events';
 import { getFollowedIds } from '../../lib/followStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
+import { loadMyPerformerProfile, type PerformerRecord } from '../../lib/performerStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -63,19 +64,23 @@ export default function ProfileTab() {
   const displayNameFromMeta = getSession()?.user?.user_metadata?.display_name as string | undefined;
   const role = getRole() ?? 'fan';
 
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(displayNameFromMeta ?? '');
-  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
-  const [myListings, setMyListings] = useState<Listing[]>([]);
+  const [editingName,     setEditingName]     = useState(false);
+  const [nameInput,       setNameInput]       = useState(displayNameFromMeta ?? '');
+  const [myTickets,       setMyTickets]       = useState<Ticket[]>([]);
+  const [myListings,      setMyListings]      = useState<Listing[]>([]);
+  const [myArtistProfile, setMyArtistProfile] = useState<PerformerRecord | null>(null);
 
-  // Reload tickets + listings whenever the profile tab comes into focus.
+  // Reload tickets, listings, and performer profile whenever the tab comes into focus.
   useFocusEffect(
     useCallback(() => {
       if (!guest) {
         loadTickets().then(() => setMyTickets(getTickets()));
         loadListings().then(() => setMyListings(getMyListings()));
+        if (role === 'artist') {
+          loadMyPerformerProfile().then(setMyArtistProfile);
+        }
       }
-    }, [guest]),
+    }, [guest, role]),
   );
 
   async function saveName() {
@@ -253,14 +258,26 @@ export default function ProfileTab() {
         </Text>
         <View style={{ gap: 10, marginBottom: 24 }}>
           {sections.map((item) => {
-            const isMyTickets = item.label === 'My Tickets';
+            const isMyTickets       = item.label === 'My Tickets';
+            const isPerformerProfile = item.label === 'Performer Profile';
+
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
+              : isPerformerProfile && myArtistProfile
+              ? myArtistProfile.stageName
+              : isPerformerProfile && !myArtistProfile
+              ? 'Tap to create your public artist page'
               : item.sublabel;
+
             const onPress = isMyTickets
               ? () => router.push('/(tabs)/tickets')
+              : isPerformerProfile && myArtistProfile
+              ? () => router.push(`/performer/${myArtistProfile.id}` as any)
+              : isPerformerProfile
+              ? () => router.push('/performer/create' as any)
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
-            const isActive = isMyTickets && myTickets.length > 0;
+
+            const isActive = (isMyTickets && myTickets.length > 0) || (isPerformerProfile && !!myArtistProfile);
             return (
               <Pressable
                 key={item.label}
