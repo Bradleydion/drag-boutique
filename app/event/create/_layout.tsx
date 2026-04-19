@@ -9,6 +9,7 @@ export default function CreateEventLayout() {
         headerStyle: { backgroundColor: colors.navy },
         headerTitleStyle: { color: colors.textPrimary },
         headerTintColor: colors.teal,
+        headerBackTitle: 'Back',
         contentStyle: { backgroundColor: colors.navy },
       }}
     >

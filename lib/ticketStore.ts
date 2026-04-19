@@ -9,6 +9,7 @@
 //     event_id text not null,
 //     price numeric not null,
 //     purchased_at timestamptz default now(),
+//     checked_in_at timestamptz,
 //     unique(user_id, event_id)
 //   );
 //
@@ -25,7 +26,14 @@ export type Ticket = {
   event_id: string;
   price: number;
   purchased_at: string;
+  checked_in_at?: string | null;
 };
+
+// ─── Check-in result ─────────────────────────────────────────────────────────
+
+export type CheckInResult =
+  | { ok: true;  ticket: Ticket }
+  | { ok: false; reason: 'not_found' | 'wrong_event' | 'already_checked_in' };
 
 // Local cache — keyed by event_id for fast lookup.
 let _tickets: Ticket[] = [];
@@ -64,7 +72,7 @@ export function ticketsLoaded(): boolean {
   return _loaded;
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
+// ─── Purchase ─────────────────────────────────────────────────────────────────
 
 /**
  * Record a ticket purchase in Supabase.
@@ -75,7 +83,6 @@ export async function buyTicket(eventId: string, price: number): Promise<Ticket>
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to buy tickets.');
 
-  // Already have one — treat as success and return the existing ticket.
   const existing = _tickets.find(t => t.event_id === eventId);
   if (existing) return existing;
 
@@ -86,7 +93,6 @@ export async function buyTicket(eventId: string, price: number): Promise<Ticket>
     .single();
 
   if (error) {
-    // Unique constraint = somehow already exists
     if (error.code === '23505') {
       await loadTickets();
       const found = _tickets.find(t => t.event_id === eventId);
@@ -98,4 +104,68 @@ export async function buyTicket(eventId: string, price: number): Promise<Ticket>
   const ticket = data as Ticket;
   _tickets = [ticket, ..._tickets];
   return ticket;
+}
+
+// ─── Door check-in ───────────────────────────────────────────────────────────
+
+/**
+ * Validate a ticket ID for a specific event and mark it as checked in.
+ * Called by the host's door check-in screen.
+ * Does NOT require the host to be the ticket owner — host has no RLS restriction
+ * because we query by ticket ID (which is secret, embedded in the QR).
+ */
+export async function checkInTicket(
+  ticketId: string,
+  eventId: string,
+): Promise<CheckInResult> {
+  // Fetch the ticket by ID regardless of ownership
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('*')
+    .eq('id', ticketId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  const ticket = data as Ticket;
+
+  if (ticket.event_id !== eventId) {
+    return { ok: false, reason: 'wrong_event' };
+  }
+
+  if (ticket.checked_in_at) {
+    return { ok: false, reason: 'already_checked_in' };
+  }
+
+  // Mark checked in
+  const now = new Date().toISOString();
+  const { error: updateError } = await supabase
+    .from('tickets')
+    .update({ checked_in_at: now })
+    .eq('id', ticketId);
+
+  if (updateError) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  return { ok: true, ticket: { ...ticket, checked_in_at: now } };
+}
+
+/**
+ * Fetch all tickets for a given event (host use only, for the check-in counter).
+ * Returns { total, checkedIn }.
+ */
+export async function getEventTicketStats(eventId: string): Promise<{ total: number; checkedIn: number }> {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('checked_in_at')
+    .eq('event_id', eventId);
+
+  if (error || !data) return { total: 0, checkedIn: 0 };
+  return {
+    total:     data.length,
+    checkedIn: data.filter(t => t.checked_in_at).length,
+  };
 }

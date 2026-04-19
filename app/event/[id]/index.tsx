@@ -9,7 +9,7 @@ import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
 export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();

@@ -1,7 +1,7 @@
 // app/event/create/review.tsx
 import { Stack, router } from 'expo-router';
-import { useMemo, useCallback } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo, useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, resetDraft } from '../../../lib/createEventStore';
@@ -9,31 +9,44 @@ import { publishDraft } from '../../../lib/eventsStore';
 import { colors as C } from '../../../src/theme/colors';
 
 export default function CreateEvent_Review() {
-  // Read draft fresh on each render — this ensures we always show
-  // the latest data after navigating from ticketing/venue/basics.
   const d = getDraft();
+  const [publishing, setPublishing] = useState(false);
+
+  const recurringLabel = useMemo(() => {
+    if (!d.isRecurring || !d.recurringFrequency) return undefined;
+    const freq = d.recurringFrequency.charAt(0).toUpperCase() + d.recurringFrequency.slice(1);
+    return d.recurringEndDate ? `${freq} · ends ${d.recurringEndDate}` : freq;
+  }, [d]);
 
   const rows = useMemo(() => [
-    { label: 'Title',          value: d.title },
-    { label: 'Description',    value: d.description },
-    { label: 'Start',          value: d.datetimeStart },
-    { label: 'End',            value: d.datetimeEnd },
-    { label: 'Timezone',       value: d.timezone },
-    { label: 'Venue',          value: d.venueName },
-    { label: 'Address',        value: [d.venueAddress, d.venueCity, d.venueState, d.venueZip].filter(Boolean).join(', ') },
-    { label: 'Venue Instagram',value: d.venueInstagram },
-    { label: 'Ticket price',   value: typeof d.ticketPrice === 'number' ? `$${d.ticketPrice.toFixed(2)}` : d.ticketPrice === 0 ? 'Free' : undefined },
-    { label: 'Payout Venmo',   value: d.payoutVenmo ? `@${d.payoutVenmo.replace(/^@/, '')}` : undefined },
-    { label: 'Sales start',    value: d.salesStart },
-    { label: 'Sales end',      value: d.salesEnd },
-  ], [d]);
+    { label: 'Title',           value: d.title },
+    { label: 'Description',     value: d.description },
+    { label: 'Start',           value: d.datetimeStart },
+    { label: 'End',             value: d.datetimeEnd },
+    { label: 'Timezone',        value: d.timezone },
+    { label: 'Recurring',       value: recurringLabel },
+    { label: 'Venue',           value: d.venueName },
+    { label: 'Address',         value: [d.venueAddress, d.venueCity, d.venueState, d.venueZip].filter(Boolean).join(', ') },
+    { label: 'Venue Instagram', value: d.venueInstagram },
+    { label: 'Ticket price',    value: typeof d.ticketPrice === 'number' ? (d.ticketPrice === 0 ? 'Free' : `$${d.ticketPrice.toFixed(2)}`) : undefined },
+    { label: 'Payout Venmo',    value: d.payoutVenmo ? `@${d.payoutVenmo.replace(/^@/, '')}` : undefined },
+    { label: 'Sales start',     value: d.salesStart },
+    { label: 'Sales end',       value: d.salesEnd },
+  ], [d, recurringLabel]);
 
-  const publish = useCallback(() => {
-    publishDraft(d);
-    resetDraft();
-    Alert.alert('🎉 Published!', 'Your event is now live on Sequins.', [
-      { text: 'Back to Discover', onPress: () => router.replace('/(tabs)/discover') },
-    ]);
+  const publish = useCallback(async () => {
+    setPublishing(true);
+    try {
+      await publishDraft(d);
+      resetDraft();
+      Alert.alert('🎉 Published!', 'Your event is now live on Sequins.', [
+        { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/organize') },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not publish. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
   }, [d]);
 
   const empty = rows.every((r) => !r.value);
@@ -62,6 +75,13 @@ export default function CreateEvent_Review() {
           </View>
         ) : (
           <>
+            {/* Flyer preview */}
+            {d.imageLocalUri && (
+              <View style={{ marginTop: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: C.border }}>
+                <Image source={{ uri: d.imageLocalUri }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+              </View>
+            )}
+
             {/* Summary rows */}
             <View style={{
               backgroundColor: C.surface,
@@ -82,21 +102,27 @@ export default function CreateEvent_Review() {
 
             {/* Edit buttons */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
-              <View style={{ flex: 1 }}>
-                <PrimaryButton variant="ghost" title="Basics" onPress={() => router.push('/event/create/basics')} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <PrimaryButton variant="ghost" title="Venue" onPress={() => router.push('/event/create/venue')} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <PrimaryButton variant="ghost" title="Tickets" onPress={() => router.push('/event/create/ticketing')} />
-              </View>
+              {[
+                { title: 'Basics',  path: '/event/create/basics' },
+                { title: 'Venue',   path: '/event/create/venue' },
+                { title: 'Tickets', path: '/event/create/ticketing' },
+              ].map(btn => (
+                <View key={btn.title} style={{ flex: 1 }}>
+                  <PrimaryButton variant="ghost" title={btn.title} onPress={() => router.push(btn.path as any)} />
+                </View>
+              ))}
             </View>
 
             <View style={{ height: 20 }} />
-            <PrimaryButton title="Publish Event 🎉" onPress={publish} />
+
+            {publishing ? (
+              <ActivityIndicator color={C.teal} style={{ marginVertical: 16 }} />
+            ) : (
+              <PrimaryButton title="Publish Event 🎉" onPress={publish} />
+            )}
+
             <View style={{ height: 12 }} />
-            <Pressable onPress={() => router.replace('/(tabs)/discover')} accessibilityRole="button">
+            <Pressable onPress={() => router.replace('/(tabs)/organize')} accessibilityRole="button">
               <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>Cancel</Text>
             </Pressable>
           </>

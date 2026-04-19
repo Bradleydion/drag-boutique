@@ -60,7 +60,10 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.navy },
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)"        options={{ headerShown: false, headerBackTitle: 'Back' }} />
+        {/* Suppress outer root-Stack header for nested event flows — each has its own _layout.tsx */}
+        <Stack.Screen name="event/create"  options={{ headerShown: false }} />
+        <Stack.Screen name="event/[id]"    options={{ headerShown: false }} />
       </Stack>
     </>
   );
