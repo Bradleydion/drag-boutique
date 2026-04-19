@@ -10,6 +10,9 @@ export type DraftEvent = {
   datetimeEnd?: string;   // ISO string
   timezone?: string;
 
+  // Performers
+  performerIds?: string[];
+
   // Venue
   venueName?: string;
   venueAddress?: string;

@@ -31,6 +31,7 @@ export type EventRecord = {
   imageUrl?: string;
   capacity?: number;
   createdAt?: string;
+  performerIds?: string[];
   // Recurring
   isRecurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -67,9 +68,10 @@ function rowToEvent(row: Record<string, any>): EventRecord {
       salesStart:  row.sales_start,
       salesEnd:    row.sales_end,
     },
-    imageUrl:  row.image_url,
-    capacity:  row.capacity,
-    createdAt: row.created_at,
+    imageUrl:    row.image_url,
+    capacity:    row.capacity,
+    createdAt:   row.created_at,
+    performerIds:       row.performer_ids ?? [],
     isRecurring:        row.is_recurring ?? false,
     recurringFrequency: row.recurring_frequency,
     recurringEndDate:   row.recurring_end_date,
@@ -168,6 +170,7 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
     sales_start:   d.salesStart || null,
     sales_end:     d.salesEnd   || null,
     image_url:     imageUrl ?? null,
+    performer_ids: d.performerIds ?? [],
     is_recurring:          d.isRecurring ?? false,
     recurring_frequency:   d.isRecurring ? (d.recurringFrequency ?? null) : null,
     recurring_end_date:    d.isRecurring ? (d.recurringEndDate   ?? null) : null,

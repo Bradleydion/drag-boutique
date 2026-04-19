@@ -103,7 +103,7 @@ export default function CreateEvent_Basics() {
       recurringFrequency: isRecurring ? frequency : undefined,
       recurringEndDate:   isRecurring ? (recurringEnd || undefined) : undefined,
     });
-    router.push('/event/create/venue');
+    router.push('/event/create/performers');
   }
 
   // ── Shared styles ───────────────────────────────────────────────────────────

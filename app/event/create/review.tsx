@@ -1,7 +1,8 @@
 // app/event/create/review.tsx
 import { Stack, router } from 'expo-router';
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { loadPerformers, getPerformers, type PerformerRecord } from '../../../lib/performerStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, resetDraft } from '../../../lib/createEventStore';
@@ -11,6 +12,18 @@ import { colors as C } from '../../../src/theme/colors';
 export default function CreateEvent_Review() {
   const d = getDraft();
   const [publishing, setPublishing] = useState(false);
+  const [allPerformers, setAllPerformers] = useState<PerformerRecord[]>([]);
+
+  useEffect(() => {
+    const cached = getPerformers();
+    if (cached.length > 0) { setAllPerformers(cached); return; }
+    loadPerformers().then(() => setAllPerformers(getPerformers()));
+  }, []);
+
+  const taggedPerformers = useMemo(
+    () => allPerformers.filter(p => d.performerIds?.includes(p.id)),
+    [allPerformers, d.performerIds],
+  );
 
   const recurringLabel = useMemo(() => {
     if (!d.isRecurring || !d.recurringFrequency) return undefined;
@@ -82,6 +95,23 @@ export default function CreateEvent_Review() {
               </View>
             )}
 
+            {/* Tagged performers */}
+            {taggedPerformers.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <Text style={{ color: C.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+                  Performers ({taggedPerformers.length})
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {taggedPerformers.map(p => (
+                    <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surface, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: C.teal + '55' }}>
+                      {p.photoUrl && <Image source={{ uri: p.photoUrl }} style={{ width: 22, height: 22, borderRadius: 11 }} />}
+                      <Text style={{ color: C.teal, fontWeight: '700', fontSize: 12 }}>{p.stageName}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Summary rows */}
             <View style={{
               backgroundColor: C.surface,
@@ -103,9 +133,10 @@ export default function CreateEvent_Review() {
             {/* Edit buttons */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               {[
-                { title: 'Basics',  path: '/event/create/basics' },
-                { title: 'Venue',   path: '/event/create/venue' },
-                { title: 'Tickets', path: '/event/create/ticketing' },
+                { title: 'Basics',      path: '/event/create/basics' },
+                { title: 'Performers',  path: '/event/create/performers' },
+                { title: 'Venue',       path: '/event/create/venue' },
+                { title: 'Tickets',     path: '/event/create/ticketing' },
               ].map(btn => (
                 <View key={btn.title} style={{ flex: 1 }}>
                   <PrimaryButton variant="ghost" title={btn.title} onPress={() => router.push(btn.path as any)} />
