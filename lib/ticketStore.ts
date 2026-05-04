@@ -19,6 +19,8 @@
 
 import { getSession, isGuest } from './authStore';
 import { supabase } from './supabase';
+import { addNotification } from './notificationsStore';
+import { fetchEventById } from './eventsStore';
 
 export type Ticket = {
   id: string;
@@ -103,6 +105,21 @@ export async function buyTicket(eventId: string, price: number): Promise<Ticket>
 
   const ticket = data as Ticket;
   _tickets = [ticket, ..._tickets];
+
+  // Notify the host that a ticket was sold (non-fatal)
+  try {
+    const event = await fetchEventById(eventId);
+    if (event && event.hostId && event.hostId !== session.user.id) {
+      await addNotification({
+        userId: event.hostId,
+        type:   'ticket_sold',
+        title:  `New ticket sold — ${event.title}`,
+        body:   price === 0 ? 'A free ticket was claimed.' : `$${price.toFixed(2)} ticket purchased.`,
+        link:   `/event/${eventId}`,
+      });
+    }
+  } catch (_) { /* notification failure is non-fatal */ }
+
   return ticket;
 }
 

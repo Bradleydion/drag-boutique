@@ -1,10 +1,55 @@
 // app/(tabs)/_layout.tsx
-import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { IconSymbol } from '../../components/ui/IconSymbol';
 import { colors } from '../../src/theme/colors';
+import { loadNotifications, getUnreadCount } from '../../lib/notificationsStore';
 
 export default function TabLayout() {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    // Load on mount, then poll every 60 s
+    async function refresh() {
+      await loadNotifications();
+      setUnread(getUnreadCount());
+    }
+    refresh();
+    const interval = setInterval(refresh, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function BellButton() {
+    return (
+      <Pressable
+        onPress={() => router.push('/notifications')}
+        hitSlop={12}
+        style={{ marginRight: 14 }}
+      >
+        <IconSymbol name="bell" size={24} color={colors.textPrimary} />
+        {unread > 0 && (
+          <View style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: colors.danger ?? '#FF4444',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 3,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>
+              {unread > 99 ? '99+' : unread}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{
@@ -28,6 +73,7 @@ export default function TabLayout() {
           title: 'Discover',
           headerTitle: 'Sequins',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="sparkles" color={color} />,
+          headerRight: () => <BellButton />,
         }}
       />
 

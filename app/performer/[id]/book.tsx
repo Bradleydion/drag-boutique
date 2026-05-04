@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getEmail, getSession, isGuest } from '../../../lib/authStore';
 import { supabase } from '../../../lib/supabase';
+import { fetchPerformerById } from '../../../lib/performerStore';
+import { addNotification } from '../../../lib/notificationsStore';
 import { colors as C } from '../../../src/theme/colors';
 
 type RequestType = 'booking' | 'commission';
@@ -65,6 +67,23 @@ export default function BookingForm() {
       });
 
       if (error) throw error;
+
+      // Notify the performer (non-fatal)
+      try {
+        const performer = await fetchPerformerById(performerId);
+        if (performer?.userId) {
+          const notifTitle = requestType === 'commission'
+            ? `New commission request from ${name.trim()}`
+            : `New booking request from ${name.trim()}`;
+          await addNotification({
+            userId: performer.userId,
+            type:   'booking_request',
+            title:  notifTitle,
+            body:   message.trim().slice(0, 120),
+            link:   `/performer/${performerId}`,
+          });
+        }
+      } catch (_) { /* non-fatal */ }
 
       Alert.alert(
         '✅ Request Sent!',

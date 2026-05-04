@@ -2,6 +2,8 @@
 import { supabase } from './supabase';
 import { getSession } from './authStore';
 import type { DraftEvent } from './createEventStore';
+import { addNotification } from './notificationsStore';
+import { fetchPerformerById } from './performerStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,6 +188,28 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
 
   const record = rowToEvent(data);
   _hostEvents = [record, ..._hostEvents];
+
+  // Notify tagged performers (non-fatal, fire-and-forget)
+  if (d.performerIds && d.performerIds.length > 0) {
+    const eventTitle = d.title ?? 'Untitled Event';
+    Promise.all(
+      d.performerIds.map(async (pid) => {
+        try {
+          const performer = await fetchPerformerById(pid);
+          if (performer?.userId) {
+            await addNotification({
+              userId: performer.userId,
+              type:   'performer_tagged',
+              title:  `You've been added to "${eventTitle}"`,
+              body:   `${hostName} tagged you on a new event.`,
+              link:   `/event/${record.id}`,
+            });
+          }
+        } catch (_) { /* non-fatal */ }
+      }),
+    ).catch(() => {});
+  }
+
   return record;
 }
 
