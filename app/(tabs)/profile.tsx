@@ -603,6 +603,28 @@ export default function ProfileTab() {
               </View>
             </Pressable>
           )}
+
+          {/* Community Resources */}
+          <Pressable
+            onPress={() => router.push('/resources' as any)}
+            style={{
+              backgroundColor: '#4C1D95',
+              borderRadius: 14,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#7C3AED',
+              gap: 14,
+            }}
+          >
+            <Text style={{ fontSize: 22 }}>🏳️‍🌈</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#E9D5FF', fontWeight: '800', fontSize: 15 }}>Community Resources</Text>
+              <Text style={{ color: '#C4B5FD', fontSize: 13, marginTop: 2 }}>Crisis lines, Portland orgs, health & legal support</Text>
+            </View>
+            <Text style={{ color: '#A78BFA', fontSize: 18 }}>›</Text>
+          </Pressable>
         </View>
 
       </ScrollView>
