@@ -213,6 +213,76 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
   return record;
 }
 
+/** Update an existing event. Only the host of the event should call this. */
+export async function updateEvent(
+  eventId: string,
+  patch: Partial<{
+    title: string;
+    description: string;
+    datetimeStart: string;
+    datetimeEnd: string;
+    timezone: string;
+    venueName: string;
+    venueAddress: string;
+    venueCity: string;
+    venueState: string;
+    venueZip: string;
+    venueInstagram: string;
+    ticketPrice: number;
+    payoutVenmo: string;
+    salesStart: string;
+    salesEnd: string;
+    isRecurring: boolean;
+    recurringFrequency: string;
+    recurringEndDate: string;
+    imageLocalUri: string;
+    performerIds: string[];
+  }>,
+): Promise<EventRecord> {
+  const payload: Record<string, any> = {};
+
+  if (patch.title !== undefined)            payload.title             = patch.title;
+  if (patch.description !== undefined)      payload.description       = patch.description;
+  if (patch.datetimeStart !== undefined)    payload.datetime_start    = patch.datetimeStart || null;
+  if (patch.datetimeEnd !== undefined)      payload.datetime_end      = patch.datetimeEnd   || null;
+  if (patch.timezone !== undefined)         payload.timezone          = patch.timezone;
+  if (patch.venueName !== undefined)        payload.venue_name        = patch.venueName;
+  if (patch.venueAddress !== undefined)     payload.venue_address     = patch.venueAddress;
+  if (patch.venueCity !== undefined)        payload.venue_city        = patch.venueCity;
+  if (patch.venueState !== undefined)       payload.venue_state       = patch.venueState;
+  if (patch.venueZip !== undefined)         payload.venue_zip         = patch.venueZip;
+  if (patch.venueInstagram !== undefined)   payload.venue_instagram   = patch.venueInstagram;
+  if (patch.ticketPrice !== undefined)      payload.ticket_price      = patch.ticketPrice;
+  if (patch.payoutVenmo !== undefined)      payload.payout_venmo      = patch.payoutVenmo;
+  if (patch.salesStart !== undefined)       payload.sales_start       = patch.salesStart   || null;
+  if (patch.salesEnd !== undefined)         payload.sales_end         = patch.salesEnd     || null;
+  if (patch.isRecurring !== undefined)      payload.is_recurring      = patch.isRecurring;
+  if (patch.recurringFrequency !== undefined) payload.recurring_frequency = patch.recurringFrequency || null;
+  if (patch.recurringEndDate !== undefined)   payload.recurring_end_date  = patch.recurringEndDate  || null;
+  if (patch.performerIds !== undefined)     payload.performer_ids     = patch.performerIds;
+
+  // Handle image upload if a new local URI was supplied
+  if (patch.imageLocalUri) {
+    payload.image_url = await uploadEventImage(patch.imageLocalUri);
+  }
+
+  const { data, error } = await supabase
+    .from('events')
+    .update(payload)
+    .eq('id', eventId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const record = rowToEvent(data);
+  const idx = _hostEvents.findIndex(e => e.id === eventId);
+  if (idx >= 0) _hostEvents[idx] = record;
+  else _hostEvents = [record, ..._hostEvents];
+
+  return record;
+}
+
 /** Delete one of the host's events. */
 export async function deleteEvent(eventId: string): Promise<void> {
   const { error } = await supabase

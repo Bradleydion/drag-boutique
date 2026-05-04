@@ -9,7 +9,12 @@ export default function EventLayout() {
         headerStyle: { backgroundColor: colors.navy },
         headerTitleStyle: { color: colors.textPrimary, fontWeight: '800' },
         headerTintColor: colors.teal,
+        headerBackTitle: 'Back',
       }}
-    />
+    >
+      <Stack.Screen name="index"   options={{ title: 'Event' }} />
+      <Stack.Screen name="checkin" options={{ title: 'Door Check-In' }} />
+      <Stack.Screen name="edit"    options={{ title: 'Edit Event' }} />
+    </Stack>
   );
 }

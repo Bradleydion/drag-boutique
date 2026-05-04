@@ -337,6 +337,102 @@ export async function uploadPerformerPhoto(localUri: string): Promise<string> {
   return data.publicUrl;
 }
 
+// ─── Booking requests ─────────────────────────────────────────────────────────
+
+export type BookingRequestStatus = 'pending' | 'accepted' | 'declined';
+export type BookingRequestType   = 'booking' | 'commission';
+
+export type BookingRequest = {
+  id: string;
+  performerId: string;
+  requesterId: string;
+  requesterName: string;
+  requesterEmail: string;
+  message: string;
+  eventDate?: string;
+  requestType: BookingRequestType;
+  status: BookingRequestStatus;
+  createdAt: string;
+};
+
+function rowToRequest(row: Record<string, any>): BookingRequest {
+  return {
+    id:             row.id,
+    performerId:    row.performer_id,
+    requesterId:    row.requester_id,
+    requesterName:  row.requester_name,
+    requesterEmail: row.requester_email,
+    message:        row.message,
+    eventDate:      row.event_date ?? undefined,
+    requestType:    row.request_type as BookingRequestType,
+    status:         row.status as BookingRequestStatus,
+    createdAt:      row.created_at,
+  };
+}
+
+/** Load all booking requests for a given performer ID. */
+export async function loadBookingRequests(performerId: string): Promise<BookingRequest[]> {
+  const { data, error } = await supabase
+    .from('booking_requests')
+    .select('*')
+    .eq('performer_id', performerId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('[performerStore] loadBookingRequests error:', error.message);
+    return [];
+  }
+  return (data ?? []).map(rowToRequest);
+}
+
+/** Accept a booking request and notify the requester. */
+export async function acceptBookingRequest(requestId: string, performerName: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('booking_requests')
+    .update({ status: 'accepted' })
+    .eq('id', requestId)
+    .select('requester_id, performer_id, request_type')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // Notify requester
+  try {
+    const { addNotification } = await import('./notificationsStore');
+    await addNotification({
+      userId: data.requester_id,
+      type:   'booking_accepted',
+      title:  `${performerName} accepted your ${data.request_type} request! 🎉`,
+      body:   'Reach out to confirm details.',
+      link:   `/performer/${data.performer_id}`,
+    });
+  } catch (_) {}
+}
+
+/** Decline a booking request and notify the requester. */
+export async function declineBookingRequest(requestId: string, performerName: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('booking_requests')
+    .update({ status: 'declined' })
+    .eq('id', requestId)
+    .select('requester_id, performer_id, request_type')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // Notify requester
+  try {
+    const { addNotification } = await import('./notificationsStore');
+    await addNotification({
+      userId: data.requester_id,
+      type:   'booking_declined',
+      title:  `${performerName} isn't available for your ${data.request_type} request`,
+      body:   'Check out other artists on Sequins.',
+      link:   `/performer/${data.performer_id}`,
+    });
+  } catch (_) {}
+}
+
 // ─── Upcoming shows ───────────────────────────────────────────────────────────
 
 /**

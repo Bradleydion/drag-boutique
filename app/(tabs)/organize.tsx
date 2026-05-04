@@ -32,7 +32,7 @@ function isUpcoming(e: EventRecord) {
 
 // ─── Event Card ───────────────────────────────────────────────────────────────
 
-function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => void }) {
+function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => void; }) {
   const upcoming = isUpcoming(event);
   const price = event.ticketing?.price;
 
@@ -99,6 +99,20 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
           </Pressable>
         )}
         <Pressable
+          onPress={() => router.push(`/event/${event.id}/edit` as any)}
+          style={{
+            flex: 1,
+            backgroundColor: colors.teal + '22',
+            borderRadius: 10,
+            paddingVertical: 10,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: colors.teal + '55',
+          }}
+        >
+          <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 13 }}>✏️ Edit</Text>
+        </Pressable>
+        <Pressable
           onPress={() => router.push(`/event/${event.id}` as any)}
           style={{
             flex: 1,
@@ -108,7 +122,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>View Page</Text>
+          <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>View</Text>
         </Pressable>
         <Pressable
           onPress={onDelete}

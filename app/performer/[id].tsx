@@ -282,6 +282,11 @@ export default function PerformerProfile() {
                 title="✏️ Edit My Profile"
                 onPress={() => router.push(`/performer/${p.id}/edit` as any)}
               />
+              <PrimaryButton
+                variant="ghost"
+                title="📬 Booking Requests"
+                onPress={() => router.push(`/performer/${p.id}/requests` as any)}
+              />
             </View>
           )}
 

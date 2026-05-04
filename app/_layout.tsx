@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -29,6 +30,13 @@ async function handleDeepLink(url: string) {
 
 export default function RootLayout() {
   useEffect(() => {
+    // Show onboarding on first launch (skip if role already chosen)
+    AsyncStorage.getItem('@sequins/userRole').then(val => {
+      if (!val) {
+        router.replace('/onboarding');
+      }
+    });
+
     // App opened cold via deep link.
     Linking.getInitialURL().then(url => { if (url) handleDeepLink(url); });
 
@@ -61,6 +69,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)"        options={{ headerShown: false, headerBackTitle: 'Back' }} />
+        <Stack.Screen name="onboarding"    options={{ headerShown: false }} />
         {/* Suppress outer root-Stack header for nested event flows — each has its own _layout.tsx */}
         <Stack.Screen name="event/create"  options={{ headerShown: false }} />
         <Stack.Screen name="event/[id]"    options={{ headerShown: false }} />

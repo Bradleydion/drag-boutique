@@ -8,9 +8,10 @@ import { isGuest } from '@/lib/authStore';
 import { getTickets, loadTickets, type Ticket } from '@/lib/ticketStore';
 import { colors } from '../../src/theme/colors';
 
-// QR code generated via free public API — no package install needed.
+// QR code via free public API — no native dependency needed.
+// Format matches what the door check-in screen expects: SEQ-TICKET:<uuid>
 function qrUrl(data: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=1a1a2e&bgcolor=f0f0f5&data=${encodeURIComponent(data)}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0D1B2A&bgcolor=FFFFFF&qzone=2&data=${encodeURIComponent(data)}`;
 }
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
@@ -100,19 +101,23 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         {expanded && (
           <View style={{ alignItems: 'center', marginTop: 16, paddingBottom: 4 }}>
             <View style={{
-              padding: 12,
-              backgroundColor: '#f0f0f5',
-              borderRadius: 12,
+              padding: 14,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
               borderWidth: 1,
               borderColor: colors.border,
+              alignItems: 'center',
             }}>
               <Image
                 source={{ uri: qrUrl(qrData) }}
-                style={{ width: 160, height: 160 }}
+                style={{ width: 180, height: 180 }}
               />
             </View>
-            <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 8, letterSpacing: 0.5 }}>
-              Show this at the door
+            <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 12, marginTop: 10, letterSpacing: 0.5 }}>
+              Show this at the door · {shortId}
+            </Text>
+            <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+              Valid for 1 entry
             </Text>
           </View>
         )}
