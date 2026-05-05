@@ -1,18 +1,21 @@
 // app/event/create/review.tsx
 import { Stack, router } from 'expo-router';
 import { useMemo, useCallback, useState, useEffect } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { loadPerformers, getPerformers, type PerformerRecord } from '../../../lib/performerStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
-import { getDraft, resetDraft } from '../../../lib/createEventStore';
+import { getDraft, resetDraft, updateDraft } from '../../../lib/createEventStore';
 import { publishDraft } from '../../../lib/eventsStore';
 import { colors as C } from '../../../src/theme/colors';
+
+const GOLD = '#F59E0B';
 
 export default function CreateEvent_Review() {
   const d = getDraft();
   const [publishing, setPublishing] = useState(false);
   const [allPerformers, setAllPerformers] = useState<PerformerRecord[]>([]);
+  const [promoted, setPromoted] = useState(d.isPromoted ?? false);
 
   useEffect(() => {
     const cached = getPerformers();
@@ -47,10 +50,15 @@ export default function CreateEvent_Review() {
     { label: 'Sales end',       value: d.salesEnd },
   ], [d, recurringLabel]);
 
+  function togglePromoted(val: boolean) {
+    setPromoted(val);
+    updateDraft({ isPromoted: val });
+  }
+
   const publish = useCallback(async () => {
     setPublishing(true);
     try {
-      await publishDraft(d);
+      await publishDraft(getDraft()); // use getDraft() to pick up latest isPromoted
       resetDraft();
       Alert.alert('🎉 Published!', 'Your event is now live on Sequins.', [
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/organize') },
@@ -145,6 +153,44 @@ export default function CreateEvent_Review() {
             </View>
 
             <View style={{ height: 20 }} />
+
+            {/* ── Promote toggle ──────────────────────────────────────────── */}
+            <View style={{
+              backgroundColor: promoted ? GOLD + '14' : C.surface,
+              borderRadius: 14,
+              borderWidth: promoted ? 2 : 1,
+              borderColor: promoted ? GOLD : C.border,
+              padding: 16,
+              marginBottom: 16,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 20 }}>✦</Text>
+                  <Text style={{ color: promoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
+                    Promote this event
+                  </Text>
+                </View>
+                <Switch
+                  value={promoted}
+                  onValueChange={togglePromoted}
+                  trackColor={{ false: C.border, true: GOLD + 'AA' }}
+                  thumbColor={promoted ? GOLD : C.textMuted}
+                  ios_backgroundColor={C.border}
+                />
+              </View>
+              <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19 }}>
+                Promoted events get a gold border and a{' '}
+                <Text style={{ color: promoted ? GOLD : C.textMuted, fontWeight: '700' }}>✦ Promoted</Text>
+                {' '}badge at the top of Discover — putting your event in front of more fans.
+              </Text>
+              {promoted && (
+                <View style={{ marginTop: 10, backgroundColor: GOLD + '22', borderRadius: 8, padding: 10 }}>
+                  <Text style={{ color: GOLD, fontWeight: '700', fontSize: 12 }}>
+                    ✦ Gold border + badge will appear on your event card.
+                  </Text>
+                </View>
+              )}
+            </View>
 
             {publishing ? (
               <ActivityIndicator color={C.teal} style={{ marginVertical: 16 }} />

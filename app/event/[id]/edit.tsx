@@ -11,10 +11,13 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+const GOLD = '#F59E0B';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { fetchEventById, updateEvent } from '../../../lib/eventsStore';
@@ -54,6 +57,7 @@ export default function EditEventScreen() {
   const [payoutVenmo,   setPayoutVenmo]   = useState('');
   const [salesStart,    setSalesStart]    = useState('');
   const [salesEnd,      setSalesEnd]      = useState('');
+  const [isPromoted,    setIsPromoted]    = useState(false);
 
   useEffect(() => {
     fetchEventById(eventId).then(event => {
@@ -77,6 +81,7 @@ export default function EditEventScreen() {
       setPayoutVenmo(event.ticketing?.payoutVenmo ?? '');
       setSalesStart(event.ticketing?.salesStart ?? '');
       setSalesEnd(event.ticketing?.salesEnd ?? '');
+      setIsPromoted(event.isPromoted ?? false);
       setLoading(false);
     });
   }, [eventId]);
@@ -127,6 +132,7 @@ export default function EditEventScreen() {
         payoutVenmo,
         salesStart,
         salesEnd,
+        isPromoted,
       });
       Alert.alert('✅ Saved', 'Your event has been updated.', [
         { text: 'Done', onPress: () => router.back() },
@@ -336,6 +342,38 @@ export default function EditEventScreen() {
             <TextInput value={salesEnd} onChangeText={setSalesEnd} style={inputStyle}
               placeholderTextColor={C.textMuted} placeholder="YYYY-MM-DD" autoCapitalize="none" />
           </View>
+        </View>
+
+        {/* ── Promote ──────────────────────────────────────────────────── */}
+        <Text style={sectionLabel}>Visibility</Text>
+        <View style={{
+          backgroundColor: isPromoted ? GOLD + '14' : C.surface,
+          borderRadius: 14,
+          borderWidth: isPromoted ? 2 : 1,
+          borderColor: isPromoted ? GOLD : C.border,
+          padding: 16,
+          marginTop: 4,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 18 }}>✦</Text>
+              <Text style={{ color: isPromoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
+                Promote this event
+              </Text>
+            </View>
+            <Switch
+              value={isPromoted}
+              onValueChange={setIsPromoted}
+              trackColor={{ false: C.border, true: GOLD + 'AA' }}
+              thumbColor={isPromoted ? GOLD : C.textMuted}
+              ios_backgroundColor={C.border}
+            />
+          </View>
+          <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19 }}>
+            Promoted events get a gold border and{' '}
+            <Text style={{ color: isPromoted ? GOLD : C.textMuted, fontWeight: '700' }}>✦ Promoted</Text>
+            {' '}badge in Discover — putting your event in front of more fans.
+          </Text>
         </View>
 
         {/* ── Errors ───────────────────────────────────────────────────── */}

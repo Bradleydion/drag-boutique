@@ -38,6 +38,8 @@ export type EventRecord = {
   isRecurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurringEndDate?: string;
+  // Promoted placement
+  isPromoted?: boolean;
 };
 
 // ─── Local cache ──────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ function rowToEvent(row: Record<string, any>): EventRecord {
     isRecurring:        row.is_recurring ?? false,
     recurringFrequency: row.recurring_frequency,
     recurringEndDate:   row.recurring_end_date,
+    isPromoted:         row.is_promoted ?? false,
   };
 }
 
@@ -176,6 +179,7 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
     is_recurring:          d.isRecurring ?? false,
     recurring_frequency:   d.isRecurring ? (d.recurringFrequency ?? null) : null,
     recurring_end_date:    d.isRecurring ? (d.recurringEndDate   ?? null) : null,
+    is_promoted:           d.isPromoted  ?? false,
   };
 
   const { data, error } = await supabase
@@ -237,6 +241,7 @@ export async function updateEvent(
     recurringEndDate: string;
     imageLocalUri: string;
     performerIds: string[];
+    isPromoted: boolean;
   }>,
 ): Promise<EventRecord> {
   const payload: Record<string, any> = {};
@@ -260,6 +265,7 @@ export async function updateEvent(
   if (patch.recurringFrequency !== undefined) payload.recurring_frequency = patch.recurringFrequency || null;
   if (patch.recurringEndDate !== undefined)   payload.recurring_end_date  = patch.recurringEndDate  || null;
   if (patch.performerIds !== undefined)     payload.performer_ids     = patch.performerIds;
+  if (patch.isPromoted !== undefined)       payload.is_promoted       = patch.isPromoted;
 
   // Handle image upload if a new local URI was supplied
   if (patch.imageLocalUri) {

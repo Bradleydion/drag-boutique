@@ -41,8 +41,11 @@ export default function EditPerformerProfile() {
   const [commissionsOn,     setCommissionsOn]     = useState(false);
   const [commissionBlurb,   setCommissionBlurb]   = useState('');
   const [commissionPricing, setCommissionPricing] = useState('');
+  const [isPromoted,        setIsPromoted]        = useState(false);
   const [photoUri,          setPhotoUri]          = useState<string | undefined>();
   const [existingPhotoUrl,  setExistingPhotoUrl]  = useState<string | undefined>();
+
+  const GOLD = '#F59E0B';
 
   // Load current profile values
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function EditPerformerProfile() {
       setCommissionsOn(p.commissionsEnabled ?? false);
       setCommissionBlurb(p.commissionBlurb ?? '');
       setCommissionPricing(p.commissionPricing ?? '');
+      setIsPromoted(p.isPromoted ?? false);
       setExistingPhotoUrl(p.photoUrl);
       setLoading(false);
     });
@@ -105,6 +109,7 @@ export default function EditPerformerProfile() {
         commissionsEnabled: commissionsOn,
         commissionBlurb:    commissionsOn ? (commissionBlurb.trim() || undefined) : undefined,
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
+        isPromoted,
       });
       Alert.alert('Saved!', 'Your profile has been updated.', [
         { text: 'OK', onPress: () => router.back() },
@@ -303,6 +308,40 @@ export default function EditPerformerProfile() {
               </View>
             </View>
           )}
+        </View>
+
+        {/* ── Promote ──────────────────────────────────────────────────── */}
+        <View style={{ height: 24 }} />
+        <View style={{
+          backgroundColor: isPromoted ? GOLD + '14' : C.surface,
+          borderRadius: 14,
+          borderWidth: isPromoted ? 2 : 1,
+          borderColor: isPromoted ? GOLD : C.border,
+          padding: 16,
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 18 }}>✦</Text>
+              <View>
+                <Text style={{ color: isPromoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
+                  Promote my profile
+                </Text>
+                <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>Gold ring on your avatar</Text>
+              </View>
+            </View>
+            <Switch
+              value={isPromoted}
+              onValueChange={setIsPromoted}
+              trackColor={{ false: C.border, true: GOLD + 'AA' }}
+              thumbColor={isPromoted ? GOLD : C.textMuted}
+              ios_backgroundColor={C.border}
+            />
+          </View>
+          <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19 }}>
+            Promoted performers get a{' '}
+            <Text style={{ color: isPromoted ? GOLD : C.textMuted, fontWeight: '700' }}>✦ gold ring</Text>
+            {' '}around their avatar when tagged in events — making you easier to spot in Discover.
+          </Text>
         </View>
 
         {/* ── Save ─────────────────────────────────────────────────────── */}

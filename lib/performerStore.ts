@@ -85,6 +85,7 @@ export type PerformerRecord = {
   commissionBlurb?: string;
   commissionPricing?: string;
   createdAt?: string;
+  isPromoted?: boolean;
 };
 
 export type UpcomingShow = {
@@ -120,6 +121,7 @@ function rowToPerformer(row: Record<string, any>): PerformerRecord {
     commissionBlurb:    row.commission_blurb,
     commissionPricing:  row.commission_pricing,
     createdAt:          row.created_at,
+    isPromoted:         row.is_promoted ?? false,
   };
 }
 
@@ -296,6 +298,7 @@ export async function updatePerformerProfile(
   if (patch.commissionsEnabled !== undefined) payload.commissions_enabled = patch.commissionsEnabled;
   if (patch.commissionBlurb !== undefined)    payload.commission_blurb    = patch.commissionBlurb;
   if (patch.commissionPricing !== undefined)  payload.commission_pricing  = patch.commissionPricing;
+  if (patch.isPromoted !== undefined)         payload.is_promoted         = patch.isPromoted;
 
   const { data, error } = await supabase
     .from('performers')

@@ -12,6 +12,7 @@ export type Event = {
   imageUrl: string;
   performerIds: string[];
   tags?: string[];           // e.g. ['comedy', 'lip sync', 'pageant']
+  isPromoted?: boolean;      // paid promoted placement — gold border + badge
 };
 
 export type Performer = {
@@ -24,6 +25,7 @@ export type Performer = {
   socials?: { instagram?: string; tiktok?: string; website?: string };
   commissionsEnabled?: boolean;
   commissionInfo?: { blurb?: string; samples?: string[]; pricingNotes?: string };
+  isPromoted?: boolean;      // paid promoted placement — gold ring on avatar/card
 };
 
 export const performers: Performer[] = [
@@ -37,6 +39,7 @@ export const performers: Performer[] = [
     socials: { instagram: 'https://instagram.com/missnovagold' },
     commissionsEnabled: true,
     commissionInfo: { blurb: 'Custom wig styling + costumes', samples: [], pricingNotes: 'Wigs from $150+' },
+    isPromoted: true,
   },
   {
     id: 'p2',
@@ -103,6 +106,7 @@ export const events: Event[] = [
     imageUrl: 'https://picsum.photos/seed/event1/1200/800',
     performerIds: ['p1', 'p2'],
     tags: ['lip sync', 'comedy'],
+    isPromoted: true,
   },
   {
     id: 'e2',

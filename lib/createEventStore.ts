@@ -35,6 +35,9 @@ export type DraftEvent = {
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurringDaysOfWeek?: number[];  // weekly only — 0=Sun, 6=Sat
   recurringEndDate?: string;       // ISO — when the series stops
+
+  // Promoted placement — paid feature, boosts visibility with gold badge
+  isPromoted?: boolean;
 };
 
 let _draft: DraftEvent = {};
