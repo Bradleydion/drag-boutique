@@ -119,6 +119,38 @@ export async function uploadEventImage(localUri: string): Promise<string> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+/** Load ALL upcoming public events (for Discover feed), promoted first. */
+export async function loadEvents(): Promise<EventRecord[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .gte('datetime_start', new Date().toISOString())
+    .order('is_promoted', { ascending: false })
+    .order('datetime_start', { ascending: true });
+
+  if (error) {
+    console.warn('[eventsStore] loadEvents error:', error.message);
+    return [];
+  }
+  return (data ?? []).map(rowToEvent);
+}
+
+/** Load upcoming events where this performer is tagged. */
+export async function loadPerformerEvents(performerId: string): Promise<EventRecord[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .contains('performer_ids', [performerId])
+    .gte('datetime_start', new Date().toISOString())
+    .order('datetime_start', { ascending: true });
+
+  if (error) {
+    console.warn('[eventsStore] loadPerformerEvents error:', error.message);
+    return [];
+  }
+  return (data ?? []).map(rowToEvent);
+}
+
 /** Load all events belonging to the current host into the local cache. */
 export async function loadHostEvents(): Promise<void> {
   const session = getSession();

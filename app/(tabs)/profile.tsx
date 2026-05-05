@@ -17,6 +17,7 @@ import { getFollowedIds } from '../../lib/followStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
 import { loadMyPerformerProfile, type PerformerRecord } from '../../lib/performerStore';
+import { loadPerformerEvents, type EventRecord } from '../../lib/eventsStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -64,20 +65,28 @@ export default function ProfileTab() {
   const displayNameFromMeta = getSession()?.user?.user_metadata?.display_name as string | undefined;
   const role = getRole() ?? 'fan';
 
-  const [editingName,     setEditingName]     = useState(false);
-  const [nameInput,       setNameInput]       = useState(displayNameFromMeta ?? '');
-  const [myTickets,       setMyTickets]       = useState<Ticket[]>([]);
-  const [myListings,      setMyListings]      = useState<Listing[]>([]);
-  const [myArtistProfile, setMyArtistProfile] = useState<PerformerRecord | null>(null);
+  const [editingName,      setEditingName]      = useState(false);
+  const [nameInput,        setNameInput]        = useState(displayNameFromMeta ?? '');
+  const [myTickets,        setMyTickets]        = useState<Ticket[]>([]);
+  const [myListings,       setMyListings]       = useState<Listing[]>([]);
+  const [myArtistProfile,  setMyArtistProfile]  = useState<PerformerRecord | null>(null);
+  const [myUpcomingShows,  setMyUpcomingShows]  = useState<EventRecord[]>([]);
 
-  // Reload tickets, listings, and performer profile whenever the tab comes into focus.
+  // Reload tickets, listings, performer profile, and upcoming shows on focus.
   useFocusEffect(
     useCallback(() => {
       if (!guest) {
         loadTickets().then(() => setMyTickets(getTickets()));
         loadListings().then(() => setMyListings(getMyListings()));
         if (role === 'artist') {
-          loadMyPerformerProfile().then(setMyArtistProfile);
+          loadMyPerformerProfile().then(profile => {
+            setMyArtistProfile(profile);
+            if (profile) {
+              loadPerformerEvents(profile.id).then(shows => setMyUpcomingShows(shows.slice(0, 5)));
+            } else {
+              setMyUpcomingShows([]);
+            }
+          });
         }
       }
     }, [guest, role]),
@@ -258,8 +267,9 @@ export default function ProfileTab() {
         </Text>
         <View style={{ gap: 10, marginBottom: 24 }}>
           {sections.map((item) => {
-            const isMyTickets       = item.label === 'My Tickets';
+            const isMyTickets        = item.label === 'My Tickets';
             const isPerformerProfile = item.label === 'Performer Profile';
+            const isBookings         = item.label === 'Bookings';
 
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
@@ -267,6 +277,10 @@ export default function ProfileTab() {
               ? myArtistProfile.stageName
               : isPerformerProfile && !myArtistProfile
               ? 'Tap to create your public artist page'
+              : isBookings && myArtistProfile
+              ? 'View and respond to booking requests'
+              : isBookings
+              ? 'Create your artist profile first'
               : item.sublabel;
 
             const onPress = isMyTickets
@@ -275,9 +289,16 @@ export default function ProfileTab() {
               ? () => router.push(`/performer/${myArtistProfile.id}` as any)
               : isPerformerProfile
               ? () => router.push('/performer/create' as any)
+              : isBookings && myArtistProfile
+              ? () => router.push(`/performer/${myArtistProfile.id}/requests` as any)
+              : isBookings
+              ? () => router.push('/performer/create' as any)
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
 
-            const isActive = (isMyTickets && myTickets.length > 0) || (isPerformerProfile && !!myArtistProfile);
+            const isActive = (isMyTickets && myTickets.length > 0)
+              || (isPerformerProfile && !!myArtistProfile)
+              || (isBookings && !!myArtistProfile);
+
             return (
               <Pressable
                 key={item.label}
@@ -305,6 +326,99 @@ export default function ProfileTab() {
             );
           })}
         </View>
+
+        {/* ── Artist setup CTA — shown when role=artist but no profile yet ── */}
+        {role === 'artist' && !myArtistProfile && !guest && (
+          <Pressable
+            onPress={() => router.push('/performer/create' as any)}
+            style={{
+              backgroundColor: colors.coral + '18',
+              borderRadius: 18,
+              padding: 20,
+              borderWidth: 2,
+              borderColor: colors.coral,
+              marginBottom: 24,
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 40 }}>🎭</Text>
+            <Text style={{ color: colors.coral, fontWeight: '900', fontSize: 18, textAlign: 'center' }}>
+              Set up your artist profile
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+              Create your public page so fans can discover you, follow you, and send booking requests.
+            </Text>
+            <View style={{
+              backgroundColor: colors.coral,
+              borderRadius: 12,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              marginTop: 4,
+            }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Create Artist Profile →</Text>
+            </View>
+          </Pressable>
+        )}
+
+        {/* ── My Upcoming Shows — artist with a profile and tagged events ── */}
+        {role === 'artist' && myArtistProfile && myUpcomingShows.length > 0 && (
+          <>
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>
+              MY UPCOMING SHOWS ({myUpcomingShows.length})
+            </Text>
+            <View style={{
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: colors.border,
+              marginBottom: 24,
+              overflow: 'hidden',
+            }}>
+              {myUpcomingShows.map((show, index) => {
+                const dateStr = show.datetimeStart
+                  ? new Date(show.datetimeStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                  : '';
+                const location = [show.venue?.city, show.venue?.state].filter(Boolean).join(', ');
+                return (
+                  <Pressable
+                    key={show.id}
+                    onPress={() => router.push(`/event/${show.id}` as any)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 14,
+                      gap: 12,
+                      borderTopWidth: index === 0 ? 0 : 1,
+                      borderTopColor: colors.border,
+                    }}
+                  >
+                    {show.imageUrl ? (
+                      <Image source={{ uri: show.imageUrl }} style={{ width: 44, height: 44, borderRadius: 8 }} />
+                    ) : (
+                      <View style={{
+                        width: 44, height: 44, borderRadius: 8,
+                        backgroundColor: colors.navy,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 20 }}>🎭</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 14 }} numberOfLines={1}>
+                        {show.title}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {dateStr}{location ? ` · ${location}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {/* Following section — only shown when the user follows at least one artist */}
         {followedPerformers.length > 0 && (

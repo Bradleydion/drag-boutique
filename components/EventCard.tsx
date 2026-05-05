@@ -1,14 +1,24 @@
 // components/EventCard.tsx
+// Accepts EventRecord from eventsStore (Supabase shape).
 import { View, Text, Image } from 'react-native';
-import type { Event } from '@/data/events';
+import type { EventRecord } from '../lib/eventsStore';
 import { colors } from '../src/theme/colors';
 
-// Gold palette for promoted content
 const GOLD = '#F59E0B';
 const GOLD_LIGHT = '#FDE68A';
 
-export function EventCard({ event }: { event: Event }) {
+export function EventCard({ event }: { event: EventRecord }) {
   const promoted = !!event.isPromoted;
+  const price = event.ticketing?.price ?? 0;
+  const venueName = event.venue?.name ?? '';
+  const city = event.venue?.city ?? '';
+  const state = event.venue?.state ?? '';
+  const location = [city, state].filter(Boolean).join(', ');
+  const dateStr = event.datetimeStart
+    ? new Date(event.datetimeStart).toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      })
+    : '';
 
   return (
     <View
@@ -25,7 +35,13 @@ export function EventCard({ event }: { event: Event }) {
         elevation: 4,
       }}
     >
-      <Image source={{ uri: event.imageUrl }} style={{ width: '100%', height: 180 }} />
+      {event.imageUrl ? (
+        <Image source={{ uri: event.imageUrl }} style={{ width: '100%', height: 180 }} />
+      ) : (
+        <View style={{ width: '100%', height: 180, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 48 }}>🎭</Text>
+        </View>
+      )}
 
       {/* Promoted badge — top left */}
       {promoted && (
@@ -53,12 +69,11 @@ export function EventCard({ event }: { event: Event }) {
         paddingVertical: 4, paddingHorizontal: 10,
       }}>
         <Text style={{ color: promoted ? '#1C1917' : colors.offWhite, fontWeight: '800', fontSize: 13 }}>
-          {event.price === 0 ? 'Free' : `$${event.price.toFixed(2)}`}
+          {price === 0 ? 'Free' : `$${price.toFixed(2)}`}
         </Text>
       </View>
 
       <View style={{ padding: 14 }}>
-        {/* Title with optional promoted glow text */}
         <Text style={{
           color: promoted ? GOLD_LIGHT : colors.textPrimary,
           fontSize: 20,
@@ -67,16 +82,18 @@ export function EventCard({ event }: { event: Event }) {
           {event.title}
         </Text>
         <Text style={{ color: colors.accent, marginTop: 6, fontSize: 13, fontWeight: '600' }}>
-          {new Date(event.dateTimeStart).toLocaleString()} • {event.venueName}
+          {dateStr}{venueName ? ` · ${venueName}` : ''}
         </Text>
         <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 14, lineHeight: 20 }} numberOfLines={2}>
           {event.description}
         </Text>
         <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={{ color: promoted ? GOLD : colors.teal, fontSize: 13, fontWeight: '700' }}>
-            {event.city}
+            {location}
           </Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Capacity {event.capacity}</Text>
+          {event.capacity != null && (
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>Capacity {event.capacity}</Text>
+          )}
         </View>
       </View>
     </View>

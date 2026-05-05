@@ -99,15 +99,24 @@ export default function CreateArtistProfile() {
     textTransform: 'uppercase' as const, letterSpacing: 0.8, marginBottom: 12,
   };
 
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/profile' as any);
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
           title: 'Create Artist Profile',
-          headerBackTitle: 'Back',
           headerStyle: { backgroundColor: C.navy },
           headerTintColor: C.teal,
           headerTitleStyle: { color: C.textPrimary },
+          headerLeft: () => (
+            <Pressable onPress={goBack} hitSlop={12} style={{ paddingRight: 8 }}>
+              <Ionicons name="chevron-back" size={26} color={C.teal} />
+            </Pressable>
+          ),
         }}
       />
 
@@ -283,7 +292,7 @@ export default function CreateArtistProfile() {
           <PrimaryButton title="Create My Artist Profile ✦" onPress={handleCreate} />
         )}
         <View style={{ height: 12 }} />
-        <Pressable onPress={() => router.back()} accessibilityRole="button">
+        <Pressable onPress={goBack} accessibilityRole="button">
           <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>
             Not now
           </Text>

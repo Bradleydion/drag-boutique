@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { colors } from '../src/theme/colors';
+import { DismissKeyboard } from '../components/DismissKeyboard';
 
 /**
  * Parses a Supabase deep link URL and handles auth callbacks.
@@ -59,21 +60,23 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.navy },
-          headerTitleStyle: { color: colors.textPrimary },
-          headerTintColor: colors.teal,
-          contentStyle: { backgroundColor: colors.navy },
-        }}
-      >
-        <Stack.Screen name="(tabs)"        options={{ headerShown: false, headerBackTitle: 'Back' }} />
-        <Stack.Screen name="onboarding"    options={{ headerShown: false }} />
-        {/* Suppress outer root-Stack header for nested event flows — each has its own _layout.tsx */}
-        <Stack.Screen name="event/create"  options={{ headerShown: false }} />
-        <Stack.Screen name="event/[id]"    options={{ headerShown: false }} />
-      </Stack>
+      <DismissKeyboard>
+        <Stack
+          screenOptions={{
+            headerShown: true,
+            headerStyle: { backgroundColor: colors.navy },
+            headerTitleStyle: { color: colors.textPrimary },
+            headerTintColor: colors.teal,
+            contentStyle: { backgroundColor: colors.navy },
+          }}
+        >
+          <Stack.Screen name="(tabs)"        options={{ headerShown: false, headerBackTitle: 'Back' }} />
+          <Stack.Screen name="onboarding"    options={{ headerShown: false }} />
+          {/* Suppress outer root-Stack header for nested event flows — each has its own _layout.tsx */}
+          <Stack.Screen name="event/create"  options={{ headerShown: false }} />
+          <Stack.Screen name="event/[id]"    options={{ headerShown: false }} />
+        </Stack>
+      </DismissKeyboard>
     </>
   );
 }
