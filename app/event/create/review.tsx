@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, resetDraft, updateDraft } from '../../../lib/createEventStore';
 import { publishDraft } from '../../../lib/eventsStore';
+import { saveEventRoles, inviteTalentToRole, roleLabel } from '../../../lib/eventRolesStore';
 import { colors as C } from '../../../src/theme/colors';
 
 const GOLD = '#F59E0B';
@@ -58,8 +59,35 @@ export default function CreateEvent_Review() {
   const publish = useCallback(async () => {
     setPublishing(true);
     try {
-      await publishDraft(getDraft()); // use getDraft() to pick up latest isPromoted
+      const draft = getDraft();
+      const event = await publishDraft(draft);
       resetDraft();
+
+      // After publish, save roles + fire invites
+      if (draft.eventRoles?.length && event?.id) {
+        try {
+          const savedRoles = await saveEventRoles(event.id, draft.eventRoles);
+          // Fire invites for each pre-selected talent per role
+          for (let i = 0; i < draft.eventRoles.length; i++) {
+            const draftRole = draft.eventRoles[i];
+            const savedRole = savedRoles[i];
+            if (!savedRole) continue;
+            for (const talentId of draftRole.invitedTalentIds) {
+              await inviteTalentToRole({
+                eventId:    event.id,
+                eventRoleId: savedRole.id,
+                talentId,
+                payAmount:  draftRole.payAmount,
+                eventTitle: draft.title ?? 'your event',
+                roleName:   draftRole.roleName,
+              }).catch(() => {}); // non-blocking
+            }
+          }
+        } catch (_) {
+          // Roles saving failure shouldn't block the success alert
+        }
+      }
+
       Alert.alert('🎉 Published!', 'Your event is now live on Sequins.', [
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/organize') },
       ]);

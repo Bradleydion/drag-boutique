@@ -26,6 +26,7 @@ const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: st
   artist: [
     { emoji: '🎭', label: 'Performer Profile', sublabel: 'Edit your public page, bio & photos' },
     { emoji: '📅', label: 'Bookings', sublabel: 'View upcoming and past gigs' },
+    { emoji: '📬', label: 'Event Invites', sublabel: 'Respond to role invitations from hosts' },
     { emoji: '💰', label: 'Earnings', sublabel: 'Tips, bookings, and commissions' },
   ],
   host: [
@@ -48,7 +49,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  artist: '💃 Artist',
+  artist: '💃 Talent',
   host:   '🎪 Host',
   fan:    '🎟️ Fan',
 };
@@ -270,17 +271,20 @@ export default function ProfileTab() {
             const isMyTickets        = item.label === 'My Tickets';
             const isPerformerProfile = item.label === 'Performer Profile';
             const isBookings         = item.label === 'Bookings';
+            const isEventInvites     = item.label === 'Event Invites';
 
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
               : isPerformerProfile && myArtistProfile
               ? myArtistProfile.stageName
               : isPerformerProfile && !myArtistProfile
-              ? 'Tap to create your public artist page'
+              ? 'Tap to create your public talent page'
               : isBookings && myArtistProfile
               ? 'View and respond to booking requests'
               : isBookings
-              ? 'Create your artist profile first'
+              ? 'Create your talent profile first'
+              : isEventInvites && !myArtistProfile
+              ? 'Create your talent profile first'
               : item.sublabel;
 
             const onPress = isMyTickets
@@ -293,11 +297,16 @@ export default function ProfileTab() {
               ? () => router.push(`/performer/${myArtistProfile.id}/requests` as any)
               : isBookings
               ? () => router.push('/performer/create' as any)
+              : isEventInvites && myArtistProfile
+              ? () => router.push(`/performer/${myArtistProfile.id}/invites` as any)
+              : isEventInvites
+              ? () => router.push('/performer/create' as any)
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
 
             const isActive = (isMyTickets && myTickets.length > 0)
               || (isPerformerProfile && !!myArtistProfile)
-              || (isBookings && !!myArtistProfile);
+              || (isBookings && !!myArtistProfile)
+              || (isEventInvites && !!myArtistProfile);
 
             return (
               <Pressable
@@ -327,7 +336,7 @@ export default function ProfileTab() {
           })}
         </View>
 
-        {/* ── Artist setup CTA — shown when role=artist but no profile yet ── */}
+        {/* ── Talent setup CTA — shown when role=artist but no profile yet ── */}
         {role === 'artist' && !myArtistProfile && !guest && (
           <Pressable
             onPress={() => router.push('/performer/create' as any)}
@@ -344,10 +353,10 @@ export default function ProfileTab() {
           >
             <Text style={{ fontSize: 40 }}>🎭</Text>
             <Text style={{ color: colors.coral, fontWeight: '900', fontSize: 18, textAlign: 'center' }}>
-              Set up your artist profile
+              Set up your talent profile
             </Text>
             <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-              Create your public page so fans can discover you, follow you, and send booking requests.
+              Create your public page so hosts can discover you, book you, and send event invites.
             </Text>
             <View style={{
               backgroundColor: colors.coral,
@@ -356,7 +365,7 @@ export default function ProfileTab() {
               paddingVertical: 12,
               marginTop: 4,
             }}>
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Create Artist Profile →</Text>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Create Talent Profile →</Text>
             </View>
           </Pressable>
         )}

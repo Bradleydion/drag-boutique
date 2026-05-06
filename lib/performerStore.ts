@@ -86,6 +86,16 @@ export type PerformerRecord = {
   commissionPricing?: string;
   createdAt?: string;
   isPromoted?: boolean;
+  // Talent roles — populated via loadTalentRoles()
+  roles?: TalentProfileRole[];
+};
+
+export type TalentProfileRole = {
+  id: string;
+  talentId: string;
+  roleName: string;
+  customName?: string;
+  isPrimary: boolean;
 };
 
 export type UpcomingShow = {
@@ -434,6 +444,48 @@ export async function declineBookingRequest(requestId: string, performerName: st
       link:   `/performer/${data.performer_id}`,
     });
   } catch (_) {}
+}
+
+// ─── Talent profile roles ─────────────────────────────────────────────────────
+
+/** Load which roles a talent has listed on their profile. */
+export async function loadTalentRoles(talentId: string): Promise<TalentProfileRole[]> {
+  const { data, error } = await supabase
+    .from('talent_profile_roles')
+    .select('*')
+    .eq('talent_id', talentId)
+    .order('is_primary', { ascending: false });
+
+  if (error) return [];
+
+  return (data ?? []).map(r => ({
+    id:         r.id,
+    talentId:   r.talent_id,
+    roleName:   r.role_name,
+    customName: r.custom_name ?? undefined,
+    isPrimary:  r.is_primary ?? false,
+  }));
+}
+
+/** Save (replace) the full set of roles for a talent. */
+export async function saveTalentRoles(
+  talentId: string,
+  roles: { roleName: string; customName?: string; isPrimary?: boolean }[],
+): Promise<void> {
+  // Delete existing then re-insert
+  await supabase.from('talent_profile_roles').delete().eq('talent_id', talentId);
+
+  if (roles.length === 0) return;
+
+  const rows = roles.map((r, i) => ({
+    talent_id:   talentId,
+    role_name:   r.roleName,
+    custom_name: r.customName ?? null,
+    is_primary:  r.isPrimary ?? i === 0,
+  }));
+
+  const { error } = await supabase.from('talent_profile_roles').insert(rows);
+  if (error) throw new Error(error.message);
 }
 
 // ─── Upcoming shows ───────────────────────────────────────────────────────────

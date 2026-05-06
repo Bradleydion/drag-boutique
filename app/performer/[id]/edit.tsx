@@ -17,11 +17,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
+import { RolePicker, type SelectedRole } from '../../../components/RolePicker';
 import {
   fetchPerformerById,
   updatePerformerProfile,
+  loadTalentRoles,
+  saveTalentRoles,
   type PerformerRecord,
 } from '../../../lib/performerStore';
+import { type RoleKey } from '../../../lib/eventRolesStore';
 import { colors as C } from '../../../src/theme/colors';
 
 export default function EditPerformerProfile() {
@@ -44,6 +48,7 @@ export default function EditPerformerProfile() {
   const [isPromoted,        setIsPromoted]        = useState(false);
   const [photoUri,          setPhotoUri]          = useState<string | undefined>();
   const [existingPhotoUrl,  setExistingPhotoUrl]  = useState<string | undefined>();
+  const [selectedRoles,     setSelectedRoles]     = useState<SelectedRole[]>([]);
 
   const GOLD = '#F59E0B';
 
@@ -64,6 +69,16 @@ export default function EditPerformerProfile() {
       setCommissionPricing(p.commissionPricing ?? '');
       setIsPromoted(p.isPromoted ?? false);
       setExistingPhotoUrl(p.photoUrl);
+
+      // Load existing talent roles
+      loadTalentRoles(id).then(roles => {
+        setSelectedRoles(roles.map(r => ({
+          roleName: r.roleName as RoleKey,
+          customName: r.customName,
+          isPrimary: r.isPrimary,
+        })));
+      });
+
       setLoading(false);
     });
   }, [id]);
@@ -111,6 +126,7 @@ export default function EditPerformerProfile() {
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
         isPromoted,
       });
+      await saveTalentRoles(id, selectedRoles);
       Alert.alert('Saved!', 'Your profile has been updated.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -214,6 +230,15 @@ export default function EditPerformerProfile() {
           placeholderTextColor={C.textMuted}
           style={inputStyle}
         />
+
+        {/* ── Roles ────────────────────────────────────────────────────── */}
+        <View style={{ height: 24 }} />
+        <Text style={sectionLabel}>What you do</Text>
+        <Text style={labelStyle}>Talent Roles</Text>
+        <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 2, marginBottom: 10 }}>
+          Select every role you're confident filling. Long-press to set your primary.
+        </Text>
+        <RolePicker selected={selectedRoles} onChange={setSelectedRoles} />
 
         {/* ── Payments ─────────────────────────────────────────────────── */}
         <View style={{ height: 24 }} />

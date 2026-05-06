@@ -73,7 +73,7 @@ export default function CreateEvent_Performers() {
           Who's performing?
         </Text>
         <Text style={{ color: C.textMuted, marginTop: 4, marginBottom: 20, lineHeight: 20 }}>
-          Tag the artists on the lineup. Their upcoming shows will appear on their profiles automatically.
+          Tag talent on the lineup. Their upcoming shows will appear on their profiles automatically.
         </Text>
 
         {loading ? (
@@ -81,7 +81,7 @@ export default function CreateEvent_Performers() {
         ) : performers.length === 0 ? (
           <View style={{ alignItems: 'center', marginTop: 40 }}>
             <Text style={{ color: C.textSecondary, textAlign: 'center' }}>
-              No artist profiles found yet.{'\n'}Artists can create their profiles from the Profile tab.
+              No talent profiles found yet.{'\n'}Talent can create their profiles from the Profile tab.
             </Text>
           </View>
         ) : (

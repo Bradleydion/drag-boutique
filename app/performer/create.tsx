@@ -18,7 +18,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { createPerformerProfile } from '../../lib/performerStore';
+import { RolePicker, type SelectedRole } from '../../components/RolePicker';
+import { createPerformerProfile, saveTalentRoles } from '../../lib/performerStore';
 import { colors as C } from '../../src/theme/colors';
 
 export default function CreateArtistProfile() {
@@ -35,6 +36,7 @@ export default function CreateArtistProfile() {
   const [commissionBlurb,   setCommissionBlurb]   = useState('');
   const [commissionPricing, setCommissionPricing] = useState('');
   const [photoUri,          setPhotoUri]          = useState<string | undefined>();
+  const [selectedRoles,     setSelectedRoles]     = useState<SelectedRole[]>([]);
 
   async function pickPhoto() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -74,7 +76,12 @@ export default function CreateArtistProfile() {
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
       });
 
-      Alert.alert('🎉 Profile Created!', 'Your artist profile is now live on Sequins.', [
+      // Save talent roles
+      if (selectedRoles.length > 0) {
+        await saveTalentRoles(profile.id, selectedRoles);
+      }
+
+      Alert.alert('🎉 Profile Created!', 'Your talent profile is now live on Sequins.', [
         { text: 'View My Profile', onPress: () => router.replace(`/performer/${profile.id}` as any) },
       ]);
     } catch (e: any) {
@@ -108,7 +115,7 @@ export default function CreateArtistProfile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
-          title: 'Create Artist Profile',
+          title: 'Create Talent Profile',
           headerStyle: { backgroundColor: C.navy },
           headerTintColor: C.teal,
           headerTitleStyle: { color: C.textPrimary },
@@ -122,10 +129,10 @@ export default function CreateArtistProfile() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>
-          Build your artist profile
+          Build your talent profile
         </Text>
         <Text style={{ color: C.textMuted, marginTop: 4, marginBottom: 24, lineHeight: 20 }}>
-          Your public page where fans can follow you, request bookings, and find your upcoming shows.
+          Your public page where fans can follow you, hosts can book you, and everyone can find your upcoming shows.
         </Text>
 
         {/* ── Profile photo ──────────────────────────────────────────────── */}
@@ -182,6 +189,15 @@ export default function CreateArtistProfile() {
           placeholderTextColor={C.textMuted}
           style={inputStyle}
         />
+
+        {/* ── Roles ──────────────────────────────────────────────────────── */}
+        <View style={{ height: 24 }} />
+        <Text style={sectionLabel}>What you do</Text>
+        <Text style={labelStyle}>Talent Roles</Text>
+        <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 2, marginBottom: 10 }}>
+          Select every role you're confident filling. Long-press to set your primary.
+        </Text>
+        <RolePicker selected={selectedRoles} onChange={setSelectedRoles} />
 
         {/* ── Payments ───────────────────────────────────────────────────── */}
         <View style={{ height: 24 }} />
@@ -289,7 +305,7 @@ export default function CreateArtistProfile() {
         {saving ? (
           <ActivityIndicator color={C.teal} />
         ) : (
-          <PrimaryButton title="Create My Artist Profile ✦" onPress={handleCreate} />
+          <PrimaryButton title="Create My Talent Profile ✦" onPress={handleCreate} />
         )}
         <View style={{ height: 12 }} />
         <Pressable onPress={goBack} accessibilityRole="button">

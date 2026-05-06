@@ -58,12 +58,13 @@ export const ROLES: {
   {
     id: 'artist',
     emoji: '💃',
-    title: 'Artist',
-    tagline: 'Grow your drag career',
+    title: 'Talent',
+    tagline: 'Get discovered, get booked, get paid',
     perks: [
-      'Build a public performer profile',
-      'Get discovered and booked for shows',
-      'Accept tips and track your earnings',
+      'Build a public profile with your roles & specialties',
+      'Get discovered and booked for shows near you',
+      'Accept event invites with agreed pay upfront',
+      'Receive tips and commission payments directly',
     ],
   },
   {
@@ -73,9 +74,9 @@ export const ROLES: {
     tagline: 'Run the whole show',
     perks: [
       'Create and publish events with ticketing',
-      'Manage staff — DJs, door crew, tip takers',
-      'Pay your team via Venmo or Stripe',
-      'Generate invoices and track finances',
+      'Staff your event — invite performers, MCs, DJs, door & more',
+      'Set pay per role and send invites in one flow',
+      'Pay your team directly through the app',
     ],
   },
 ];

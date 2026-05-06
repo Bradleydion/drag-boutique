@@ -18,7 +18,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EventCard } from '@/components/EventCard';
 import { loadEvents, type EventRecord } from '@/lib/eventsStore';
 import { getFollowedIds } from '@/lib/followStore';
+import { loadPerformers, getPerformers, type PerformerRecord } from '@/lib/performerStore';
+import { loadTalentRoles } from '@/lib/performerStore';
+import { roleEmoji, roleLabel } from '@/lib/eventRolesStore';
 import { colors } from '../../src/theme/colors';
+
+type DiscoverMode = 'events' | 'talent' | 'both';
 
 // ─── Filter types ─────────────────────────────────────────────────────────────
 
@@ -109,26 +114,33 @@ function Pill({ label, active, onPress }: { label: string; active: boolean; onPr
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function Discover() {
-  const [allEvents, setAllEvents] = useState<EventRecord[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [allEvents, setAllEvents]   = useState<EventRecord[]>([]);
+  const [allTalent, setAllTalent]   = useState<PerformerRecord[]>([]);
+  const [loading,   setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [mode,      setMode]        = useState<DiscoverMode>('events');
 
   const [query,      setQuery]      = useState('');
   const [city,       setCity]       = useState('All Cities');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [sortBy,     setSortBy]     = useState<SortBy>('date');
+  const [talentRole, setTalentRole] = useState<string>('all');
 
-  async function fetchEvents(isRefresh = false) {
+  async function fetchAll(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
-    const data = await loadEvents();
-    setAllEvents(data);
+    const [evData] = await Promise.all([
+      loadEvents(),
+      loadPerformers(),
+    ]);
+    setAllEvents(evData);
+    setAllTalent(getPerformers());
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
   }
 
   // Reload whenever tab comes into focus
-  useFocusEffect(useCallback(() => { fetchEvents(); }, []));
+  useFocusEffect(useCallback(() => { fetchAll(); }, []));
 
   // Derive city list from live events
   const cityOptions = useMemo(() => {
@@ -159,17 +171,54 @@ export default function Discover() {
     [allEvents, query, city, dateFilter, sortBy],
   );
 
+  const talentResults = useMemo(() => {
+    const q = query.toLowerCase();
+    return allTalent.filter(p => {
+      if (q && !p.stageName.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [allTalent, query, talentRole]);
+
   const activeFilterCount = [
     city !== 'All Cities',
     dateFilter !== 'all',
     sortBy !== 'date',
   ].filter(Boolean).length;
 
+  const showEvents = mode === 'events' || mode === 'both';
+  const showTalent = mode === 'talent' || mode === 'both';
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['left', 'right', 'bottom']}>
 
+      {/* ── Mode toggle ───────────────────────────────────────────────────── */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 }}>
+        {(['events', 'talent', 'both'] as DiscoverMode[]).map(m => (
+          <Pressable
+            key={m}
+            onPress={() => setMode(m)}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 10,
+              alignItems: 'center',
+              backgroundColor: mode === m ? colors.teal : colors.surface,
+              borderWidth: 1,
+              borderColor: mode === m ? colors.teal : colors.border,
+            }}
+          >
+            <Text style={{
+              color: mode === m ? colors.navy : colors.textMuted,
+              fontWeight: '800',
+              fontSize: 13,
+              textTransform: 'capitalize',
+            }}>{m === 'both' ? 'Both' : m === 'events' ? 'Events' : 'Talent'}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {/* ── Search bar ────────────────────────────────────────────────────── */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 }}>
         <View style={{
           flexDirection: 'row', alignItems: 'center',
           backgroundColor: colors.surface, borderRadius: 12,
@@ -231,108 +280,90 @@ export default function Discover() {
         ))}
       </ScrollView>
 
-      {/* ── Following feed ────────────────────────────────────────────────── */}
-      {followedEvents.length > 0 && (
-        <View style={{ marginBottom: 8 }}>
-          <Text style={{
-            color: colors.textMuted, fontSize: 12, fontWeight: '700',
-            letterSpacing: 1, paddingHorizontal: 16, marginBottom: 10,
-          }}>
-            FROM ARTISTS YOU FOLLOW
-          </Text>
-          <ScrollView
-            horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          >
-            {followedEvents.map(event => (
-              <Link key={event.id} href={`/event/${event.id}`} asChild>
-                <Pressable style={{
-                  width: 200, backgroundColor: colors.surface,
-                  borderRadius: 14, overflow: 'hidden',
-                  borderWidth: 1, borderColor: colors.teal + '44',
-                }}>
-                  {event.imageUrl ? (
-                    <Image source={{ uri: event.imageUrl }} style={{ width: '100%', height: 100 }} />
-                  ) : (
-                    <View style={{ width: '100%', height: 100, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 32 }}>🎭</Text>
-                    </View>
-                  )}
-                  <View style={{ padding: 10 }}>
-                    <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
-                      {event.title}
-                    </Text>
-                    <Text style={{ color: colors.teal, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                      {event.hostName}
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }}>
-                      {event.datetimeStart
-                        ? new Date(event.datetimeStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-                        : ''}{' · '}{event.venue?.city ?? ''}
-                    </Text>
-                  </View>
-                </Pressable>
-              </Link>
-            ))}
-          </ScrollView>
-          <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16, marginTop: 14 }} />
-        </View>
-      )}
-
-      {/* ── Results header ────────────────────────────────────────────────── */}
-      <View style={{
-        paddingHorizontal: 16, paddingBottom: 8,
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-          {loading
-            ? 'Loading events…'
-            : results.length === 0
-              ? 'No events found'
-              : `${results.length} event${results.length === 1 ? '' : 's'}`}
-          {!loading && activeFilterCount > 0 ? ` · ${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active` : ''}
-        </Text>
-        {activeFilterCount > 0 && (
-          <Pressable onPress={() => { setCity('All Cities'); setDateFilter('all'); setSortBy('date'); setQuery(''); }}>
-            <Text style={{ color: colors.teal, fontSize: 13, fontWeight: '700' }}>Clear all</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {/* ── Loading state ─────────────────────────────────────────────────── */}
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={colors.teal} />
           <Text style={{ color: colors.textMuted, marginTop: 12, fontSize: 14 }}>Finding shows near you…</Text>
         </View>
-      ) : results.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-          <Text style={{ fontSize: 40, marginBottom: 16 }}>🔎</Text>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>
-            No events found
-          </Text>
-          <Text style={{ color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>
-            Try a different search or clear your filters to see all upcoming events.
-          </Text>
-        </View>
       ) : (
         <FlatList
-          data={results}
-          keyExtractor={e => e.id}
-          renderItem={({ item }) => (
-            <Link href={`/event/${item.id}`} asChild>
-              <Pressable style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-                <EventCard event={item} />
-              </Pressable>
-            </Link>
-          )}
+          data={showTalent && !showEvents ? talentResults : showTalent ? [...results.map(e => ({ _type: 'event' as const, data: e })), ...talentResults.map(t => ({ _type: 'talent' as const, data: t }))] : results.map(e => ({ _type: 'event' as const, data: e }))}
+          keyExtractor={(item: any) => item._type ? `${item._type}-${item.data.id}` : item.id}
+          ListHeaderComponent={showEvents && !showTalent ? (
+            <View>
+              {/* Following feed */}
+              {followedEvents.length > 0 && (
+                <View style={{ marginBottom: 8 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', paddingHorizontal: 16, paddingBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    Following
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 4 }}>
+                    {followedEvents.map(event => (
+                      <Link key={event.id} href={`/event/${event.id}`} asChild>
+                        <Pressable style={{ width: 240 }}><EventCard event={event} compact /></Pressable>
+                      </Link>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              {/* Results header */}
+              <View style={{ paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                  {results.length === 0 ? 'No events found' : `${results.length} event${results.length === 1 ? '' : 's'}`}
+                  {activeFilterCount > 0 ? ` · ${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active` : ''}
+                </Text>
+                {activeFilterCount > 0 && (
+                  <Pressable onPress={() => { setCity('All Cities'); setDateFilter('all'); setSortBy('date'); setQuery(''); }}>
+                    <Text style={{ color: colors.teal, fontSize: 13, fontWeight: '700' }}>Clear all</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          ) : showTalent && !showEvents ? (
+            <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', paddingHorizontal: 16, paddingBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              {talentResults.length} talent
+            </Text>
+          ) : null}
+          renderItem={({ item }: any) => {
+            // Mixed mode: item has _type
+            if (item._type === 'talent' || (!item._type && showTalent && !showEvents)) {
+              const p: PerformerRecord = item._type ? item.data : item;
+              return (
+                <Link href={`/performer/${p.id}`} asChild>
+                  <Pressable style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border, gap: 12 }}>
+                    {p.photoUrl ? (
+                      <Image source={{ uri: p.photoUrl }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: p.isPromoted ? 2 : 0, borderColor: '#F59E0B' }} />
+                    ) : (
+                      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 24 }}>💃</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: p.isPromoted ? '#F59E0B' : colors.textPrimary, fontWeight: '800', fontSize: 15 }}>{p.stageName}</Text>
+                      {p.bookingInfo ? <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{p.bookingInfo}</Text> : null}
+                    </View>
+                    <Text style={{ color: colors.teal, fontSize: 22 }}>›</Text>
+                  </Pressable>
+                </Link>
+              );
+            }
+            // Event
+            const e: EventRecord = item._type ? item.data : item;
+            return (
+              <Link href={`/event/${e.id}`} asChild>
+                <Pressable style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+                  <EventCard event={e} />
+                </Pressable>
+              </Link>
+            );
+          }}
           contentContainerStyle={{ paddingBottom: 32 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => fetchEvents(true)}
+              onRefresh={() => fetchAll(true)}
               tintColor={colors.teal}
             />
           }

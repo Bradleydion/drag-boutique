@@ -38,6 +38,17 @@ export type DraftEvent = {
 
   // Promoted placement — paid feature, boosts visibility with gold badge
   isPromoted?: boolean;
+
+  // Roles & Lineup
+  eventRoles?: DraftEventRole[];
+};
+
+export type DraftEventRole = {
+  roleName: string;
+  customName?: string;
+  slots: number;
+  payAmount: number;         // dollars
+  invitedTalentIds: string[];
 };
 
 let _draft: DraftEvent = {};
