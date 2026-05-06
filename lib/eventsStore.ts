@@ -103,13 +103,13 @@ export async function uploadEventImage(localUri: string): Promise<string> {
   const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  // Fetch the local file as a blob (works in Expo / React Native)
+  // React Native doesn't support blob() — use ArrayBuffer instead
   const res = await fetch(localUri);
-  const blob = await res.blob();
+  const arrayBuffer = await res.arrayBuffer();
 
   const { error } = await supabase.storage
     .from('event-images')
-    .upload(fileName, blob, { contentType: mimeType, upsert: false });
+    .upload(fileName, arrayBuffer, { contentType: mimeType, upsert: false });
 
   if (error) throw new Error(`Image upload failed: ${error.message}`);
 
