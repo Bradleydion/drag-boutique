@@ -167,16 +167,31 @@ export default function CreateEvent_Review() {
             </View>
 
             {/* Edit buttons */}
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 20 }}>
               {[
                 { title: 'Basics',      path: '/event/create/basics' },
                 { title: 'Performers',  path: '/event/create/performers' },
                 { title: 'Venue',       path: '/event/create/venue' },
                 { title: 'Tickets',     path: '/event/create/ticketing' },
+                { title: 'Roles',       path: '/event/create/roles' },
               ].map(btn => (
-                <View key={btn.title} style={{ flex: 1 }}>
-                  <PrimaryButton variant="ghost" title={btn.title} onPress={() => router.push(btn.path as any)} />
-                </View>
+                <Pressable
+                  key={btn.title}
+                  onPress={() => router.push(btn.path as any)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 9,
+                    borderRadius: 10,
+                    borderWidth: 1.5,
+                    borderColor: C.teal,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: C.teal, fontWeight: '700', fontSize: 12 }} numberOfLines={1}>
+                    {btn.title}
+                  </Text>
+                </Pressable>
               ))}
             </View>
 
