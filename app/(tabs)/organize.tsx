@@ -80,7 +80,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
         </Text>
       )}
 
-      {/* Action buttons */}
+      {/* Action buttons — row 1 */}
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
         {upcoming && (
           <Pressable
@@ -93,11 +93,25 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
               alignItems: 'center',
             }}
           >
-            <Text style={{ color: colors.offWhite, fontWeight: '800', fontSize: 13 }}>
-              🚪 Door Check-In
+            <Text style={{ color: colors.offWhite, fontWeight: '800', fontSize: 12 }} numberOfLines={1}>
+              🚪 Check-In
             </Text>
           </Pressable>
         )}
+        <Pressable
+          onPress={() => router.push(`/event/${event.id}/roster` as any)}
+          style={{
+            flex: 1,
+            backgroundColor: '#6366F1' + '22',
+            borderRadius: 10,
+            paddingVertical: 10,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: '#6366F1' + '55',
+          }}
+        >
+          <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: 12 }} numberOfLines={1}>👥 Roster</Text>
+        </Pressable>
         <Pressable
           onPress={() => router.push(`/event/${event.id}/edit` as any)}
           style={{
@@ -110,7 +124,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
             borderColor: colors.teal + '55',
           }}
         >
-          <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 13 }}>✏️ Edit</Text>
+          <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 12 }} numberOfLines={1}>✏️ Edit</Text>
         </Pressable>
         <Pressable
           onPress={() => router.push(`/event/${event.id}` as any)}
@@ -122,7 +136,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>View</Text>
+          <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }} numberOfLines={1}>View</Text>
         </Pressable>
         <Pressable
           onPress={onDelete}
@@ -130,11 +144,11 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
             backgroundColor: colors.danger + '22',
             borderRadius: 10,
             paddingVertical: 10,
-            paddingHorizontal: 14,
+            paddingHorizontal: 12,
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 13 }}>Delete</Text>
+          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>✕</Text>
         </Pressable>
       </View>
     </View>

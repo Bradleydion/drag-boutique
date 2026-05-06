@@ -17,7 +17,7 @@ import { getFollowedIds } from '../../lib/followStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
 import { loadMyPerformerProfile, type PerformerRecord } from '../../lib/performerStore';
-import { loadPerformerEvents, type EventRecord } from '../../lib/eventsStore';
+import { loadPerformerEvents, loadHostEvents, getHostEvents, type EventRecord } from '../../lib/eventsStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -72,6 +72,7 @@ export default function ProfileTab() {
   const [myListings,       setMyListings]       = useState<Listing[]>([]);
   const [myArtistProfile,  setMyArtistProfile]  = useState<PerformerRecord | null>(null);
   const [myUpcomingShows,  setMyUpcomingShows]  = useState<EventRecord[]>([]);
+  const [myHostEvents,     setMyHostEvents]     = useState<EventRecord[]>([]);
 
   // Reload tickets, listings, performer profile, and upcoming shows on focus.
   useFocusEffect(
@@ -79,6 +80,9 @@ export default function ProfileTab() {
       if (!guest) {
         loadTickets().then(() => setMyTickets(getTickets()));
         loadListings().then(() => setMyListings(getMyListings()));
+        if (role === 'host') {
+          loadHostEvents().then(() => setMyHostEvents(getHostEvents()));
+        }
         if (role === 'artist') {
           loadMyPerformerProfile().then(profile => {
             setMyArtistProfile(profile);
@@ -272,6 +276,8 @@ export default function ProfileTab() {
             const isPerformerProfile = item.label === 'Performer Profile';
             const isBookings         = item.label === 'Bookings';
             const isEventInvites     = item.label === 'Event Invites';
+            const isMyEvents         = item.label === 'My Events';
+            const isStaffRoster      = item.label === 'Staff Roster';
 
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
@@ -287,8 +293,18 @@ export default function ProfileTab() {
               ? 'Create your talent profile first'
               : item.sublabel;
 
+            const upcomingHostEvent = myHostEvents.find(e =>
+              !e.datetimeStart || new Date(e.datetimeStart) >= new Date(),
+            );
+
             const onPress = isMyTickets
               ? () => router.push('/(tabs)/tickets')
+              : isMyEvents
+              ? () => router.push('/(tabs)/organize' as any)
+              : isStaffRoster
+              ? () => upcomingHostEvent
+                  ? router.push(`/event/${upcomingHostEvent.id}/roster` as any)
+                  : router.push('/(tabs)/organize' as any)
               : isPerformerProfile && myArtistProfile
               ? () => router.push(`/performer/${myArtistProfile.id}` as any)
               : isPerformerProfile
@@ -306,7 +322,9 @@ export default function ProfileTab() {
             const isActive = (isMyTickets && myTickets.length > 0)
               || (isPerformerProfile && !!myArtistProfile)
               || (isBookings && !!myArtistProfile)
-              || (isEventInvites && !!myArtistProfile);
+              || (isEventInvites && !!myArtistProfile)
+              || isMyEvents
+              || isStaffRoster;
 
             return (
               <Pressable

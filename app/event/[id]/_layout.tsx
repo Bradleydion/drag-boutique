@@ -15,6 +15,7 @@ export default function EventLayout() {
       <Stack.Screen name="index"   options={{ title: 'Event' }} />
       <Stack.Screen name="checkin" options={{ title: 'Door Check-In' }} />
       <Stack.Screen name="edit"    options={{ title: 'Edit Event' }} />
+      <Stack.Screen name="roster"  options={{ title: 'Staff Roster' }} />
     </Stack>
   );
 }

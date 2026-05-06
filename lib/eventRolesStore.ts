@@ -246,6 +246,23 @@ export async function loadMyInvites(talentId: string): Promise<EventTalentInvite
   return (data ?? []).map(mapInvite);
 }
 
+/** Load all confirmed (accepted) roles for a talent — shows their booked gigs. */
+export async function loadMyConfirmedRoles(talentId: string): Promise<EventTalentInvite[]> {
+  const { data, error } = await supabase
+    .from('event_talent')
+    .select(`
+      *,
+      event_roles!event_talent_event_role_id_fkey (role_name, custom_name)
+    `)
+    .eq('talent_id', talentId)
+    .eq('status', 'accepted')
+    .order('invited_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map(mapInvite);
+}
+
 function mapInvite(row: any): EventTalentInvite {
   return {
     id:             row.id,
@@ -260,6 +277,28 @@ function mapInvite(row: any): EventTalentInvite {
     invitedAt:      row.invited_at,
     respondedAt:    row.responded_at ?? undefined,
   };
+}
+
+// ─── Removal ─────────────────────────────────────────────────────────────────
+
+/** Host removes a staff member from an event role. */
+export async function removeEventTalent(inviteId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_talent')
+    .update({ status: 'removed', responded_at: new Date().toISOString() })
+    .eq('id', inviteId);
+
+  if (error) throw new Error(error.message);
+}
+
+/** Talent removes themselves from an accepted role. */
+export async function selfRemoveFromEvent(inviteId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_talent')
+    .update({ status: 'removed', responded_at: new Date().toISOString() })
+    .eq('id', inviteId);
+
+  if (error) throw new Error(error.message);
 }
 
 // ─── Previous collaborators ───────────────────────────────────────────────────

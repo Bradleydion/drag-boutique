@@ -2,7 +2,7 @@
 // Door check-in screen for hosts. Enter a ticket ID (from attendee's QR code)
 // to validate it and mark the attendee as checked in.
 
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -104,7 +104,17 @@ export default function CheckInScreen() {
   if (loadingEvent) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
-        <Stack.Screen options={{ title: 'Door Check-In', headerStyle: { backgroundColor: colors.navy }, headerTitleStyle: { color: colors.textPrimary }, headerTintColor: colors.teal }} />
+        <Stack.Screen options={{
+          title: 'Door Check-In',
+          headerStyle: { backgroundColor: colors.navy },
+          headerTitleStyle: { color: colors.textPrimary },
+          headerTintColor: colors.teal,
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+              <Text style={{ color: colors.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
+            </Pressable>
+          ),
+        }} />
         <ActivityIndicator color={colors.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
@@ -118,6 +128,15 @@ export default function CheckInScreen() {
           headerStyle: { backgroundColor: colors.navy },
           headerTitleStyle: { color: colors.textPrimary },
           headerTintColor: colors.teal,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              style={{ paddingRight: 16, paddingVertical: 4 }}
+              accessibilityLabel="Go back"
+            >
+              <Text style={{ color: colors.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
+            </Pressable>
+          ),
         }}
       />
 
