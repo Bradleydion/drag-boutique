@@ -12,10 +12,12 @@ export default function EventLayout() {
         headerBackTitle: 'Back',
       }}
     >
-      <Stack.Screen name="index"   options={{ title: 'Event' }} />
-      <Stack.Screen name="checkin" options={{ title: 'Door Check-In' }} />
-      <Stack.Screen name="edit"    options={{ title: 'Edit Event' }} />
-      <Stack.Screen name="roster"  options={{ title: 'Staff Roster' }} />
+      <Stack.Screen name="index"     options={{ title: 'Event' }} />
+      <Stack.Screen name="checkin"   options={{ title: 'Door Check-In' }} />
+      <Stack.Screen name="edit"      options={{ title: 'Edit Event' }} />
+      <Stack.Screen name="roster"    options={{ title: 'Staff Roster' }} />
+      <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
+      <Stack.Screen name="gig"       options={{ title: 'My Gig' }} />
     </Stack>
   );
 }

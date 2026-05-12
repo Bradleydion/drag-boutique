@@ -12,11 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
-import { events, performers } from '../../data/events';
 import { getFollowedIds } from '../../lib/followStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
-import { loadMyPerformerProfile, type PerformerRecord } from '../../lib/performerStore';
+import { loadMyPerformerProfile, fetchPerformerById, type PerformerRecord } from '../../lib/performerStore';
 import { loadPerformerEvents, loadHostEvents, getHostEvents, type EventRecord } from '../../lib/eventsStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
@@ -73,6 +72,7 @@ export default function ProfileTab() {
   const [myArtistProfile,  setMyArtistProfile]  = useState<PerformerRecord | null>(null);
   const [myUpcomingShows,  setMyUpcomingShows]  = useState<EventRecord[]>([]);
   const [myHostEvents,     setMyHostEvents]     = useState<EventRecord[]>([]);
+  const [followedProfiles, setFollowedProfiles] = useState<PerformerRecord[]>([]);
 
   // Reload tickets, listings, performer profile, and upcoming shows on focus.
   useFocusEffect(
@@ -82,6 +82,14 @@ export default function ProfileTab() {
         loadListings().then(() => setMyListings(getMyListings()));
         if (role === 'host') {
           loadHostEvents().then(() => setMyHostEvents(getHostEvents()));
+        }
+        // Load followed performer profiles from Supabase
+        const followedIds = getFollowedIds();
+        if (followedIds.length > 0) {
+          Promise.all(followedIds.map(id => fetchPerformerById(id).catch(() => null)))
+            .then(profiles => setFollowedProfiles(profiles.filter(Boolean) as PerformerRecord[]));
+        } else {
+          setFollowedProfiles([]);
         }
         if (role === 'artist') {
           loadMyPerformerProfile().then(profile => {
@@ -165,7 +173,7 @@ export default function ProfileTab() {
     ]);
   }
 
-  const followedPerformers = performers.filter(p => getFollowedIds().includes(p.id));
+  const followedPerformers = followedProfiles;
   const sections = ROLE_SECTIONS[role] ?? ROLE_SECTIONS.fan;
   const roleColor = ROLE_COLORS[role] ?? colors.teal;
   const roleLabel = ROLE_LABELS[role] ?? 'Fan';

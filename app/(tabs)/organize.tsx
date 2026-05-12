@@ -80,8 +80,22 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
         </Text>
       )}
 
-      {/* Action buttons — row 1 */}
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+      {/* Analytics button — full width */}
+      <Pressable
+        onPress={() => router.push(`/event/${event.id}/analytics` as any)}
+        style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+          gap: 8, marginTop: 14,
+          backgroundColor: '#F59E0B' + '18',
+          borderRadius: 10, paddingVertical: 10,
+          borderWidth: 1, borderColor: '#F59E0B' + '55',
+        }}
+      >
+        <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 13 }}>📊 View Analytics</Text>
+      </Pressable>
+
+      {/* Action buttons — row 2 */}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
         {upcoming && (
           <Pressable
             onPress={() => router.push(`/event/${event.id}/checkin` as any)}

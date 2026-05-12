@@ -1,6 +1,6 @@
 // app/performer/[id]/invites.tsx
 // Event invite inbox for talent — pending invites + confirmed gigs with withdraw option.
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -98,29 +98,34 @@ function PendingCard({
 
 function ConfirmedCard({
   invite,
+  talentId,
   eventTitle,
   onWithdraw,
 }: {
   invite: EventTalentInvite;
+  talentId: string;
   eventTitle: string;
   onWithdraw: () => void;
 }) {
   return (
-    <View style={{
-      backgroundColor: C.surface,
-      borderRadius: 14,
-      padding: 16,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: '#34D399' + '55',
-    }}>
+    <Pressable
+      onPress={() => router.push(`/event/${invite.eventId}/gig?talentId=${talentId}` as any)}
+      style={{
+        backgroundColor: C.surface,
+        borderRadius: 14,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#34D399' + '55',
+      }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Text style={{ fontSize: 20 }}>{roleEmoji(invite.roleName)}</Text>
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.textPrimary, fontWeight: '800', fontSize: 15 }}>
             {invite.customRoleName || roleLabel(invite.roleName)}
           </Text>
-          <Text style={{ color: '#34D399', fontSize: 12, marginTop: 1 }}>✓ Confirmed</Text>
+          <Text style={{ color: '#34D399', fontSize: 12, marginTop: 1 }}>✓ Confirmed · tap to open gig card</Text>
         </View>
         {invite.payAgreed !== undefined && (
           <View style={{ backgroundColor: '#34D399' + '22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#34D399' + '55' }}>
@@ -134,7 +139,7 @@ function ConfirmedCard({
       </Text>
 
       <Pressable
-        onPress={onWithdraw}
+        onPress={(e) => { e.stopPropagation(); onWithdraw(); }}
         style={{
           backgroundColor: C.surface, borderRadius: 10, paddingVertical: 9,
           alignItems: 'center', borderWidth: 1, borderColor: C.danger + '66',
@@ -142,7 +147,7 @@ function ConfirmedCard({
       >
         <Text style={{ color: C.danger, fontWeight: '700', fontSize: 13 }}>Withdraw from this gig</Text>
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
@@ -321,6 +326,7 @@ export default function InvitesScreen() {
                     <ConfirmedCard
                       key={inv.id}
                       invite={inv}
+                      talentId={talentId}
                       eventTitle={eventTitles[inv.eventId] ?? ''}
                       onWithdraw={() => handleWithdraw(inv)}
                     />
