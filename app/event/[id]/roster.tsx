@@ -71,6 +71,325 @@ function openVenmo(handle: string, amount: number, note: string) {
   );
 }
 
+function openSMS(phone: string, body?: string) {
+  const clean = phone.replace(/\D/g, '');
+  const encoded = body ? encodeURIComponent(body) : '';
+  Linking.openURL(`sms:${clean}${encoded ? `?&body=${encoded}` : ''}`).catch(() =>
+    Alert.alert('Cannot open SMS', 'Your device does not support SMS.'),
+  );
+}
+
+function openWhatsApp(phone: string, body?: string) {
+  const clean = phone.replace(/\D/g, '');
+  const encoded = body ? encodeURIComponent(body) : '';
+  Linking.openURL(`whatsapp://send?phone=${clean}${encoded ? `&text=${encoded}` : ''}`).catch(() =>
+    Linking.openURL(`https://wa.me/${clean}${encoded ? `?text=${encoded}` : ''}`).catch(() =>
+      Alert.alert('WhatsApp not installed', 'Please install WhatsApp to use this feature.'),
+    ),
+  );
+}
+
+// ─── Cost Estimator Card ─────────────────────────────────────────────────────
+
+function CostEstimatorCard({
+  roles,
+  talent,
+  capacity,
+  currentTicketPrice,
+}: {
+  roles: EventRole[];
+  talent: EventTalentInvite[];
+  capacity?: number;
+  currentTicketPrice?: number;
+}) {
+  const [expanded,      setExpanded]      = useState(true);
+  // Editable ticket count — defaults to venue capacity, overrideable by the host
+  const [ticketsInput,  setTicketsInput]  = useState(capacity ? String(capacity) : '');
+
+  // Parse the live input — clamp to a positive integer
+  const ticketsToSell = Math.max(1, parseInt(ticketsInput, 10) || 0);
+  const inputIsValid  = ticketsToSell > 0 && ticketsInput.trim() !== '';
+
+  // Total estimated cost if every slot fills at the posted rate
+  const maxEstimate = roles.reduce((sum, r) => sum + r.slots * r.payAmount, 0);
+
+  // What's already locked in (accepted invites with agreed pay)
+  const committed = talent
+    .filter(t => t.status === 'accepted' && t.payAgreed)
+    .reduce((s, t) => s + (t.payAgreed ?? 0), 0);
+
+  // Pending (invited but not yet responded)
+  const pending = talent
+    .filter(t => t.status === 'invited' && t.payAgreed)
+    .reduce((s, t) => s + (t.payAgreed ?? 0), 0);
+
+  // Live ticket price scenarios — driven by ticketsToSell
+  const canCalc   = inputIsValid && maxEstimate > 0;
+  const breakEven = canCalc ? maxEstimate / ticketsToSell : null;
+  const buffer25  = canCalc ? (maxEstimate * 1.25) / ticketsToSell : null;
+  const buffer50  = canCalc ? (maxEstimate * 1.5) / ticketsToSell : null;
+
+  // Venue cap vs planned sales comparison
+  const overCapacity = capacity && ticketsToSell > capacity;
+
+  // Roles that have no pay set
+  const unpaidRoles = roles.filter(r => r.payAmount === 0);
+
+  if (roles.length === 0 || maxEstimate === 0) return null;
+
+  function ticketPill(amount: number, label: string, sublabel: string, color: string) {
+    const isCurrent = currentTicketPrice !== undefined && Math.ceil(amount) === currentTicketPrice;
+    return (
+      <View style={{
+        flex: 1,
+        backgroundColor: color + '18',
+        borderRadius: 10,
+        padding: 10,
+        alignItems: 'center',
+        borderWidth: isCurrent ? 2 : 1,
+        borderColor: isCurrent ? color : color + '44',
+      }}>
+        <Text style={{ color, fontWeight: '900', fontSize: 19 }}>${Math.ceil(amount)}</Text>
+        <Text style={{ color, fontSize: 10, fontWeight: '800', marginTop: 2 }}>{label}</Text>
+        <Text style={{ color: C.textMuted, fontSize: 9, marginTop: 1, textAlign: 'center' }}>{sublabel}</Text>
+        {isCurrent && (
+          <Text style={{ color, fontSize: 9, fontWeight: '800', marginTop: 3 }}>← current price</Text>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={{
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.teal + '44',
+      marginBottom: 20,
+      overflow: 'hidden',
+    }}>
+      {/* Collapse header */}
+      <Pressable
+        onPress={() => setExpanded(e => !e)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 14,
+          borderBottomWidth: expanded ? 1 : 0,
+          borderBottomColor: C.border,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 16 }}>💰</Text>
+          <View>
+            <Text style={{ color: C.textPrimary, fontWeight: '800', fontSize: 14 }}>
+              Cost & Ticket Estimator
+            </Text>
+            <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 1 }}>
+              Max staff cost:{' '}
+              <Text style={{ color: C.coral, fontWeight: '700' }}>${maxEstimate.toFixed(0)}</Text>
+              {committed > 0 && (
+                <Text style={{ color: C.textMuted }}>
+                  {' · '}
+                  <Text style={{ color: '#34D399', fontWeight: '700' }}>${committed.toFixed(0)} locked in</Text>
+                </Text>
+              )}
+            </Text>
+          </View>
+        </View>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.textMuted} />
+      </Pressable>
+
+      {expanded && (
+        <View style={{ padding: 14 }}>
+
+          {/* ── Per-role cost breakdown ─────────────────────── */}
+          <Text style={estimatorLabel}>Staff Cost Breakdown</Text>
+          {roles.map(role => {
+            const roleCost        = role.slots * role.payAmount;
+            const confirmedForRole = talent
+              .filter(t => t.eventRoleId === role.id && t.status === 'accepted' && t.payAgreed)
+              .reduce((s, t) => s + (t.payAgreed ?? 0), 0);
+
+            return (
+              <View key={role.id} style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 9,
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+              }}>
+                <Text style={{ fontSize: 14, marginRight: 8 }}>{roleEmoji(role.roleName)}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.textPrimary, fontWeight: '700', fontSize: 13 }}>
+                    {role.customName || roleLabel(role.roleName)}
+                  </Text>
+                  <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 1 }}>
+                    {role.slots} slot{role.slots !== 1 ? 's' : ''} × ${role.payAmount.toFixed(0)}
+                    {confirmedForRole > 0 && (
+                      <Text style={{ color: '#34D399' }}>
+                        {' · '}${confirmedForRole.toFixed(0)} confirmed
+                      </Text>
+                    )}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  {role.payAmount > 0 ? (
+                    <Text style={{ color: C.coral, fontWeight: '800', fontSize: 14 }}>
+                      ${roleCost.toFixed(0)}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: C.textMuted, fontSize: 12, fontStyle: 'italic' }}>Unpaid</Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+
+          {/* ── Cost totals ─────────────────────────────────── */}
+          <View style={{ marginTop: 12, gap: 4 }}>
+            {committed > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: C.textSecondary, fontSize: 12 }}>✓ Confirmed</Text>
+                <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 12 }}>${committed.toFixed(0)}</Text>
+              </View>
+            )}
+            {pending > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: C.textSecondary, fontSize: 12 }}>⏳ Pending</Text>
+                <Text style={{ color: C.teal, fontWeight: '700', fontSize: 12 }}>${pending.toFixed(0)}</Text>
+              </View>
+            )}
+            <View style={{
+              flexDirection: 'row', justifyContent: 'space-between',
+              marginTop: 6, paddingTop: 8,
+              borderTopWidth: 1, borderTopColor: C.border,
+            }}>
+              <Text style={{ color: C.textPrimary, fontWeight: '800', fontSize: 14 }}>Max if all accept</Text>
+              <Text style={{ color: C.coral, fontWeight: '900', fontSize: 14 }}>${maxEstimate.toFixed(0)}</Text>
+            </View>
+          </View>
+
+          {/* ── Ticket count input ──────────────────────────── */}
+          <View style={{
+            marginTop: 18,
+            paddingTop: 16,
+            borderTopWidth: 1,
+            borderTopColor: C.border,
+          }}>
+            <Text style={estimatorLabel}>Tickets to Sell</Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {/* Input */}
+              <View style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: C.navy,
+                borderRadius: 10,
+                borderWidth: 1.5,
+                borderColor: overCapacity ? '#F87171' : C.teal + '55',
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}>
+                <TextInput
+                  value={ticketsInput}
+                  onChangeText={setTicketsInput}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 80"
+                  placeholderTextColor={C.textMuted}
+                  returnKeyType="done"
+                  style={{
+                    flex: 1,
+                    color: C.textPrimary,
+                    fontWeight: '800',
+                    fontSize: 20,
+                  }}
+                />
+                <Text style={{ color: C.textMuted, fontSize: 12 }}>tickets</Text>
+              </View>
+
+              {/* Venue cap reference */}
+              {capacity && (
+                <Pressable
+                  onPress={() => setTicketsInput(String(capacity))}
+                  style={{
+                    backgroundColor: C.teal + '18',
+                    borderRadius: 10,
+                    padding: 10,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: C.teal + '44',
+                  }}
+                >
+                  <Text style={{ color: C.teal, fontWeight: '800', fontSize: 16 }}>{capacity}</Text>
+                  <Text style={{ color: C.textMuted, fontSize: 9, marginTop: 1 }}>venue cap</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Over-capacity warning */}
+            {overCapacity && (
+              <Text style={{ color: '#F87171', fontSize: 11, marginTop: 6 }}>
+                ⚠ That exceeds your venue capacity of {capacity}
+              </Text>
+            )}
+
+            {/* No capacity set nudge */}
+            {!capacity && ticketsInput === '' && (
+              <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 6 }}>
+                No venue capacity set — enter a ticket count to see pricing.
+              </Text>
+            )}
+          </View>
+
+          {/* ── Ticket price scenarios ──────────────────────── */}
+          {canCalc && breakEven !== null && buffer25 !== null && buffer50 !== null && (
+            <View style={{ marginTop: 14 }}>
+              <Text style={estimatorLabel}>
+                Recommended Ticket Price · {ticketsToSell} tickets
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {ticketPill(breakEven, 'Break Even', 'covers staff only', '#F59E0B')}
+                {ticketPill(buffer25, '+25% margin', 'covers extras', C.coral)}
+                {ticketPill(buffer50, '+50% margin', 'profitable show', '#34D399')}
+              </View>
+              <Text style={{ color: C.textMuted, fontSize: 10, marginTop: 10, lineHeight: 15, textAlign: 'center' }}>
+                = max staff cost ÷ {ticketsToSell} tickets
+                {unpaidRoles.length > 0 ? ` · ${unpaidRoles.length} unpaid role${unpaidRoles.length > 1 ? 's' : ''} excluded` : ''}.
+                {'\n'}Buffer covers venue, supplies, and unexpected costs.
+              </Text>
+            </View>
+          )}
+
+          {/* Placeholder if no input yet */}
+          {!canCalc && ticketsInput !== '' && (
+            <View style={{
+              marginTop: 12, backgroundColor: C.navy, borderRadius: 10, padding: 12,
+              borderWidth: 1, borderColor: C.border,
+            }}>
+              <Text style={{ color: C.textMuted, fontSize: 12, textAlign: 'center' }}>
+                Enter a valid ticket count above to see pricing.
+              </Text>
+            </View>
+          )}
+
+        </View>
+      )}
+    </View>
+  );
+}
+
+const estimatorLabel = {
+  color: '#9CA3AF',
+  fontSize: 10,
+  fontWeight: '700' as const,
+  textTransform: 'uppercase' as const,
+  letterSpacing: 0.8,
+  marginBottom: 10,
+};
+
 // ─── Talent row within a role section ────────────────────────────────────────
 
 function TalentRow({
@@ -84,6 +403,7 @@ function TalentRow({
 }) {
   const isActive   = invite.status === 'accepted' || invite.status === 'invited';
   const isAccepted = invite.status === 'accepted';
+  const hasPhone   = !!invite.phoneNumber;
 
   function handlePay() {
     if (!invite.payAgreed) {
@@ -107,6 +427,25 @@ function TalentRow({
     );
   }
 
+  function handleContact() {
+    if (!hasPhone) return;
+    Alert.alert(
+      `Contact ${invite.stageName ?? 'Staff'}`,
+      invite.phoneNumber,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: '💬 SMS',
+          onPress: () => openSMS(invite.phoneNumber!, `Hi! This is about ${eventTitle}.`),
+        },
+        {
+          text: '📱 WhatsApp',
+          onPress: () => openWhatsApp(invite.phoneNumber!, `Hi! This is about ${eventTitle}.`),
+        },
+      ],
+    );
+  }
+
   function handleRemove() {
     Alert.alert(
       'Remove from roster?',
@@ -120,63 +459,93 @@ function TalentRow({
 
   return (
     <View style={{
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
       paddingVertical: 10,
       borderBottomWidth: 1,
       borderBottomColor: C.border,
       opacity: isActive ? 1 : 0.5,
     }}>
-      {invite.photoUrl ? (
-        <Image source={{ uri: invite.photoUrl }} style={{ width: 38, height: 38, borderRadius: 19 }} />
-      ) : (
-        <View style={{
-          width: 38, height: 38, borderRadius: 19,
-          backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center',
-          borderWidth: 1, borderColor: C.border,
-        }}>
-          <Text style={{ fontSize: 18 }}>💃</Text>
-        </View>
-      )}
+      {/* Top row: avatar + name + pay chip + action buttons */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        {invite.photoUrl ? (
+          <Image source={{ uri: invite.photoUrl }} style={{ width: 38, height: 38, borderRadius: 19 }} />
+        ) : (
+          <View style={{
+            width: 38, height: 38, borderRadius: 19,
+            backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center',
+            borderWidth: 1, borderColor: C.border,
+          }}>
+            <Text style={{ fontSize: 18 }}>💃</Text>
+          </View>
+        )}
 
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: C.textPrimary, fontWeight: '700', fontSize: 14 }}>
-          {invite.stageName ?? 'Unknown Talent'}
-        </Text>
-        <Text style={{ color: statusColor(invite.status), fontSize: 12, marginTop: 1 }}>
-          {statusLabel(invite.status)}
-        </Text>
-      </View>
-
-      {invite.payAgreed !== undefined && (
-        <View style={{
-          backgroundColor: C.teal + '22', borderRadius: 8,
-          paddingHorizontal: 8, paddingVertical: 3,
-          borderWidth: 1, borderColor: C.teal + '55',
-        }}>
-          <Text style={{ color: C.teal, fontWeight: '800', fontSize: 12 }}>
-            ${invite.payAgreed.toFixed(0)}
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.textPrimary, fontWeight: '700', fontSize: 14 }}>
+            {invite.stageName ?? 'Unknown Talent'}
+          </Text>
+          <Text style={{ color: statusColor(invite.status), fontSize: 12, marginTop: 1 }}>
+            {statusLabel(invite.status)}
           </Text>
         </View>
-      )}
 
-      {isAccepted && (
-        <Pressable
-          onPress={handlePay}
-          style={{
-            backgroundColor: '#34D399' + '22', borderRadius: 8,
-            paddingHorizontal: 10, paddingVertical: 6,
-            borderWidth: 1, borderColor: '#34D399' + '55',
-          }}
-        >
-          <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 12 }}>Pay</Text>
-        </Pressable>
-      )}
-      {isActive && (
-        <Pressable onPress={handleRemove} style={{ paddingHorizontal: 4, paddingVertical: 6 }}>
-          <Ionicons name="close-circle" size={20} color={C.danger} />
-        </Pressable>
+        {invite.payAgreed !== undefined && (
+          <View style={{
+            backgroundColor: C.teal + '22', borderRadius: 8,
+            paddingHorizontal: 8, paddingVertical: 3,
+            borderWidth: 1, borderColor: C.teal + '55',
+          }}>
+            <Text style={{ color: C.teal, fontWeight: '800', fontSize: 12 }}>
+              ${invite.payAgreed.toFixed(0)}
+            </Text>
+          </View>
+        )}
+
+        {isAccepted && (
+          <Pressable
+            onPress={handlePay}
+            style={{
+              backgroundColor: '#34D399' + '22', borderRadius: 8,
+              paddingHorizontal: 10, paddingVertical: 6,
+              borderWidth: 1, borderColor: '#34D399' + '55',
+            }}
+          >
+            <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 12 }}>Pay</Text>
+          </Pressable>
+        )}
+        {isActive && (
+          <Pressable onPress={handleRemove} style={{ paddingHorizontal: 4, paddingVertical: 6 }}>
+            <Ionicons name="close-circle" size={20} color={C.danger} />
+          </Pressable>
+        )}
+      </View>
+
+      {/* Contact row — only shown if phone is available */}
+      {hasPhone && isActive && (
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, marginLeft: 48 }}>
+          <Pressable
+            onPress={() => openSMS(invite.phoneNumber!, `Hi! This is about ${eventTitle}.`)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: '#3B82F6' + '18', borderRadius: 8,
+              paddingHorizontal: 10, paddingVertical: 5,
+              borderWidth: 1, borderColor: '#3B82F6' + '44',
+            }}
+          >
+            <Text style={{ fontSize: 12 }}>💬</Text>
+            <Text style={{ color: '#3B82F6', fontWeight: '700', fontSize: 11 }}>SMS</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => openWhatsApp(invite.phoneNumber!, `Hi! This is about ${eventTitle}.`)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: '#25D366' + '18', borderRadius: 8,
+              paddingHorizontal: 10, paddingVertical: 5,
+              borderWidth: 1, borderColor: '#25D366' + '44',
+            }}
+          >
+            <Text style={{ fontSize: 12 }}>📱</Text>
+            <Text style={{ color: '#25D366', fontWeight: '700', fontSize: 11 }}>WhatsApp</Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -602,6 +971,14 @@ export default function RosterScreen() {
             </View>
           ))}
         </View>
+
+        {/* Cost & ticket estimator */}
+        <CostEstimatorCard
+          roles={roles}
+          talent={talent}
+          capacity={event?.capacity}
+          currentTicketPrice={event?.ticketing?.price}
+        />
 
         {/* No roles yet */}
         {roles.length === 0 ? (

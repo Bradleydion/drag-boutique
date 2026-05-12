@@ -319,8 +319,25 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
+        {/* ── Invoice CTA ──────────────────────────────────────── */}
+        <Pressable
+          onPress={() => router.push(`/event/${eventId}/invoice` as any)}
+          style={{
+            backgroundColor: C.teal + '18',
+            borderRadius: 14,
+            paddingVertical: 14,
+            alignItems: 'center',
+            marginTop: 24,
+            borderWidth: 1.5,
+            borderColor: C.teal + '55',
+          }}
+        >
+          <Text style={{ color: C.teal, fontWeight: '900', fontSize: 15 }}>📄 Generate Invoice</Text>
+          <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 3 }}>Export a PDF summary to share or print</Text>
+        </Pressable>
+
         {/* ── Quick links ─────────────────────────────────────── */}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
           <Pressable
             onPress={() => router.push(`/event/${eventId}/roster` as any)}
             style={{

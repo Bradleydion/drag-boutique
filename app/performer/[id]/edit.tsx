@@ -45,6 +45,7 @@ export default function EditPerformerProfile() {
   const [commissionsOn,     setCommissionsOn]     = useState(false);
   const [commissionBlurb,   setCommissionBlurb]   = useState('');
   const [commissionPricing, setCommissionPricing] = useState('');
+  const [phone,             setPhone]             = useState('');
   const [isPromoted,        setIsPromoted]        = useState(false);
   const [photoUri,          setPhotoUri]          = useState<string | undefined>();
   const [existingPhotoUrl,  setExistingPhotoUrl]  = useState<string | undefined>();
@@ -67,6 +68,7 @@ export default function EditPerformerProfile() {
       setCommissionsOn(p.commissionsEnabled ?? false);
       setCommissionBlurb(p.commissionBlurb ?? '');
       setCommissionPricing(p.commissionPricing ?? '');
+      setPhone(p.phone ?? '');
       setIsPromoted(p.isPromoted ?? false);
       setExistingPhotoUrl(p.photoUrl);
 
@@ -124,6 +126,7 @@ export default function EditPerformerProfile() {
         commissionsEnabled: commissionsOn,
         commissionBlurb:    commissionsOn ? (commissionBlurb.trim() || undefined) : undefined,
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
+        phone:              phone.trim() || undefined,
         isPromoted,
       });
       await saveTalentRoles(id, selectedRoles);
@@ -244,6 +247,20 @@ export default function EditPerformerProfile() {
         <View style={{ height: 24 }} />
         <Text style={sectionLabel}>Payments</Text>
 
+        <Text style={labelStyle}>Phone (for host contact)</Text>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="+1 503 555 0100"
+          placeholderTextColor={C.textMuted}
+          keyboardType="phone-pad"
+          style={inputStyle}
+        />
+        <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>
+          Only visible to hosts who book you. Used for SMS/WhatsApp coordination.
+        </Text>
+
+        <View style={{ height: 14 }} />
         <Text style={labelStyle}>Venmo Handle</Text>
         <TextInput
           value={venmoHandle}

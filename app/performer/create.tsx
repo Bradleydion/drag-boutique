@@ -35,6 +35,7 @@ export default function CreateArtistProfile() {
   const [commissionsOn,     setCommissionsOn]     = useState(false);
   const [commissionBlurb,   setCommissionBlurb]   = useState('');
   const [commissionPricing, setCommissionPricing] = useState('');
+  const [phone,             setPhone]             = useState('');
   const [photoUri,          setPhotoUri]          = useState<string | undefined>();
   const [selectedRoles,     setSelectedRoles]     = useState<SelectedRole[]>([]);
 
@@ -74,6 +75,7 @@ export default function CreateArtistProfile() {
         commissionsEnabled: commissionsOn,
         commissionBlurb:    commissionsOn ? (commissionBlurb.trim() || undefined) : undefined,
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
+        phone:              phone.trim() || undefined,
       });
 
       // Save talent roles
@@ -203,6 +205,20 @@ export default function CreateArtistProfile() {
         <View style={{ height: 24 }} />
         <Text style={sectionLabel}>Payments</Text>
 
+        <Text style={labelStyle}>Phone (for host contact)</Text>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="+1 503 555 0100"
+          placeholderTextColor={C.textMuted}
+          keyboardType="phone-pad"
+          style={inputStyle}
+        />
+        <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>
+          Only visible to hosts who book you. Used for SMS/WhatsApp coordination.
+        </Text>
+
+        <View style={{ height: 14 }} />
         <Text style={labelStyle}>Venmo Handle (for tips)</Text>
         <TextInput
           value={venmoHandle}

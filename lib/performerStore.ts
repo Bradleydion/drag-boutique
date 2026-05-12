@@ -84,6 +84,7 @@ export type PerformerRecord = {
   commissionsEnabled?: boolean;
   commissionBlurb?: string;
   commissionPricing?: string;
+  phone?: string;
   createdAt?: string;
   isPromoted?: boolean;
   // Talent roles — populated via loadTalentRoles()
@@ -130,6 +131,7 @@ function rowToPerformer(row: Record<string, any>): PerformerRecord {
     commissionsEnabled: row.commissions_enabled ?? false,
     commissionBlurb:    row.commission_blurb,
     commissionPricing:  row.commission_pricing,
+    phone:              row.phone ?? undefined,
     createdAt:          row.created_at,
     isPromoted:         row.is_promoted ?? false,
   };
@@ -245,6 +247,7 @@ export async function createPerformerProfile(input: {
   commissionsEnabled?: boolean;
   commissionBlurb?: string;
   commissionPricing?: string;
+  phone?: string;
 }): Promise<PerformerRecord> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to create a profile.');
@@ -267,6 +270,7 @@ export async function createPerformerProfile(input: {
     commissions_enabled: input.commissionsEnabled ?? false,
     commission_blurb:    input.commissionBlurb ?? null,
     commission_pricing:  input.commissionPricing ?? null,
+    phone:               input.phone ?? null,
   };
 
   const { data, error } = await supabase
@@ -308,6 +312,7 @@ export async function updatePerformerProfile(
   if (patch.commissionsEnabled !== undefined) payload.commissions_enabled = patch.commissionsEnabled;
   if (patch.commissionBlurb !== undefined)    payload.commission_blurb    = patch.commissionBlurb;
   if (patch.commissionPricing !== undefined)  payload.commission_pricing  = patch.commissionPricing;
+  if (patch.phone !== undefined)              payload.phone               = patch.phone;
   if (patch.isPromoted !== undefined)         payload.is_promoted         = patch.isPromoted;
 
   const { data, error } = await supabase

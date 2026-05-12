@@ -205,7 +205,7 @@ export async function loadEventTalent(eventId: string): Promise<EventTalentInvit
     .from('event_talent')
     .select(`
       *,
-      performers!event_talent_talent_id_fkey (stage_name, photo_url),
+      performers!event_talent_talent_id_fkey (stage_name, photo_url, phone),
       event_roles!event_talent_event_role_id_fkey (role_name, custom_name)
     `)
     .eq('event_id', eventId)
@@ -224,7 +224,7 @@ export async function loadEventTalent(eventId: string): Promise<EventTalentInvit
     photoUrl:        row.performers?.photo_url ?? undefined,
     status:          row.status,
     payAgreed:       row.pay_agreed ? row.pay_agreed / 100 : undefined,
-    phoneNumber:     row.phone_number ?? undefined,
+    phoneNumber:     row.performers?.phone ?? undefined,
     invitedAt:       row.invited_at,
     respondedAt:     row.responded_at ?? undefined,
   }));
