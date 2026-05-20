@@ -3,9 +3,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { events } from '@/data/events';
 import { isGuest } from '@/lib/authStore';
 import { getTickets, loadTickets, type Ticket } from '@/lib/ticketStore';
+import { fetchEventById, type EventRecord } from '@/lib/eventsStore';
 import { colors } from '../../src/theme/colors';
 
 // QR code via free public API — no native dependency needed.
@@ -14,18 +14,22 @@ function qrUrl(data: string) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0D1B2A&bgcolor=FFFFFF&qzone=2&data=${encodeURIComponent(data)}`;
 }
 
-function TicketCard({ ticket }: { ticket: Ticket }) {
-  const event = events.find(e => e.id === ticket.event_id);
+function TicketCard({ ticket, event }: { ticket: Ticket; event: EventRecord | null }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!event) return null;
+  // Show a minimal placeholder if we haven't loaded the event yet
+  const title     = event?.title           ?? 'Loading…';
+  const dateStart = event?.datetimeStart;
+  const venueName = event?.venue?.name;
+  const venueCity = event?.venue?.city;
+  const imageUrl  = event?.imageUrl;
 
-  const dateStr = new Date(event.dateTimeStart).toLocaleDateString(undefined, {
-    weekday: 'short', month: 'short', day: 'numeric',
-  });
-  const timeStr = new Date(event.dateTimeStart).toLocaleTimeString(undefined, {
-    hour: 'numeric', minute: '2-digit',
-  });
+  const dateStr = dateStart
+    ? new Date(dateStart).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    : '';
+  const timeStr = dateStart
+    ? new Date(dateStart).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : '';
 
   // Short ticket ID shown on the card
   const shortId = ticket.id.slice(0, 8).toUpperCase();
@@ -44,7 +48,13 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
       }}
     >
       {/* Event banner */}
-      <Image source={{ uri: event.imageUrl }} style={{ width: '100%', height: 140 }} />
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={{ width: '100%', height: 140 }} />
+      ) : (
+        <View style={{ width: '100%', height: 140, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 40 }}>🎟️</Text>
+        </View>
+      )}
 
       {/* Ticket tear line */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: -1 }}>
@@ -63,14 +73,18 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 17, lineHeight: 22 }}>
-              {event.title}
+              {title}
             </Text>
-            <Text style={{ color: colors.accent, fontSize: 13, marginTop: 4, fontWeight: '600' }}>
-              {dateStr} · {timeStr}
-            </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
-              📍 {event.venueName} · {event.city}
-            </Text>
+            {dateStr ? (
+              <Text style={{ color: colors.accent, fontSize: 13, marginTop: 4, fontWeight: '600' }}>
+                {dateStr} · {timeStr}
+              </Text>
+            ) : null}
+            {(venueName || venueCity) ? (
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                📍 {[venueName, venueCity].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
           </View>
           <View style={{
             backgroundColor: colors.teal + '22',
@@ -127,18 +141,27 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 }
 
 export default function TicketsTab() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tickets,  setTickets]  = useState<Ticket[]>([]);
+  const [eventMap, setEventMap] = useState<Record<string, EventRecord>>({});
+  const [loading,  setLoading]  = useState(true);
   const guest = isGuest();
 
   // Reload whenever the tab comes into focus so purchases from Event Detail show up instantly.
   useFocusEffect(
     useCallback(() => {
       if (guest) { setLoading(false); return; }
-      loadTickets().then(() => {
-        setTickets(getTickets());
+      (async () => {
+        await loadTickets();
+        const loaded = getTickets();
+        setTickets(loaded);
+        // Fetch event details for each unique event_id in parallel
+        const uniqueEventIds = [...new Set(loaded.map(t => t.event_id))];
+        const results = await Promise.all(uniqueEventIds.map(id => fetchEventById(id)));
+        const map: Record<string, EventRecord> = {};
+        results.forEach((ev, i) => { if (ev) map[uniqueEventIds[i]] = ev; });
+        setEventMap(map);
         setLoading(false);
-      });
+      })();
     }, [guest]),
   );
 
@@ -215,7 +238,7 @@ export default function TicketsTab() {
 
         {/* Ticket list */}
         {!guest && !loading && tickets.map(ticket => (
-          <TicketCard key={ticket.id} ticket={ticket} />
+          <TicketCard key={ticket.id} ticket={ticket} event={eventMap[ticket.event_id] ?? null} />
         ))}
 
       </ScrollView>

@@ -19,7 +19,6 @@ import { EventCard } from '@/components/EventCard';
 import { loadEvents, type EventRecord } from '@/lib/eventsStore';
 import { getFollowedIds } from '@/lib/followStore';
 import { loadPerformers, getPerformers, type PerformerRecord } from '@/lib/performerStore';
-import { loadTalentRoles } from '@/lib/performerStore';
 import { roleEmoji, roleLabel } from '@/lib/eventRolesStore';
 import { colors } from '../../src/theme/colors';
 
@@ -124,7 +123,6 @@ export default function Discover() {
   const [city,       setCity]       = useState('All Cities');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [sortBy,     setSortBy]     = useState<SortBy>('date');
-  const [talentRole, setTalentRole] = useState<string>('all');
 
   async function fetchAll(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -177,7 +175,7 @@ export default function Discover() {
       if (q && !p.stageName.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [allTalent, query, talentRole]);
+  }, [allTalent, query]);
 
   const activeFilterCount = [
     city !== 'All Cities',

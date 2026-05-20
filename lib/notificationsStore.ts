@@ -10,7 +10,8 @@ export type NotificationType =
   | 'booking_accepted'
   | 'booking_declined'
   | 'performer_tagged'
-  | 'event_updated';
+  | 'event_updated'
+  | 'event_invite';
 
 export type NotificationRecord = {
   id: string;

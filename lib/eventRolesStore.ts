@@ -3,7 +3,7 @@
 
 import { supabase } from './supabase';
 import { getSession } from './authStore';
-import { sendNotification } from './notificationsStore';
+import { addNotification } from './notificationsStore';
 
 // ─── Role types ───────────────────────────────────────────────────────────────
 
@@ -168,12 +168,12 @@ export async function inviteTalentToRole(params: {
       .single();
 
     if (performer?.user_id) {
-      await sendNotification({
-        userId:   performer.user_id,
-        type:     'event_invite',
-        title:    'You\'ve been invited! 🎉',
-        body:     `You\'ve been invited as ${roleLabel(params.roleName)} for "${params.eventTitle}" — $${params.payAmount}/show`,
-        data:     { eventId: params.eventId, eventTalentId: data.id },
+      await addNotification({
+        userId: performer.user_id,
+        type:   'event_invite',
+        title:  `You've been invited! 🎉`,
+        body:   `You've been invited as ${roleLabel(params.roleName)} for "${params.eventTitle}" — $${params.payAmount}/show`,
+        link:   `/event/${params.eventId}`,
       });
     }
   } catch (_) {

@@ -2,10 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { colors } from '../src/theme/colors';
 import { DismissKeyboard } from '../components/DismissKeyboard';
+import { SplashScreen } from '../components/SplashScreen';
 
 /**
  * Parses a Supabase deep link URL and handles auth callbacks.
@@ -30,6 +31,8 @@ async function handleDeepLink(url: string) {
 }
 
 export default function RootLayout() {
+  const [splashDone, setSplashDone] = useState(false);
+
   useEffect(() => {
     // Show onboarding on first launch (skip if role already chosen)
     AsyncStorage.getItem('@sequins/userRole').then(val => {
@@ -61,6 +64,7 @@ export default function RootLayout() {
     <>
       <StatusBar style="light" />
       <DismissKeyboard>
+        {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
         <Stack
           screenOptions={{
             headerShown: true,
