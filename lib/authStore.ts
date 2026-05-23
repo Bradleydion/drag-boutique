@@ -164,3 +164,18 @@ export async function updateDisplayName(name: string): Promise<void> {
   if (!_session) return;
   await supabase.auth.updateUser({ data: { display_name: name.trim() } });
 }
+
+/**
+ * Merges arbitrary key-value pairs into the current user's Supabase
+ * user_metadata. Existing keys not present in `data` are left unchanged.
+ */
+export async function updateUserMetadata(data: Record<string, string>): Promise<void> {
+  if (!_session) return;
+  const { data: updated, error } = await supabase.auth.updateUser({ data });
+  if (error) throw error;
+  if (updated.user) {
+    // Refresh local session so callers see the latest metadata immediately.
+    const { data: sessionData } = await supabase.auth.getSession();
+    _session = sessionData.session;
+  }
+}

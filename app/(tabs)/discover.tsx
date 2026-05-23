@@ -1,8 +1,9 @@
 // app/(tabs)/discover.tsx
 // Live event feed from Supabase — promoted events float first,
 // city filter derived from real data, following feed wired to performer IDs.
-import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,7 +21,11 @@ import { loadEvents, type EventRecord } from '@/lib/eventsStore';
 import { getFollowedIds } from '@/lib/followStore';
 import { loadPerformers, getPerformers, type PerformerRecord } from '@/lib/performerStore';
 import { roleEmoji, roleLabel } from '@/lib/eventRolesStore';
+import { isGuest } from '@/lib/authStore';
+import { getRole } from '@/lib/userStore';
 import { colors } from '../../src/theme/colors';
+
+const FAN_NUDGE_KEY = '@sequins/fanNudgeDismissed';
 
 type DiscoverMode = 'events' | 'talent' | 'both';
 
@@ -124,6 +129,20 @@ export default function Discover() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [sortBy,     setSortBy]     = useState<SortBy>('date');
 
+  // Fan profile nudge — start as true (hidden) to avoid a flash before AsyncStorage loads.
+  const [nudgeDismissed, setNudgeDismissed] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(FAN_NUDGE_KEY).then(val => {
+      setNudgeDismissed(val === 'true');
+    });
+  }, []);
+
+  async function dismissNudge() {
+    setNudgeDismissed(true);
+    await AsyncStorage.setItem(FAN_NUDGE_KEY, 'true');
+  }
+
   async function fetchAll(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -188,6 +207,41 @@ export default function Discover() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['left', 'right', 'bottom']}>
+
+      {/* ── Fan profile nudge ────────────────────────────────────────────── */}
+      {getRole() === 'fan' && !isGuest() && !nudgeDismissed && (
+        <View style={{
+          marginHorizontal: 16,
+          marginTop: 10,
+          marginBottom: 2,
+          backgroundColor: colors.teal + '18',
+          borderRadius: 14,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          borderWidth: 1,
+          borderColor: colors.teal + '55',
+          gap: 12,
+        }}>
+          <Text style={{ fontSize: 22, lineHeight: 28 }}>✦</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.teal, fontWeight: '800', fontSize: 14, marginBottom: 3 }}>
+              Complete your profile
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 17 }}>
+              Add your name, save payment info for easy checkout, and share a bit about yourself.
+            </Text>
+            <Pressable onPress={() => router.push('/(tabs)/profile')} style={{ marginTop: 8 }}>
+              <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 13 }}>
+                Set up your profile →
+              </Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={dismissNudge} hitSlop={10} style={{ paddingTop: 2 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 18, lineHeight: 22 }}>✕</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* ── Mode toggle ───────────────────────────────────────────────────── */}
       <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 }}>

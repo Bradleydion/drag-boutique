@@ -22,7 +22,16 @@ export default function RoleSelectScreen() {
   async function confirm() {
     if (!selected) return;
     await setRole(selected);
-    router.replace('/(tabs)/discover');
+    if (selected === 'artist') {
+      // Send talent straight to profile creation — they need a public page to get booked.
+      router.replace('/performer/create' as any);
+    } else if (selected === 'host') {
+      // Host gets a quick setup screen (venue name, city, bio) before the organize tab.
+      router.replace('/host/setup' as any);
+    } else {
+      // Fan lands on Discover; a dismissible nudge there prompts profile completion.
+      router.replace('/(tabs)/discover');
+    }
   }
 
   const activeAccent = selected ? (ROLE_ACCENTS[selected] ?? colors.teal) : colors.teal;

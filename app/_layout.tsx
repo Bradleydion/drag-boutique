@@ -79,6 +79,8 @@ export default function RootLayout() {
           {/* Suppress outer root-Stack header for nested event flows — each has its own _layout.tsx */}
           <Stack.Screen name="event/create"  options={{ headerShown: false }} />
           <Stack.Screen name="event/[id]"    options={{ headerShown: false }} />
+          {/* Host profile setup — shown once after selecting Host role in onboarding */}
+          <Stack.Screen name="host/setup"    options={{ headerShown: false }} />
         </Stack>
       </DismissKeyboard>
     </>
