@@ -10,6 +10,9 @@ export type DraftEvent = {
   datetimeEnd?: string;   // ISO string
   timezone?: string;
 
+  // Performers
+  performerIds?: string[];
+
   // Venue
   venueName?: string;
   venueAddress?: string;
@@ -23,6 +26,29 @@ export type DraftEvent = {
   payoutVenmo?: string;   // @handle (without @ is fine too)
   salesStart?: string;    // ISO
   salesEnd?: string;      // ISO
+
+  // Media
+  imageLocalUri?: string;          // local file URI — uploaded to storage on publish
+
+  // Recurring events
+  isRecurring?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurringDaysOfWeek?: number[];  // weekly only — 0=Sun, 6=Sat
+  recurringEndDate?: string;       // ISO — when the series stops
+
+  // Promoted placement — paid feature, boosts visibility with gold badge
+  isPromoted?: boolean;
+
+  // Roles & Lineup
+  eventRoles?: DraftEventRole[];
+};
+
+export type DraftEventRole = {
+  roleName: string;
+  customName?: string;
+  slots: number;
+  payAmount: number;         // dollars
+  invitedTalentIds: string[];
 };
 
 let _draft: DraftEvent = {};

@@ -31,7 +31,7 @@ export default function CreateEvent_Ticketing() {
       salesEnd: (salesEnd.trim() || d.datetimeEnd || '').trim() || undefined,
     });
 
-    router.push('/event/create/review');
+    router.push('/event/create/roles');
   }
 
   const inputStyle = {
@@ -102,7 +102,7 @@ export default function CreateEvent_Ticketing() {
         />
       </View>
 
-      <PrimaryButton title="Review & Publish →" onPress={onProceedToReview} />
+      <PrimaryButton title="Roles & Lineup →" onPress={onProceedToReview} />
       <View style={{ height: 12 }} />
       <Pressable onPress={() => router.replace('/(tabs)/discover')} accessibilityRole="button">
         <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>

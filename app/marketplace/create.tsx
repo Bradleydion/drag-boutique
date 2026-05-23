@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { CATEGORY_META, ListingCategory, ListingCondition, ListingType, createListing } from '../../lib/marketplaceStore';
-import { getAuth } from '../../lib/authStore';
+import { getEmail, getSession } from '../../lib/authStore';
 import { getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -68,7 +68,8 @@ function OptionRow<T extends string>({
 }
 
 export default function CreateListingScreen() {
-  const auth = getAuth();
+  const email = getEmail();
+  const displayName = getSession()?.user?.user_metadata?.display_name as string | undefined;
   const role = getRole();
 
   const [category, setCategory] = useState<ListingCategory>('wigs');
@@ -90,30 +91,38 @@ export default function CreateListingScreen() {
     return null;
   }
 
-  function handleSubmit() {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit() {
     const err = validate();
     if (err) { Alert.alert('Missing info', err); return; }
 
-    createListing({
-      sellerId: auth?.email ?? 'guest',
-      sellerName: auth?.displayName ?? auth?.email?.split('@')[0] ?? 'You',
-      sellerRole: (role === 'host' ? 'host' : 'artist') as 'artist' | 'host',
-      category,
-      type,
-      condition: type !== 'commission' ? condition : undefined,
-      title: title.trim(),
-      description: description.trim(),
-      price: type === 'commission' ? 0 : Number(price),
-      imageUrls: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600'], // placeholder
-      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-      location: location.trim() || undefined,
-      shipsNationwide: ships,
-      localPickup: pickup,
-    });
-
-    Alert.alert('🎉 Listed!', 'Your item is now live in the marketplace.', [
-      { text: 'Back to Shop', onPress: () => router.replace('/(tabs)/marketplace') },
-    ]);
+    setSubmitting(true);
+    try {
+      await createListing({
+        sellerId: email ?? 'guest',
+        sellerName: displayName ?? email?.split('@')[0] ?? 'You',
+        sellerRole: (role === 'host' ? 'host' : 'artist') as 'artist' | 'host',
+        category,
+        type,
+        condition: type !== 'commission' ? condition : undefined,
+        title: title.trim(),
+        description: description.trim(),
+        price: type === 'commission' ? 0 : Number(price),
+        imageUrls: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600'],
+        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        location: location.trim() || undefined,
+        shipsNationwide: ships,
+        localPickup: pickup,
+      });
+      Alert.alert('🎉 Listed!', 'Your item is now live in the marketplace.', [
+        { text: 'Back to Shop', onPress: () => router.replace('/(tabs)/marketplace') },
+      ]);
+    } catch {
+      Alert.alert('Error', 'Could not publish your listing. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const fieldStyle = {
@@ -280,7 +289,7 @@ export default function CreateListingScreen() {
         />
 
         <View style={{ marginTop: 28 }}>
-          <PrimaryButton title="Publish Listing ✦" onPress={handleSubmit} />
+          <PrimaryButton title={submitting ? 'Publishing…' : 'Publish Listing ✦'} onPress={handleSubmit} />
         </View>
 
       </ScrollView>
