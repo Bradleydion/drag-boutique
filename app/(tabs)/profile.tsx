@@ -16,7 +16,7 @@ import { getFollowedIds } from '../../lib/followStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
 import { loadMyPerformerProfile, fetchPerformerById, type PerformerRecord } from '../../lib/performerStore';
-import { loadPerformerEvents, loadHostEvents, getHostEvents, type EventRecord } from '../../lib/eventsStore';
+import { loadEvents, loadPerformerEvents, loadHostEvents, getHostEvents, type EventRecord } from '../../lib/eventsStore';
 import { clearRole, getRole } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -67,6 +67,7 @@ export default function ProfileTab() {
 
   const [editingName,      setEditingName]      = useState(false);
   const [nameInput,        setNameInput]        = useState(displayNameFromMeta ?? '');
+  const [events,           setEvents]           = useState<EventRecord[]>([]);
   const [myTickets,        setMyTickets]        = useState<Ticket[]>([]);
   const [myListings,       setMyListings]       = useState<Listing[]>([]);
   const [myArtistProfile,  setMyArtistProfile]  = useState<PerformerRecord | null>(null);
@@ -78,6 +79,7 @@ export default function ProfileTab() {
   useFocusEffect(
     useCallback(() => {
       if (!guest) {
+        loadEvents().then(evs => setEvents(evs));
         loadTickets().then(() => setMyTickets(getTickets()));
         loadListings().then(() => setMyListings(getMyListings()));
         if (role === 'host') {

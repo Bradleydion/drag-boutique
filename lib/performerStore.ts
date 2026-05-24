@@ -254,7 +254,14 @@ export async function createPerformerProfile(input: {
 
   let photoUrl: string | undefined;
   if (input.photoLocalUri) {
-    photoUrl = await uploadPerformerPhoto(input.photoLocalUri);
+    // Photo upload is best-effort — don't abort profile creation if it fails.
+    // The most common failure is a missing storage RLS policy; the user can
+    // add a photo later via Edit Profile once the policy is applied.
+    try {
+      photoUrl = await uploadPerformerPhoto(input.photoLocalUri);
+    } catch (photoErr: any) {
+      console.warn('[performerStore] Photo upload failed (continuing without photo):', photoErr?.message);
+    }
   }
 
   const payload = {

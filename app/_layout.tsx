@@ -1,9 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { hasRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
 import { DismissKeyboard } from '../components/DismissKeyboard';
 import { SplashScreen } from '../components/SplashScreen';
@@ -14,7 +14,14 @@ import { SplashScreen } from '../components/SplashScreen';
  * so we split on # and parse manually.
  *
  * Handled types:
- *   recovery  → password reset link clicked → navigate to reset-password screen
+ *   recovery     → password reset link → navigate to reset-password screen
+ *   signup       → email confirmation link → establish session, go to onboarding
+ *   email_change → email change confirmation → establish session, stay in app
+ *   magiclink    → magic link login → establish session, go to onboarding/discover
+ *
+ * IMPORTANT: You must also add "sequins://" to Supabase Dashboard →
+ * Authentication → URL Configuration → Redirect URLs for these deep links
+ * to be accepted by Supabase (otherwise it rejects them as untrusted).
  */
 async function handleDeepLink(url: string) {
   const fragment = url.split('#')[1];
@@ -23,10 +30,16 @@ async function handleDeepLink(url: string) {
   const params = Object.fromEntries(new URLSearchParams(fragment));
   const { type, access_token, refresh_token } = params;
 
-  if (type === 'recovery' && access_token && refresh_token) {
-    // Establish session from the tokens in the link so updateUser() works.
-    await supabase.auth.setSession({ access_token, refresh_token });
+  if (!access_token || !refresh_token) return;
+
+  // Establish the session for all auth deep link types
+  await supabase.auth.setSession({ access_token, refresh_token });
+
+  if (type === 'recovery') {
     router.replace('/auth/reset-password');
+  } else {
+    // signup, email_change, magiclink — session is now live, send to app
+    router.replace(hasRole() ? '/(tabs)/discover' : '/onboarding');
   }
 }
 
@@ -34,13 +47,6 @@ export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
-    // Show onboarding on first launch (skip if role already chosen)
-    AsyncStorage.getItem('@sequins/userRole').then(val => {
-      if (!val) {
-        router.replace('/onboarding');
-      }
-    });
-
     // App opened cold via deep link.
     Linking.getInitialURL().then(url => { if (url) handleDeepLink(url); });
 
@@ -81,6 +87,8 @@ export default function RootLayout() {
           <Stack.Screen name="event/[id]"    options={{ headerShown: false }} />
           {/* Host profile setup — shown once after selecting Host role in onboarding */}
           <Stack.Screen name="host/setup"    options={{ headerShown: false }} />
+          {/* Notifications — back button should say "Back", not the raw route "(tabs)" */}
+          <Stack.Screen name="notifications" options={{ headerBackTitle: 'Back' }} />
         </Stack>
       </DismissKeyboard>
     </>
