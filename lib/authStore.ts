@@ -2,14 +2,15 @@
 // Auth state backed by Supabase. Session tokens are stored securely via
 // expo-secure-store (configured inside lib/supabase.ts).
 //
-// Guest mode is kept as a local-only concept — no Supabase record is created.
+// Guest mode is session-scoped only — it is NOT persisted to AsyncStorage.
+// A guest who restarts the app is prompted to sign in or create an account.
+// This keeps the auth funnel healthy and prevents Android from auto-landing
+// in guest mode on every launch.
+//
 // Social login (Apple, Google) will be added in a future sprint.
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-
-const GUEST_KEY = '@sequins/guest';
 
 let _session: Session | null = null;
 let _isGuest = false;
@@ -34,18 +35,17 @@ export function getEmail(): string | undefined {
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
-/** Call once on app start (alongside loadRole) to restore persisted state. */
+/**
+ * Call once on app start (alongside loadRole) to restore persisted state.
+ *
+ * Guest mode is intentionally NOT restored — a returning user who was a guest
+ * is sent to /auth to encourage account creation. Real Supabase sessions ARE
+ * restored (via expo-secure-store) so authenticated users aren't re-prompted.
+ */
 export async function loadAuth(): Promise<boolean> {
-  // Supabase restores the session from SecureStore automatically.
   const { data } = await supabase.auth.getSession();
   _session = data.session;
-
-  if (!_session) {
-    // Fall back to guest mode if that was previously set.
-    const guest = await AsyncStorage.getItem(GUEST_KEY);
-    _isGuest = guest === 'true';
-  }
-
+  _isGuest = false; // never auto-restore guest across sessions
   return isAuthenticated();
 }
 
@@ -55,14 +55,22 @@ export async function loadAuth(): Promise<boolean> {
  * Creates a new Supabase account.
  * Throws on failure — caller should catch and display the error.
  *
+ * emailRedirectTo points to sequins:// so the confirmation email link opens
+ * the app (rather than localhost). The deep link handler in _layout.tsx then
+ * calls supabase.auth.setSession() with the tokens from the URL fragment.
+ *
  * Note: if "Confirm email" is enabled in your Supabase project, the session
  * will be null after sign-up until the user clicks the confirmation link.
- * Disable it in Supabase → Auth → Email → "Confirm email" for local dev.
+ * You must also add "sequins://" to Supabase → Auth → URL Configuration →
+ * Redirect URLs for the deep link to be accepted.
  */
 export async function signUpWithEmail(email: string, password: string): Promise<void> {
   const { data, error } = await supabase.auth.signUp({
     email: email.toLowerCase().trim(),
     password,
+    options: {
+      emailRedirectTo: 'sequins://auth',
+    },
   });
   if (error) throw error;
   _session = data.session;
@@ -84,11 +92,14 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
 // ─── Guest ───────────────────────────────────────────────────────────────────
 
-/** Marks the user as a local guest — no Supabase record created. */
+/**
+ * Marks the user as a local guest for this session only.
+ * Not saved to AsyncStorage — clears on app restart.
+ */
 export async function signInAsGuest(): Promise<void> {
   _isGuest = true;
   _session = null;
-  await AsyncStorage.setItem(GUEST_KEY, 'true');
+  // Deliberately not persisting to AsyncStorage — guest mode is session-only.
 }
 
 // ─── Sign out ────────────────────────────────────────────────────────────────
@@ -99,7 +110,6 @@ export async function signOut(): Promise<void> {
   }
   _session = null;
   _isGuest = false;
-  await AsyncStorage.removeItem(GUEST_KEY);
 }
 
 // ─── Account deletion ─────────────────────────────────────────────────────────
@@ -126,10 +136,8 @@ export async function signOut(): Promise<void> {
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.rpc('delete_user');
   if (error) throw error;
-  // Clear everything locally after successful deletion.
   _session = null;
   _isGuest = false;
-  await AsyncStorage.removeItem(GUEST_KEY);
 }
 
 // ─── Password reset ───────────────────────────────────────────────────────────
@@ -154,6 +162,9 @@ export async function resendConfirmationEmail(email: string): Promise<void> {
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email: email.toLowerCase().trim(),
+    options: {
+      emailRedirectTo: 'sequins://auth',
+    },
   });
   if (error) throw error;
 }
