@@ -17,7 +17,10 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+}
+  KeyboardAvoidingView,
+  Platform,
+from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors as C } from '../../../src/theme/colors';
 
@@ -141,7 +144,19 @@ export default function CreateEvent_Basics() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+      <KeyboardAvoidingView
+
+
+        style={{ flex: 1 }}
+
+
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+
+
+      >
+
+
+        <ScrollView <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>Event basics</Text>
         <Text style={{ color: C.textMuted, marginTop: 4 }}>
           These details appear on the public event page.
@@ -168,7 +183,7 @@ export default function CreateEvent_Basics() {
           placeholder="What's the vibe? Hosts, themes, highlights…"
           placeholderTextColor={C.textMuted}
           multiline
-          style={[inputStyle, { minHeight: 96 }]}
+          style={[inputStyle, { minHeight: 96, textAlignVertical: 'top' }]}
         />
 
         {/* ── Event flyer / image ───────────────────────────────────────── */}
@@ -370,6 +385,7 @@ export default function CreateEvent_Basics() {
           </Text>
         </Pressable>
       </ScrollView>
+        </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

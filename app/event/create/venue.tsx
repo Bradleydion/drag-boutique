@@ -54,7 +54,7 @@ export default function CreateEvent_Venue() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={{ color: s.text, fontSize: 22, fontWeight: '900' }}>Venue details</Text>
         <Text style={{ color: s.muted, marginTop: 4 }}>Add the location so fans can get directions.</Text>
 

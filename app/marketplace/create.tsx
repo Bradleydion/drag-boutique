@@ -8,7 +8,10 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+}
+  KeyboardAvoidingView,
+  Platform,
+from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { CATEGORY_META, ListingCategory, ListingCondition, ListingType, createListing } from '../../lib/marketplaceStore';
@@ -147,7 +150,15 @@ export default function CreateListingScreen() {
         headerTitleStyle: { color: colors.textPrimary },
         headerTintColor: colors.teal,
       }} />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+      <KeyboardAvoidingView
+
+        style={{ flex: 1 }}
+
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+
+      >
+
+        <ScrollView <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
 
         <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '900', marginBottom: 4 }}>
           Create a Listing
@@ -293,6 +304,7 @@ export default function CreateListingScreen() {
         </View>
 
       </ScrollView>
+        </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

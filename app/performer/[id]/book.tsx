@@ -175,7 +175,7 @@ export default function BookingForm() {
           placeholder={messagePlaceholder}
           placeholderTextColor={C.textMuted}
           multiline
-          style={[inputStyle, { minHeight: 120 }]}
+          style={[inputStyle, { minHeight: 120, textAlignVertical: 'top' }]}
         />
 
         {/* Info card */}

@@ -356,7 +356,7 @@ export default function CreateEvent_Roles() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
 
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900', marginBottom: 4 }}>
           Roles & Lineup

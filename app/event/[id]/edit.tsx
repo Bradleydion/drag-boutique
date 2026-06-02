@@ -193,7 +193,7 @@ export default function EditEventScreen() {
 
         <View style={{ height: 12 }} />
         <Text style={labelStyle}>Description</Text>
-        <TextInput value={description} onChangeText={setDescription} style={[inputStyle, { minHeight: 80 }]} placeholderTextColor={C.textMuted} placeholder="What's the vibe?" multiline />
+        <TextInput value={description} onChangeText={setDescription} style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]} placeholderTextColor={C.textMuted} placeholder="What's the vibe?" multiline />
 
         {/* ── Flyer ────────────────────────────────────────────────────── */}
         <View style={{ height: 16 }} />

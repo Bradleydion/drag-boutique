@@ -14,7 +14,10 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+}
+  KeyboardAvoidingView,
+  Platform,
+from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { RolePicker, type SelectedRole } from '../../../components/RolePicker';
@@ -177,7 +180,19 @@ export default function EditPerformerProfile() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+      <KeyboardAvoidingView
+
+
+        style={{ flex: 1 }}
+
+
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+
+
+      >
+
+
+        <ScrollView <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
 
         {/* ── Profile photo ─────────────────────────────────────────────── */}
         <View style={{ alignItems: 'center', marginBottom: 28 }}>
@@ -221,7 +236,7 @@ export default function EditPerformerProfile() {
           placeholder="Tell fans who you are…"
           placeholderTextColor={C.textMuted}
           multiline
-          style={[inputStyle, { minHeight: 96 }]}
+          style={[inputStyle, { minHeight: 96, textAlignVertical: 'top' }]}
         />
 
         <View style={{ height: 14 }} />
@@ -401,6 +416,7 @@ export default function EditPerformerProfile() {
         </Pressable>
 
       </ScrollView>
+        </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

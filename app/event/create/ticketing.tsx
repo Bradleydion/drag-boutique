@@ -43,7 +43,7 @@ export default function CreateEvent_Ticketing() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.navy }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+    <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: C.navy }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       <Stack.Screen
         options={{
           title: 'Create Event • Ticketing',

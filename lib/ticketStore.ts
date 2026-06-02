@@ -1,26 +1,21 @@
 // lib/ticketStore.ts
 // Manages ticket purchases backed by Supabase `tickets` table.
+// Paid tickets flow through the Stripe `create-payment-intent` Edge Function.
 //
-// Required Supabase table (run once in SQL editor):
+// Payment flow:
+//   1. App calls createPaymentIntent(amount, eventId) → gets Stripe clientSecret
+//   2. App presents Stripe payment sheet (handled in the screen)
+//   3. On payment success, app calls buyTicket(eventId, price, paymentIntentId)
+//   4. Ticket is recorded in Supabase with payment_status = 'paid'
 //
-//   create table tickets (
-//     id uuid primary key default gen_random_uuid(),
-//     user_id uuid not null references auth.users(id) on delete cascade,
-//     event_id text not null,
-//     price numeric not null,
-//     purchased_at timestamptz default now(),
-//     checked_in_at timestamptz,
-//     unique(user_id, event_id)
-//   );
-//
-//   alter table tickets enable row level security;
-//   create policy "read own tickets" on tickets for select to authenticated using (auth.uid() = user_id);
-//   create policy "buy ticket" on tickets for insert to authenticated with check (auth.uid() = user_id);
+// Free tickets skip steps 1-3 entirely.
 
 import { getSession, isGuest } from './authStore';
 import { supabase } from './supabase';
 import { addNotification } from './notificationsStore';
 import { fetchEventById } from './eventsStore';
+
+export type PaymentStatus = 'free' | 'pending' | 'paid' | 'failed' | 'refunded';
 
 export type Ticket = {
   id: string;
@@ -29,21 +24,20 @@ export type Ticket = {
   price: number;
   purchased_at: string;
   checked_in_at?: string | null;
+  stripe_payment_intent_id?: string | null;
+  payment_status: PaymentStatus;
 };
-
-// ─── Check-in result ─────────────────────────────────────────────────────────
 
 export type CheckInResult =
   | { ok: true;  ticket: Ticket }
   | { ok: false; reason: 'not_found' | 'wrong_event' | 'already_checked_in' };
 
-// Local cache — keyed by event_id for fast lookup.
+// Local cache
 let _tickets: Ticket[] = [];
-let _loaded = false;
+let _loaded  = false;
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
-/** Load the current user's tickets from Supabase. Call once on app start or tab focus. */
 export async function loadTickets(): Promise<void> {
   const session = getSession();
   if (!session || isGuest()) { _tickets = []; _loaded = true; return; }
@@ -54,47 +48,80 @@ export async function loadTickets(): Promise<void> {
     .eq('user_id', session.user.id)
     .order('purchased_at', { ascending: false });
 
-  if (!error && data) {
-    _tickets = data as Ticket[];
-  }
+  if (!error && data) _tickets = data as Ticket[];
   _loaded = true;
 }
 
 // ─── Reads ────────────────────────────────────────────────────────────────────
 
-export function getTickets(): Ticket[] {
-  return _tickets;
-}
-
+export function getTickets(): Ticket[] { return _tickets; }
 export function hasTicket(eventId: string): boolean {
   return _tickets.some(t => t.event_id === eventId);
 }
+export function ticketsLoaded(): boolean { return _loaded; }
 
-export function ticketsLoaded(): boolean {
-  return _loaded;
+// ─── Stripe: create payment intent ───────────────────────────────────────────
+
+/**
+ * Calls the Supabase Edge Function to create a Stripe PaymentIntent.
+ * Returns the clientSecret needed to present the Stripe payment sheet,
+ * plus the paymentIntentId to store on the ticket after success.
+ *
+ * Throws on network/Stripe errors — caller should catch and show an alert.
+ */
+export async function createPaymentIntent(
+  amount: number,
+  eventId: string,
+  eventTitle: string,
+): Promise<{ clientSecret: string; paymentIntentId: string }> {
+  const session = getSession();
+  if (!session || isGuest()) throw new Error('Must be signed in to purchase tickets.');
+
+  const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+    body: { amount, eventId, eventTitle },
+  });
+
+  if (error) throw new Error(error.message ?? 'Could not initialise payment.');
+  if (!data?.clientSecret) throw new Error('Invalid response from payment service.');
+
+  return { clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };
 }
 
 // ─── Purchase ─────────────────────────────────────────────────────────────────
 
 /**
- * Record a ticket purchase in Supabase.
- * Returns the new ticket on success.
- * Throws if the user is a guest or already has a ticket for this event.
+ * Record a ticket in Supabase after payment is confirmed.
+ *
+ * For FREE events:    call with price=0, no paymentIntentId needed.
+ * For PAID events:    call after Stripe payment sheet succeeds, pass paymentIntentId.
  */
-export async function buyTicket(eventId: string, price: number): Promise<Ticket> {
+export async function buyTicket(
+  eventId: string,
+  price: number,
+  paymentIntentId?: string,
+): Promise<Ticket> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to buy tickets.');
 
   const existing = _tickets.find(t => t.event_id === eventId);
   if (existing) return existing;
 
+  const payment_status: PaymentStatus = price === 0 ? 'free' : 'paid';
+
   const { data, error } = await supabase
     .from('tickets')
-    .insert({ user_id: session.user.id, event_id: eventId, price })
+    .insert({
+      user_id: session.user.id,
+      event_id: eventId,
+      price,
+      payment_status,
+      stripe_payment_intent_id: paymentIntentId ?? null,
+    })
     .select()
     .single();
 
   if (error) {
+    // Handle duplicate (race condition)
     if (error.code === '23505') {
       await loadTickets();
       const found = _tickets.find(t => t.event_id === eventId);
@@ -106,75 +133,56 @@ export async function buyTicket(eventId: string, price: number): Promise<Ticket>
   const ticket = data as Ticket;
   _tickets = [ticket, ..._tickets];
 
-  // Notify the host that a ticket was sold (non-fatal)
+  // Notify host of ticket sale (non-fatal)
   try {
     const event = await fetchEventById(eventId);
-    if (event && event.hostId && event.hostId !== session.user.id) {
+    if (event?.hostId && event.hostId !== session.user.id) {
       await addNotification({
         userId: event.hostId,
         type:   'ticket_sold',
         title:  `New ticket sold — ${event.title}`,
-        body:   price === 0 ? 'A free ticket was claimed.' : `$${price.toFixed(2)} ticket purchased.`,
-        link:   `/event/${eventId}`,
+        body:   price === 0
+          ? 'A free ticket was claimed.'
+          : `$${price.toFixed(2)} ticket purchased via Stripe.`,
+        link: `/event/${eventId}`,
       });
     }
-  } catch (_) { /* notification failure is non-fatal */ }
+  } catch { /* non-fatal */ }
 
   return ticket;
 }
 
 // ─── Door check-in ───────────────────────────────────────────────────────────
 
-/**
- * Validate a ticket ID for a specific event and mark it as checked in.
- * Called by the host's door check-in screen.
- * Does NOT require the host to be the ticket owner — host has no RLS restriction
- * because we query by ticket ID (which is secret, embedded in the QR).
- */
 export async function checkInTicket(
   ticketId: string,
   eventId: string,
 ): Promise<CheckInResult> {
-  // Fetch the ticket by ID regardless of ownership
   const { data, error } = await supabase
     .from('tickets')
     .select('*')
     .eq('id', ticketId)
     .maybeSingle();
 
-  if (error || !data) {
-    return { ok: false, reason: 'not_found' };
-  }
+  if (error || !data) return { ok: false, reason: 'not_found' };
 
   const ticket = data as Ticket;
+  if (ticket.event_id !== eventId)   return { ok: false, reason: 'wrong_event' };
+  if (ticket.checked_in_at)          return { ok: false, reason: 'already_checked_in' };
 
-  if (ticket.event_id !== eventId) {
-    return { ok: false, reason: 'wrong_event' };
-  }
-
-  if (ticket.checked_in_at) {
-    return { ok: false, reason: 'already_checked_in' };
-  }
-
-  // Mark checked in
   const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from('tickets')
     .update({ checked_in_at: now })
     .eq('id', ticketId);
 
-  if (updateError) {
-    return { ok: false, reason: 'not_found' };
-  }
-
+  if (updateError) return { ok: false, reason: 'not_found' };
   return { ok: true, ticket: { ...ticket, checked_in_at: now } };
 }
 
-/**
- * Fetch all tickets for a given event (host use only, for the check-in counter).
- * Returns { total, checkedIn }.
- */
-export async function getEventTicketStats(eventId: string): Promise<{ total: number; checkedIn: number }> {
+export async function getEventTicketStats(
+  eventId: string,
+): Promise<{ total: number; checkedIn: number }> {
   const { data, error } = await supabase
     .from('tickets')
     .select('checked_in_at')

@@ -2,11 +2,16 @@ import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { supabase } from '../lib/supabase';
 import { hasRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
 import { DismissKeyboard } from '../components/DismissKeyboard';
 import { SplashScreen } from '../components/SplashScreen';
+
+// Stripe publishable key — set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env
+// Use pk_test_... for development, pk_live_... for production
+const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 /**
  * Parses a Supabase deep link URL and handles auth callbacks.
@@ -67,7 +72,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.app.sequins">
       <StatusBar style="light" />
       <DismissKeyboard>
         {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
@@ -91,6 +96,6 @@ export default function RootLayout() {
           <Stack.Screen name="notifications" options={{ headerBackTitle: 'Back' }} />
         </Stack>
       </DismissKeyboard>
-    </>
+    </StripeProvider>
   );
 }
