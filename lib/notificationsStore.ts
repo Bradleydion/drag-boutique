@@ -1,6 +1,7 @@
 // lib/notificationsStore.ts
 import { supabase } from './supabase';
 import { getSession } from './authStore';
+import { sendPushNotification } from './pushNotificationsStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,4 +135,12 @@ export async function addNotification(params: {
     // Non-fatal — notification failure shouldn't break the main flow
     console.warn('[notificationsStore] addNotification error:', error.message);
   }
+
+  // Also send a real device push notification (non-fatal, fire-and-forget)
+  sendPushNotification({
+    userId: params.userId,
+    title:  params.title,
+    body:   params.body,
+    data:   params.link ? { link: params.link } : undefined,
+  });
 }

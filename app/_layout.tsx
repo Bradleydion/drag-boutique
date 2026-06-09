@@ -8,6 +8,10 @@ import { hasRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
 import { DismissKeyboard } from '../components/DismissKeyboard';
 import { SplashScreen } from '../components/SplashScreen';
+import {
+  registerForPushNotificationsAsync,
+  unregisterPushToken,
+} from '../lib/pushNotificationsStore';
 
 // Stripe publishable key — set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env
 // Use pk_test_... for development, pk_live_... for production
@@ -58,12 +62,20 @@ export default function RootLayout() {
     // App already open — link tapped while foregrounded.
     const linkSub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
 
-    // Supabase session events — redirect to auth on sign-out.
+    // Supabase session events — redirect to auth on sign-out; register push on sign-in.
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
+        unregisterPushToken(); // remove this device's token on logout
         router.replace('/auth');
       }
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Register / refresh push token in the background — non-blocking
+        registerForPushNotificationsAsync().catch(() => {});
+      }
     });
+
+    // Also register on cold start if already signed in
+    registerForPushNotificationsAsync().catch(() => {});
 
     return () => {
       linkSub.remove();
