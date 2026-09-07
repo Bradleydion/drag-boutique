@@ -12,6 +12,26 @@ import {
   registerForPushNotificationsAsync,
   unregisterPushToken,
 } from '../lib/pushNotificationsStore';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://9aef65136864760e246519e0ed54a6a5@o4511735090905088.ingest.us.sentry.io/4511735387914240',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 // Stripe publishable key — set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env
 // Use pk_test_... for development, pk_live_... for production
@@ -52,7 +72,7 @@ async function handleDeepLink(url: string) {
   }
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
@@ -110,4 +130,4 @@ export default function RootLayout() {
       </DismissKeyboard>
     </StripeProvider>
   );
-}
+});

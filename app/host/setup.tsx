@@ -15,16 +15,15 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Switch,
   Text,
   TextInput,
   View,
-}
-  KeyboardAvoidingView,
-  Platform,
-from 'react-native';
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { updateUserMetadata } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
@@ -308,7 +307,6 @@ export default function HostSetupScreen() {
           You can update this anytime from your profile.
         </Text>
       </ScrollView>
-        </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

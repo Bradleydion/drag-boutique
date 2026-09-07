@@ -1,7 +1,6 @@
 // lib/notificationsStore.ts
 import { supabase } from './supabase';
 import { getSession } from './authStore';
-import { sendPushNotification } from './pushNotificationsStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,9 +111,14 @@ export async function markAllRead(): Promise<void> {
 }
 
 /**
- * Insert a notification for another user.
- * Call this from within flows (ticket purchase, booking request, etc.)
- * after any action that should notify someone.
+ * Notify another user via the `send-notification` Edge Function.
+ *
+ * The Edge Function validates the caller's JWT, inserts the DB row using the
+ * service-role key (so direct client inserts on the notifications table are
+ * fully revoked), and fans out a device push notification.
+ *
+ * Non-fatal — a failure here never throws; it only logs a warning so the
+ * calling flow (ticket purchase, booking request, etc.) is never blocked.
  */
 export async function addNotification(params: {
   userId: string;
@@ -123,24 +127,21 @@ export async function addNotification(params: {
   body?: string;
   link?: string;
 }): Promise<void> {
-  const { error } = await supabase.from('notifications').insert({
-    user_id: params.userId,
-    type:    params.type,
-    title:   params.title,
-    body:    params.body ?? null,
-    link:    params.link ?? null,
-  });
+  try {
+    const { error } = await supabase.functions.invoke('send-notification', {
+      body: {
+        user_id: params.userId,
+        type:    params.type,
+        title:   params.title,
+        body:    params.body ?? undefined,
+        link:    params.link ?? undefined,
+      },
+    });
 
-  if (error) {
-    // Non-fatal — notification failure shouldn't break the main flow
-    console.warn('[notificationsStore] addNotification error:', error.message);
+    if (error) {
+      console.warn('[notificationsStore] addNotification edge function error:', error.message);
+    }
+  } catch (e: any) {
+    console.warn('[notificationsStore] addNotification exception:', e?.message);
   }
-
-  // Also send a real device push notification (non-fatal, fire-and-forget)
-  sendPushNotification({
-    userId: params.userId,
-    title:  params.title,
-    body:   params.body,
-    data:   params.link ? { link: params.link } : undefined,
-  });
 }

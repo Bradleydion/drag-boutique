@@ -8,16 +8,15 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Switch,
   Text,
   TextInput,
   View,
-}
-  KeyboardAvoidingView,
-  Platform,
-from 'react-native';
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { RolePicker, type SelectedRole } from '../../../components/RolePicker';
@@ -192,7 +191,7 @@ export default function EditPerformerProfile() {
       >
 
 
-        <ScrollView <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
 
         {/* ── Profile photo ─────────────────────────────────────────────── */}
         <View style={{ alignItems: 'center', marginBottom: 28 }}>

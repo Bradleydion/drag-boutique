@@ -119,12 +119,21 @@ export async function uploadEventImage(localUri: string): Promise<string> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/** Load ALL upcoming public events (for Discover feed), promoted first. */
+/** Load ALL upcoming public events (for Discover feed), promoted first.
+ *  A one-off event shows if datetime_start >= now.
+ *  A recurring event shows if recurring_end_date >= today (still has future occurrences).
+ */
 export async function loadEvents(): Promise<EventRecord[]> {
+  const now = new Date().toISOString();
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
   const { data, error } = await supabase
     .from('events')
     .select('*')
-    .gte('datetime_start', new Date().toISOString())
+    .or(
+      `and(is_recurring.eq.false,datetime_start.gte.${now}),` +
+      `and(is_recurring.eq.true,recurring_end_date.gte.${today})`
+    )
     .order('is_promoted', { ascending: false })
     .order('datetime_start', { ascending: true });
 

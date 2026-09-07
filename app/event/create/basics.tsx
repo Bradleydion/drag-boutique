@@ -11,16 +11,14 @@ import { useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
-}
-  KeyboardAvoidingView,
-  Platform,
-from 'react-native';
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors as C } from '../../../src/theme/colors';
 
@@ -156,7 +154,7 @@ export default function CreateEvent_Basics() {
       >
 
 
-        <ScrollView <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>Event basics</Text>
         <Text style={{ color: C.textMuted, marginTop: 4 }}>
           These details appear on the public event page.

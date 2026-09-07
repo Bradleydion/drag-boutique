@@ -1,24 +1,18 @@
 // app/(tabs)/tickets.tsx
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import { isGuest } from '@/lib/authStore';
 import { getTickets, loadTickets, type Ticket } from '@/lib/ticketStore';
 import { fetchEventById, type EventRecord } from '@/lib/eventsStore';
 import { colors } from '../../src/theme/colors';
 
-// QR code via free public API — no native dependency needed.
-// Format matches what the door check-in screen expects: SEQ-TICKET:<uuid>
-function qrUrl(data: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0D1B2A&bgcolor=FFFFFF&qzone=2&data=${encodeURIComponent(data)}`;
-}
-
 function TicketCard({ ticket, event }: { ticket: Ticket; event: EventRecord | null }) {
-  const [expanded, setExpanded] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  // Show a minimal placeholder if we haven't loaded the event yet
-  const title     = event?.title           ?? 'Loading…';
+  const title     = event?.title      ?? 'Loading…';
   const dateStart = event?.datetimeStart;
   const venueName = event?.venue?.name;
   const venueCity = event?.venue?.city;
@@ -31,112 +25,148 @@ function TicketCard({ ticket, event }: { ticket: Ticket; event: EventRecord | nu
     ? new Date(dateStart).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
     : '';
 
-  // Short ticket ID shown on the card
   const shortId = ticket.id.slice(0, 8).toUpperCase();
-  const qrData = `SEQ-TICKET:${ticket.id}`;
+  const qrData  = `SEQ-TICKET:${ticket.id}`;
 
   return (
-    <Pressable
-      onPress={() => setExpanded(e => !e)}
-      style={{
-        backgroundColor: colors.surface,
-        borderRadius: 18,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginBottom: 16,
-      }}
-    >
-      {/* Event banner */}
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={{ width: '100%', height: 140 }} />
-      ) : (
-        <View style={{ width: '100%', height: 140, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 40 }}>🎟️</Text>
-        </View>
-      )}
-
-      {/* Ticket tear line */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: -1 }}>
-        <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.navy, marginLeft: -7 }} />
-        <View style={{
-          flex: 1,
-          borderTopWidth: 1,
-          borderColor: colors.border,
-          borderStyle: 'dashed',
-        }} />
-        <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.navy, marginRight: -7 }} />
-      </View>
-
-      {/* Ticket body */}
-      <View style={{ padding: 16 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 17, lineHeight: 22 }}>
-              {title}
+    <>
+      {/* ── Full-screen QR modal (Apple Wallet style) ───────────────────── */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <StatusBar barStyle="dark-content" />
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          {/* Event name */}
+          <Text style={{ fontSize: 22, fontWeight: '900', color: '#0D1B2A', textAlign: 'center', marginBottom: 6 }}>
+            {title}
+          </Text>
+          {dateStr ? (
+            <Text style={{ fontSize: 14, color: '#555', marginBottom: 4 }}>{dateStr} · {timeStr}</Text>
+          ) : null}
+          {(venueName || venueCity) ? (
+            <Text style={{ fontSize: 13, color: '#777', marginBottom: 28 }}>
+              📍 {[venueName, venueCity].filter(Boolean).join(' · ')}
             </Text>
-            {dateStr ? (
-              <Text style={{ color: colors.accent, fontSize: 13, marginTop: 4, fontWeight: '600' }}>
-                {dateStr} · {timeStr}
-              </Text>
-            ) : null}
-            {(venueName || venueCity) ? (
-              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
-                📍 {[venueName, venueCity].filter(Boolean).join(' · ')}
-              </Text>
-            ) : null}
-          </View>
+          ) : <View style={{ height: 28 }} />}
+
+          {/* QR code — rendered entirely offline */}
           <View style={{
-            backgroundColor: colors.teal + '22',
-            borderRadius: 10,
-            paddingHorizontal: 10,
-            paddingVertical: 5,
-            borderWidth: 1,
-            borderColor: colors.teal,
-            alignSelf: 'flex-start',
+            padding: 20,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 20,
+            shadowColor: '#000',
+            shadowOpacity: 0.12,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 6,
           }}>
-            <Text style={{ color: colors.teal, fontSize: 12, fontWeight: '700' }}>
-              {ticket.price === 0 ? 'FREE' : `$${Number(ticket.price).toFixed(2)}`}
-            </Text>
+            <QRCode
+              value={qrData}
+              size={240}
+              color="#0D1B2A"
+              backgroundColor="#FFFFFF"
+              quietZone={10}
+            />
           </View>
-        </View>
 
-        {/* Ticket ID row */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <Text style={{ color: colors.textMuted, fontSize: 11, fontFamily: 'monospace', letterSpacing: 1 }}>
+          {/* Ticket ID */}
+          <Text style={{ marginTop: 24, fontSize: 13, fontFamily: 'monospace', color: '#0D1B2A', letterSpacing: 2, fontWeight: '700' }}>
             #{shortId}
           </Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-            {expanded ? 'Hide QR ▲' : 'Show QR ▼'}
-          </Text>
-        </View>
+          <Text style={{ marginTop: 6, fontSize: 12, color: '#999' }}>Valid for 1 entry</Text>
 
-        {/* QR code — expands on tap */}
-        {expanded && (
-          <View style={{ alignItems: 'center', marginTop: 16, paddingBottom: 4 }}>
-            <View style={{
-              padding: 14,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: colors.border,
-              alignItems: 'center',
-            }}>
-              <Image
-                source={{ uri: qrUrl(qrData) }}
-                style={{ width: 180, height: 180 }}
-              />
-            </View>
-            <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 12, marginTop: 10, letterSpacing: 0.5 }}>
-              Show this at the door · {shortId}
-            </Text>
-            <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
-              Valid for 1 entry
-            </Text>
+          {/* Close button */}
+          <Pressable
+            onPress={() => setModalVisible(false)}
+            style={{
+              marginTop: 36,
+              backgroundColor: '#0D1B2A',
+              borderRadius: 14,
+              paddingHorizontal: 40,
+              paddingVertical: 14,
+            }}
+          >
+            <Text style={{ color: '#00E5CC', fontWeight: '800', fontSize: 16 }}>Done</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* ── Ticket card ─────────────────────────────────────────────────── */}
+      <Pressable
+        onPress={() => setModalVisible(true)}
+        style={{
+          backgroundColor: colors.surface,
+          borderRadius: 18,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: colors.border,
+          marginBottom: 16,
+        }}
+      >
+        {/* Event banner */}
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={{ width: '100%', height: 140 }} />
+        ) : (
+          <View style={{ width: '100%', height: 140, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 40 }}>🎟️</Text>
           </View>
         )}
-      </View>
-    </Pressable>
+
+        {/* Ticket tear line */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: -1 }}>
+          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.navy, marginLeft: -7 }} />
+          <View style={{ flex: 1, borderTopWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }} />
+          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.navy, marginRight: -7 }} />
+        </View>
+
+        {/* Ticket body */}
+        <View style={{ padding: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 17, lineHeight: 22 }}>
+                {title}
+              </Text>
+              {dateStr ? (
+                <Text style={{ color: colors.accent, fontSize: 13, marginTop: 4, fontWeight: '600' }}>
+                  {dateStr} · {timeStr}
+                </Text>
+              ) : null}
+              {(venueName || venueCity) ? (
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  📍 {[venueName, venueCity].filter(Boolean).join(' · ')}
+                </Text>
+              ) : null}
+            </View>
+            <View style={{
+              backgroundColor: colors.teal + '22',
+              borderRadius: 10,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderWidth: 1,
+              borderColor: colors.teal,
+              alignSelf: 'flex-start',
+            }}>
+              <Text style={{ color: colors.teal, fontSize: 12, fontWeight: '700' }}>
+                {ticket.price === 0 ? 'FREE' : `$${Number(ticket.price).toFixed(2)}`}
+              </Text>
+            </View>
+          </View>
+
+          {/* Tap prompt */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 11, fontFamily: 'monospace', letterSpacing: 1 }}>
+              #{shortId}
+            </Text>
+            <Text style={{ color: colors.teal, fontSize: 12, fontWeight: '600' }}>
+              Tap to show QR →
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    </>
   );
 }
 

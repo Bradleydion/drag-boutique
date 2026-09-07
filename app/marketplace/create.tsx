@@ -3,15 +3,14 @@ import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
-}
-  KeyboardAvoidingView,
-  Platform,
-from 'react-native';
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { CATEGORY_META, ListingCategory, ListingCondition, ListingType, createListing } from '../../lib/marketplaceStore';
@@ -158,7 +157,7 @@ export default function CreateListingScreen() {
 
       >
 
-        <ScrollView <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
 
         <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '900', marginBottom: 4 }}>
           Create a Listing
