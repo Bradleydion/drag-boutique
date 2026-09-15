@@ -23,7 +23,6 @@ export type DraftEvent = {
 
   // Ticketing
   ticketPrice?: number;   // USD
-  payoutVenmo?: string;   // @handle (without @ is fine too) -- legacy, superseded by Stripe Connect payouts
   salesStart?: string;    // ISO
   salesEnd?: string;      // ISO
 

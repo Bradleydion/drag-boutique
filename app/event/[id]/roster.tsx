@@ -825,7 +825,6 @@ function InviteSheet({
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: C.textPrimary, fontWeight: '700', fontSize: 15 }}>{p.stageName}</Text>
-                  {p.city && <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 1 }}>📍 {p.city}</Text>}
                 </View>
                 {isSending ? (
                   <ActivityIndicator color={C.teal} size="small" />

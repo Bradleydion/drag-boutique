@@ -46,7 +46,6 @@ export default function CreateEvent_Review() {
     { label: 'Address',         value: [d.venueAddress, d.venueCity, d.venueState, d.venueZip].filter(Boolean).join(', ') },
     { label: 'Venue Instagram', value: d.venueInstagram },
     { label: 'Ticket price',    value: typeof d.ticketPrice === 'number' ? (d.ticketPrice === 0 ? 'Free' : `$${d.ticketPrice.toFixed(2)}`) : undefined },
-    { label: 'Payout Venmo',    value: d.payoutVenmo ? `@${d.payoutVenmo.replace(/^@/, '')}` : undefined },
     { label: 'Sales start',     value: d.salesStart },
     { label: 'Sales end',       value: d.salesEnd },
     { label: 'Refund policy',   value: d.allSalesFinal

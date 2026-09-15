@@ -9,7 +9,6 @@ import { colors as C } from '../../../src/theme/colors';
 export default function CreateEvent_Ticketing() {
   const d = getDraft();
   const [ticketPrice, setTicketPrice] = useState(d.ticketPrice?.toString() || '');
-  const [payoutVenmo, setPayoutVenmo] = useState(d.payoutVenmo || '');
   const [salesStart, setSalesStart] = useState(d.salesStart || '');
   const [salesEnd, setSalesEnd] = useState(d.salesEnd || '');
   const [allSalesFinal, setAllSalesFinal] = useState(d.allSalesFinal ?? false);
@@ -34,7 +33,6 @@ export default function CreateEvent_Ticketing() {
 
     updateDraft({
       ticketPrice: priceNum,
-      payoutVenmo: payoutVenmo.trim().replace(/^@/, ''),
       salesStart: salesStart.trim() || undefined,
       salesEnd: (salesEnd.trim() || d.datetimeEnd || '').trim() || undefined,
       allSalesFinal,
@@ -75,18 +73,6 @@ export default function CreateEvent_Ticketing() {
           value={ticketPrice}
           onChangeText={setTicketPrice}
           style={inputStyle}
-        />
-      </View>
-
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ color: C.textPrimary, fontWeight: '800' }}>Payout Venmo Handle</Text>
-        <TextInput
-          placeholder="yourvenmohandle"
-          placeholderTextColor={C.textMuted}
-          value={payoutVenmo}
-          onChangeText={setPayoutVenmo}
-          style={inputStyle}
-          autoCapitalize="none"
         />
       </View>
 

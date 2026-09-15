@@ -54,7 +54,6 @@ export default function EditEventScreen() {
   const [venueZip,      setVenueZip]      = useState('');
   const [venueInstagram,setVenueInstagram]= useState('');
   const [ticketPrice,   setTicketPrice]   = useState('');
-  const [payoutVenmo,   setPayoutVenmo]   = useState('');
   const [salesStart,    setSalesStart]    = useState('');
   const [salesEnd,      setSalesEnd]      = useState('');
   const [isPromoted,    setIsPromoted]    = useState(false);
@@ -80,7 +79,6 @@ export default function EditEventScreen() {
       setVenueZip(event.venue?.zip ?? '');
       setVenueInstagram(event.venue?.instagram ?? '');
       setTicketPrice(event.ticketing?.price !== undefined ? String(event.ticketing.price) : '');
-      setPayoutVenmo(event.ticketing?.payoutVenmo ?? '');
       setSalesStart(event.ticketing?.salesStart ?? '');
       setSalesEnd(event.ticketing?.salesEnd ?? '');
       setIsPromoted(event.isPromoted ?? false);
@@ -133,7 +131,6 @@ export default function EditEventScreen() {
         venueZip,
         venueInstagram,
         ticketPrice: ticketPrice ? parseFloat(ticketPrice) : 0,
-        payoutVenmo,
         salesStart,
         salesEnd,
         isPromoted,
@@ -333,11 +330,6 @@ export default function EditEventScreen() {
         <Text style={labelStyle}>Ticket price ($)</Text>
         <TextInput value={ticketPrice} onChangeText={setTicketPrice} style={inputStyle}
           placeholderTextColor={C.textMuted} placeholder="0 = Free" keyboardType="decimal-pad" />
-
-        <View style={{ height: 12 }} />
-        <Text style={labelStyle}>Payout Venmo</Text>
-        <TextInput value={payoutVenmo} onChangeText={setPayoutVenmo} style={inputStyle}
-          placeholderTextColor={C.textMuted} placeholder="@yourvenmo" autoCapitalize="none" />
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
           <View style={{ flex: 1 }}>

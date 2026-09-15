@@ -40,7 +40,6 @@ export default function EditPerformerProfile() {
   const [stageName,         setStageName]         = useState('');
   const [bio,               setBio]               = useState('');
   const [bookingInfo,       setBookingInfo]       = useState('');
-  const [venmoHandle,       setVenmoHandle]       = useState('');
   const [instagramUrl,      setInstagramUrl]      = useState('');
   const [tiktokUrl,         setTiktokUrl]         = useState('');
   const [websiteUrl,        setWebsiteUrl]        = useState('');
@@ -63,7 +62,6 @@ export default function EditPerformerProfile() {
       setStageName(p.stageName ?? '');
       setBio(p.bio ?? '');
       setBookingInfo(p.bookingInfo ?? '');
-      setVenmoHandle(p.venmoHandle ?? '');
       setInstagramUrl(p.instagramUrl ?? '');
       setTiktokUrl(p.tiktokUrl ?? '');
       setWebsiteUrl(p.websiteUrl ?? '');
@@ -121,7 +119,6 @@ export default function EditPerformerProfile() {
         bio:                bio.trim() || undefined,
         photoLocalUri:      photoUri,
         bookingInfo:        bookingInfo.trim() || undefined,
-        venmoHandle:        venmoHandle.trim().replace(/^@/, '') || undefined,
         instagramUrl:       instagramUrl.trim() || undefined,
         tiktokUrl:          tiktokUrl.trim() || undefined,
         websiteUrl:         websiteUrl.trim() || undefined,
@@ -273,17 +270,6 @@ export default function EditPerformerProfile() {
         <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>
           Only visible to hosts who book you. Used for SMS/WhatsApp coordination.
         </Text>
-
-        <View style={{ height: 14 }} />
-        <Text style={labelStyle}>Venmo Handle</Text>
-        <TextInput
-          value={venmoHandle}
-          onChangeText={setVenmoHandle}
-          placeholder="yourvenmohandle (no @)"
-          placeholderTextColor={C.textMuted}
-          autoCapitalize="none"
-          style={inputStyle}
-        />
 
         {/* ── Social links ─────────────────────────────────────────────── */}
         <View style={{ height: 24 }} />

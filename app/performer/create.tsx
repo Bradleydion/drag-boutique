@@ -43,7 +43,6 @@ export default function CreateArtistProfile() {
   const [stageName,         setStageName]         = useState('');
   const [bio,               setBio]               = useState('');
   const [bookingInfo,       setBookingInfo]       = useState('');
-  const [venmoHandle,       setVenmoHandle]       = useState('');
   const [instagramUrl,      setInstagramUrl]      = useState('');
   const [tiktokUrl,         setTiktokUrl]         = useState('');
   const [websiteUrl,        setWebsiteUrl]        = useState('');
@@ -110,7 +109,6 @@ export default function CreateArtistProfile() {
         bio:                bio.trim() || undefined,
         photoLocalUri:      photoUri,
         bookingInfo:        bookingInfo.trim() || undefined,
-        venmoHandle:        venmoHandle.trim().replace(/^@/, '') || undefined,
         instagramUrl:       instagramUrl.trim() || undefined,
         tiktokUrl:          tiktokUrl.trim() || undefined,
         websiteUrl:         websiteUrl.trim() || undefined,
@@ -303,17 +301,6 @@ export default function CreateArtistProfile() {
           <Text style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>
             Only visible to hosts who book you. Used for SMS/WhatsApp coordination.
           </Text>
-
-          <View style={{ height: 14 }} />
-          <Text style={labelStyle}>Venmo Handle (for tips)</Text>
-          <TextInput
-            value={venmoHandle}
-            onChangeText={setVenmoHandle}
-            placeholder="yourvenmohandle (no @)"
-            placeholderTextColor={C.textMuted}
-            autoCapitalize="none"
-            style={inputStyle}
-          />
 
           {/* ── Social links ──────────────────────────────────────────── */}
           <View style={{ height: 24 }} />

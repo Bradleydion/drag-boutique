@@ -77,7 +77,6 @@ export type PerformerRecord = {
   bio?: string;
   photoUrl?: string;
   bookingInfo?: string;
-  venmoHandle?: string;
   instagramUrl?: string;
   tiktokUrl?: string;
   websiteUrl?: string;
@@ -124,7 +123,6 @@ function rowToPerformer(row: Record<string, any>): PerformerRecord {
     bio:                row.bio,
     photoUrl:           row.photo_url,
     bookingInfo:        row.booking_info,
-    venmoHandle:        row.venmo_handle,
     instagramUrl:       row.instagram_url,
     tiktokUrl:          row.tiktok_url,
     websiteUrl:         row.website_url,
@@ -144,7 +142,6 @@ function seedToRecord(p: any): PerformerRecord {
     bio:                p.bio,
     photoUrl:           p.photoUrl,
     bookingInfo:        p.bookingInfo,
-    venmoHandle:        p.venmoHandle,
     instagramUrl:       p.socials?.instagram,
     tiktokUrl:          p.socials?.tiktok,
     websiteUrl:         p.socials?.website,
@@ -240,7 +237,6 @@ export async function createPerformerProfile(input: {
   bio?: string;
   photoLocalUri?: string;
   bookingInfo?: string;
-  venmoHandle?: string;
   instagramUrl?: string;
   tiktokUrl?: string;
   websiteUrl?: string;
@@ -270,7 +266,6 @@ export async function createPerformerProfile(input: {
     bio:                 input.bio ?? null,
     photo_url:           photoUrl ?? null,
     booking_info:        input.bookingInfo ?? null,
-    venmo_handle:        input.venmoHandle ?? null,
     instagram_url:       input.instagramUrl ?? null,
     tiktok_url:          input.tiktokUrl ?? null,
     website_url:         input.websiteUrl ?? null,
@@ -312,7 +307,6 @@ export async function updatePerformerProfile(
   if (patch.bio !== undefined)                payload.bio                 = patch.bio;
   if (photoUrl !== undefined)                 payload.photo_url           = photoUrl;
   if (patch.bookingInfo !== undefined)        payload.booking_info        = patch.bookingInfo;
-  if (patch.venmoHandle !== undefined)        payload.venmo_handle        = patch.venmoHandle;
   if (patch.instagramUrl !== undefined)       payload.instagram_url       = patch.instagramUrl;
   if (patch.tiktokUrl !== undefined)          payload.tiktok_url          = patch.tiktokUrl;
   if (patch.websiteUrl !== undefined)         payload.website_url         = patch.websiteUrl;

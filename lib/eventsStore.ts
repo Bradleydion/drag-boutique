@@ -26,7 +26,6 @@ export type EventRecord = {
   };
   ticketing?: {
     price?: number;
-    payoutVenmo?: string;
     salesStart?: string;
     salesEnd?: string;
   };
@@ -71,7 +70,6 @@ function rowToEvent(row: Record<string, any>): EventRecord {
     },
     ticketing: {
       price:       row.ticket_price,
-      payoutVenmo: row.payout_venmo,
       salesStart:  row.sales_start,
       salesEnd:    row.sales_end,
     },
@@ -228,7 +226,6 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
     venue_zip:     d.venueZip,
     venue_instagram: d.venueInstagram,
     ticket_price:  d.ticketPrice ?? 0,
-    payout_venmo:  d.payoutVenmo,
     sales_start:   d.salesStart || null,
     sales_end:     d.salesEnd   || null,
     image_url:     imageUrl ?? null,
@@ -292,7 +289,6 @@ export async function updateEvent(
     venueZip: string;
     venueInstagram: string;
     ticketPrice: number;
-    payoutVenmo: string;
     salesStart: string;
     salesEnd: string;
     isRecurring: boolean;
@@ -319,7 +315,6 @@ export async function updateEvent(
   if (patch.venueZip !== undefined)         payload.venue_zip         = patch.venueZip;
   if (patch.venueInstagram !== undefined)   payload.venue_instagram   = patch.venueInstagram;
   if (patch.ticketPrice !== undefined)      payload.ticket_price      = patch.ticketPrice;
-  if (patch.payoutVenmo !== undefined)      payload.payout_venmo      = patch.payoutVenmo;
   if (patch.salesStart !== undefined)       payload.sales_start       = patch.salesStart   || null;
   if (patch.salesEnd !== undefined)         payload.sales_end         = patch.salesEnd     || null;
   if (patch.isRecurring !== undefined)      payload.is_recurring      = patch.isRecurring;

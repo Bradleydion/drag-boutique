@@ -34,7 +34,7 @@ const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: st
     { emoji: '🎪', label: 'My Events', sublabel: 'Manage events you\'ve created' },
     { emoji: '👥', label: 'Staff Roster', sublabel: 'Manage DJs, door crew, tip takers' },
     { emoji: '🧾', label: 'Invoices', sublabel: 'View and send event invoices' },
-    { emoji: '💸', label: 'Payouts', sublabel: 'Pay staff via Venmo or Stripe' },
+    { emoji: '💸', label: 'Payouts', sublabel: 'Pay staff via Stripe' },
     { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive ticket sale payouts' },
   ],
   fan: [
@@ -544,7 +544,7 @@ export default function ProfileTab() {
               {myTickets.slice(0, 3).map((ticket, index) => {
                 const ev = events.find(e => e.id === ticket.event_id);
                 if (!ev) return null;
-                const dateStr = new Date(ev.dateTimeStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const dateStr = new Date(ev.datetimeStart ?? '').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
                 return (
                   <Pressable
                     key={ticket.id}
@@ -564,7 +564,7 @@ export default function ProfileTab() {
                         {ev.title}
                       </Text>
                       <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
-                        {dateStr} · {ev.city}
+                        {dateStr} · {ev.venue?.city}
                       </Text>
                     </View>
                     <View style={{
