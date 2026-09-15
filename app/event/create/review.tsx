@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, resetDraft, updateDraft } from '../../../lib/createEventStore';
 import { publishDraft } from '../../../lib/eventsStore';
+import { parseTierLimitError } from '../../../lib/subscriptionStore';
 import { saveEventRoles, inviteTalentToRole, roleLabel } from '../../../lib/eventRolesStore';
 import { colors as C } from '../../../src/theme/colors';
 
@@ -96,7 +97,28 @@ export default function CreateEvent_Review() {
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/organize') },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Could not publish. Please try again.');
+      const tierLimit = parseTierLimitError(e?.message ?? '');
+      if (tierLimit === 'monthly_limit') {
+        Alert.alert(
+          'Free plan limit reached',
+          'The free plan is limited to 1 new event per month. Upgrade to Sequins Pro for unlimited events.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Upgrade', onPress: () => router.push('/subscription' as any) },
+          ],
+        );
+      } else if (tierLimit === 'recurring_frequency') {
+        Alert.alert(
+          'Weekly recurring needs Pro',
+          'The free plan only supports monthly recurring shows. Upgrade to Sequins Pro for weekly recurring.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Upgrade', onPress: () => router.push('/subscription' as any) },
+          ],
+        );
+      } else {
+        Alert.alert('Error', e?.message ?? 'Could not publish. Please try again.');
+      }
     } finally {
       setPublishing(false);
     }

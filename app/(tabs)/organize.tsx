@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   Text,
@@ -11,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getRole } from '../../lib/userStore';
 import { loadHostEvents, getHostEvents, deleteEvent, EventRecord } from '../../lib/eventsStore';
+import { canCreateNewEvent } from '../../lib/subscriptionStore';
 import { colors } from '../../src/theme/colors';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,6 +30,22 @@ function formatDate(iso?: string) {
 function isUpcoming(e: EventRecord) {
   if (!e.datetimeStart) return true;
   return new Date(e.datetimeStart) >= new Date();
+}
+
+async function goToCreateEvent() {
+  const check = await canCreateNewEvent();
+  if (!check.allowed) {
+    Alert.alert(
+      'Free plan limit reached',
+      'The free plan is limited to 1 new event per month. Upgrade to Sequins Pro for unlimited events.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Upgrade', onPress: () => router.push('/subscription' as any) },
+      ],
+    );
+    return;
+  }
+  router.push('/event/create/basics');
 }
 
 // ─── Event Card ───────────────────────────────────────────────────────────────
@@ -243,7 +261,7 @@ export default function OrganizeTab() {
       }}>
         <Text style={{ color: colors.textPrimary, fontSize: 26, fontWeight: '900' }}>My Events</Text>
         <Pressable
-          onPress={() => router.push('/event/create/basics')}
+          onPress={goToCreateEvent}
           style={{
             backgroundColor: colors.coral,
             borderRadius: 12,
@@ -271,7 +289,7 @@ export default function OrganizeTab() {
             Create your first event and sell tickets directly through Sequins.
           </Text>
           <Pressable
-            onPress={() => router.push('/event/create/basics')}
+            onPress={goToCreateEvent}
             style={{
               backgroundColor: colors.coral,
               borderRadius: 14,

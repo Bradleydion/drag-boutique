@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, updateDraft } from '../../../lib/createEventStore';
+import { canUseRecurringFrequency } from '../../../lib/subscriptionStore';
 import { Stack, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -324,10 +325,24 @@ export default function CreateEvent_Basics() {
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {FREQ_OPTIONS.map(opt => {
                   const active = frequency === opt.value;
+                  const locked = !canUseRecurringFrequency(opt.value);
                   return (
                     <Pressable
                       key={opt.value}
-                      onPress={() => setFrequency(opt.value)}
+                      onPress={() => {
+                        if (locked) {
+                          Alert.alert(
+                            'Weekly recurring needs Pro',
+                            'The free plan only supports monthly recurring shows. Upgrade to Sequins Pro for weekly, daily, or yearly recurring.',
+                            [
+                              { text: 'Not now', style: 'cancel' },
+                              { text: 'Upgrade', onPress: () => router.push('/subscription' as any) },
+                            ],
+                          );
+                          return;
+                        }
+                        setFrequency(opt.value);
+                      }}
                       style={{
                         paddingHorizontal: 16,
                         paddingVertical: 8,
@@ -335,8 +350,13 @@ export default function CreateEvent_Basics() {
                         backgroundColor: active ? C.teal : C.navy,
                         borderWidth: 1,
                         borderColor: active ? C.teal : C.border,
+                        opacity: locked ? 0.5 : 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
                       }}
                     >
+                      {locked && <Text style={{ fontSize: 11 }}>🔒</Text>}
                       <Text style={{
                         color: active ? C.navy : C.textSecondary,
                         fontWeight: '700',

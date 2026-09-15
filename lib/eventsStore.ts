@@ -97,6 +97,21 @@ export async function getHostEventCount(hostId: string): Promise<number> {
   return error ? 0 : (count ?? 0);
 }
 
+/** Events this host has created since the start of the current calendar
+ *  month -- drives the free-tier "1 event/month" subscription gate. This is
+ *  a client-side convenience check for UX only; the real limit is enforced
+ *  server-side by the events_tier_limit_trigger Postgres trigger. */
+export async function getHostEventCountThisMonth(hostId: string): Promise<number> {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const { count, error } = await supabase
+    .from('events')
+    .select('id', { count: 'exact', head: true })
+    .eq('host_id', hostId)
+    .gte('created_at', monthStart);
+  return error ? 0 : (count ?? 0);
+}
+
 // ─── Image upload ─────────────────────────────────────────────────────────────
 
 /**

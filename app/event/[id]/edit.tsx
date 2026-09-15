@@ -21,6 +21,7 @@ const GOLD = '#F59E0B';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { fetchEventById, updateEvent } from '../../../lib/eventsStore';
+import { canUseRecurringFrequency, parseTierLimitError, loadSubscription } from '../../../lib/subscriptionStore';
 import { colors as C } from '../../../src/theme/colors';
 
 type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -59,6 +60,11 @@ export default function EditEventScreen() {
   const [isPromoted,    setIsPromoted]    = useState(false);
   const [allSalesFinal, setAllSalesFinal] = useState(false);
   const [refundWindowDays, setRefundWindowDays] = useState('');
+
+  const [, forceRerenderAfterSubLoad] = useState(0);
+  useEffect(() => {
+    loadSubscription().then(() => forceRerenderAfterSubLoad(n => n + 1));
+  }, []);
 
   useEffect(() => {
     fetchEventById(eventId).then(event => {
@@ -143,7 +149,19 @@ export default function EditEventScreen() {
         { text: 'Done', onPress: () => router.back() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Could not save changes.');
+      const tierLimit = parseTierLimitError(e?.message ?? '');
+      if (tierLimit === 'recurring_frequency') {
+        Alert.alert(
+          'Weekly recurring needs Pro',
+          'The free plan only supports monthly recurring shows. Upgrade to Sequins Pro for weekly recurring.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Upgrade', onPress: () => router.push('/subscription' as any) },
+          ],
+        );
+      } else {
+        Alert.alert('Error', e?.message ?? 'Could not save changes.');
+      }
     } finally {
       setSaving(false);
     }
@@ -268,11 +286,27 @@ export default function EditEventScreen() {
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {FREQ_OPTIONS.map(opt => {
                   const active = frequency === opt.value;
+                  const locked = !canUseRecurringFrequency(opt.value);
                   return (
-                    <Pressable key={opt.value} onPress={() => setFrequency(opt.value)}
+                    <Pressable key={opt.value} onPress={() => {
+                        if (locked) {
+                          Alert.alert(
+                            'Weekly recurring needs Pro',
+                            'The free plan only supports monthly recurring shows. Upgrade to Sequins Pro for weekly, daily, or yearly recurring.',
+                            [
+                              { text: 'Not now', style: 'cancel' },
+                              { text: 'Upgrade', onPress: () => router.push('/subscription' as any) },
+                            ],
+                          );
+                          return;
+                        }
+                        setFrequency(opt.value);
+                      }}
                       style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
                         backgroundColor: active ? C.teal : C.navy, borderWidth: 1,
-                        borderColor: active ? C.teal : C.border }}>
+                        borderColor: active ? C.teal : C.border, opacity: locked ? 0.5 : 1,
+                        flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      {locked && <Text style={{ fontSize: 11 }}>🔒</Text>}
                       <Text style={{ color: active ? C.navy : C.textSecondary, fontWeight: '700', fontSize: 13 }}>
                         {opt.label}
                       </Text>

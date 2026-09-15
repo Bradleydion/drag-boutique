@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
 import { getFollowedIds } from '../../lib/followStore';
 import { getPayoutAccount, loadPayoutAccount, type PayoutAccount } from '../../lib/payoutStore';
+import { getSubscription, loadSubscription, isPro } from '../../lib/subscriptionStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
 import { loadMyPerformerProfile, fetchPerformerById, type PerformerRecord } from '../../lib/performerStore';
@@ -36,6 +37,7 @@ const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: st
     { emoji: '🧾', label: 'Invoices', sublabel: 'View and send event invoices' },
     { emoji: '💸', label: 'Payouts', sublabel: 'Pay staff via Stripe' },
     { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive ticket sale payouts' },
+    { emoji: '👑', label: 'Subscription', sublabel: 'Free plan — 1 event/month' },
   ],
   fan: [
     { emoji: '🎟️', label: 'My Tickets', sublabel: 'Your purchased event tickets' },
@@ -78,6 +80,7 @@ export default function ProfileTab() {
   const [myHostEvents,     setMyHostEvents]     = useState<EventRecord[]>([]);
   const [followedProfiles, setFollowedProfiles] = useState<PerformerRecord[]>([]);
   const [myPayoutAccount,   setMyPayoutAccount]   = useState<PayoutAccount | null>(null);
+  const [mySubscription,    setMySubscription]    = useState(getSubscription());
 
   // Reload tickets, listings, performer profile, and upcoming shows on focus.
   useFocusEffect(
@@ -91,6 +94,9 @@ export default function ProfileTab() {
         }
         if (role === 'host' || role === 'artist') {
           loadPayoutAccount().then(() => setMyPayoutAccount(getPayoutAccount()));
+        }
+        if (role === 'host') {
+          loadSubscription().then(() => setMySubscription(getSubscription()));
         }
         // Load followed performer profiles from Supabase
         const followedIds = getFollowedIds();
@@ -296,6 +302,7 @@ export default function ProfileTab() {
             const isMyEvents         = item.label === 'My Events';
             const isStaffRoster      = item.label === 'Staff Roster';
             const isPayoutSetup      = item.label === 'Payout Setup';
+            const isSubscription     = item.label === 'Subscription';
 
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
@@ -313,6 +320,8 @@ export default function ProfileTab() {
               ? 'Active — payouts are ready'
               : isPayoutSetup && myPayoutAccount
               ? 'Setup in progress — tap to continue'
+              : isSubscription
+              ? (isPro() ? '👑 Pro — unlimited events' : 'Free plan — 1 event/month')
               : item.sublabel;
 
             const upcomingHostEvent = myHostEvents.find(e =>
@@ -341,6 +350,8 @@ export default function ProfileTab() {
               ? () => router.push('/performer/create' as any)
               : isPayoutSetup
               ? () => router.push('/payouts/setup' as any)
+              : isSubscription
+              ? () => router.push('/subscription' as any)
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
 
             const isActive = (isMyTickets && myTickets.length > 0)
@@ -349,7 +360,8 @@ export default function ProfileTab() {
               || (isEventInvites && !!myArtistProfile)
               || isMyEvents
               || isStaffRoster
-              || (isPayoutSetup && !!myPayoutAccount?.onboarding_complete && !!myPayoutAccount?.payouts_enabled);
+              || (isPayoutSetup && !!myPayoutAccount?.onboarding_complete && !!myPayoutAccount?.payouts_enabled)
+              || (isSubscription && isPro());
 
             return (
               <Pressable
