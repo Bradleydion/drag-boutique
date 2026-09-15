@@ -66,6 +66,9 @@ export type EventTalentInvite = {
   phoneNumber?: string;
   invitedAt: string;
   respondedAt?: string;
+  paymentStatus?: 'unpaid' | 'paid' | 'failed';
+  stripePaymentIntentId?: string;
+  paidAt?: string;
 };
 
 // ─── Event Roles CRUD ─────────────────────────────────────────────────────────
@@ -227,6 +230,9 @@ export async function loadEventTalent(eventId: string): Promise<EventTalentInvit
     phoneNumber:     row.performers?.phone ?? undefined,
     invitedAt:       row.invited_at,
     respondedAt:     row.responded_at ?? undefined,
+    paymentStatus:   row.payment_status ?? 'unpaid',
+    stripePaymentIntentId: row.stripe_payment_intent_id ?? undefined,
+    paidAt:          row.paid_at ?? undefined,
   }));
 }
 
@@ -324,4 +330,36 @@ export async function loadPreviousCollaborators(hostUserId: string): Promise<str
 
   const unique = [...new Set((data ?? []).map(r => r.talent_id).filter(Boolean))];
   return unique as string[];
+}
+
+// ─── Stripe: pay staff ────────────────────────────────────────────────────────
+// Replaces the old Venmo deep link -- hosts pay booked staff (DJ, door, MC,
+// etc.) directly through Stripe. Zero platform fee: 100% of the agreed pay
+// goes to the staff member, same treatment as tips.
+
+export async function createStaffPaymentIntent(
+  inviteId: string,
+): Promise<{ clientSecret: string; paymentIntentId: string }> {
+  const { data, error } = await supabase.functions.invoke('create-staff-payment-intent', {
+    body: { inviteId },
+  });
+
+  if (error) throw new Error(error.message ?? 'Could not start payment.');
+  if (!data?.clientSecret) throw new Error('Invalid response from payment service.');
+
+  return { clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };
+}
+
+/** Record a staff payment in Supabase after the Stripe payment sheet succeeds. */
+export async function markInvitePaid(inviteId: string, paymentIntentId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_talent')
+    .update({
+      payment_status: 'paid',
+      stripe_payment_intent_id: paymentIntentId,
+      paid_at: new Date().toISOString(),
+    })
+    .eq('id', inviteId);
+
+  if (error) throw new Error(error.message);
 }

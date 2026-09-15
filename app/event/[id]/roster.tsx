@@ -30,7 +30,9 @@ import {
   type EventRole,
   type EventTalentInvite,
 } from '../../../lib/eventRolesStore';
+import { useStripe } from '@stripe/stripe-react-native';
 import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
+import { createStaffPaymentIntent, markInvitePaid } from '../../../lib/eventRolesStore';
 import { loadPerformers, getPerformers, type PerformerRecord } from '../../../lib/performerStore';
 import { colors as C } from '../../../src/theme/colors';
 
@@ -61,14 +63,6 @@ function statusLabel(status: string) {
     case 'removed':  return '— Removed';
     default:         return status;
   }
-}
-
-function openVenmo(handle: string, amount: number, note: string) {
-  const clean = handle.replace(/^@/, '');
-  const url = `venmo://paycharge?txn=pay&recipients=${clean}&amount=${amount}&note=${encodeURIComponent(note)}`;
-  Linking.openURL(url).catch(() =>
-    Linking.openURL(`https://venmo.com/${clean}?txn=pay&amount=${amount}&note=${encodeURIComponent(note)}`),
-  );
 }
 
 function openSMS(phone: string, body?: string) {
@@ -396,14 +390,19 @@ function TalentRow({
   invite,
   eventTitle,
   onRemove,
+  onPaid,
 }: {
   invite: EventTalentInvite;
   eventTitle: string;
   onRemove: () => void;
+  onPaid: (inviteId: string, paymentIntentId: string) => void;
 }) {
   const isActive   = invite.status === 'accepted' || invite.status === 'invited';
   const isAccepted = invite.status === 'accepted';
   const hasPhone   = !!invite.phoneNumber;
+  const isPaid     = invite.paymentStatus === 'paid';
+  const [paying, setPaying] = useState(false);
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   function handlePay() {
     if (!invite.payAgreed) {
@@ -412,16 +411,38 @@ function TalentRow({
     }
     Alert.alert(
       `Pay ${invite.stageName ?? 'staff'}`,
-      `Send $${invite.payAgreed.toFixed(2)} via Venmo?`,
+      `Pay $${invite.payAgreed.toFixed(2)} to ${invite.stageName ?? 'this staff member'} via Stripe? 100% goes to them -- Sequins takes no fee on staff pay.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Open Venmo',
-          onPress: () => openVenmo(
-            invite.stageName ?? 'sequins',
-            invite.payAgreed!,
-            `Payment for ${eventTitle}`,
-          ),
+          text: 'Pay with Stripe',
+          onPress: async () => {
+            setPaying(true);
+            try {
+              const { clientSecret, paymentIntentId } = await createStaffPaymentIntent(invite.id);
+
+              const { error: initError } = await initPaymentSheet({
+                merchantDisplayName: 'Sequins',
+                paymentIntentClientSecret: clientSecret,
+                defaultBillingDetails: {},
+              });
+              if (initError) throw new Error(initError.message);
+
+              const { error: presentError } = await presentPaymentSheet();
+              if (presentError) {
+                if (presentError.code === 'Canceled') return;
+                throw new Error(presentError.message);
+              }
+
+              await markInvitePaid(invite.id, paymentIntentId);
+              onPaid(invite.id, paymentIntentId);
+              Alert.alert('✅ Paid', `${invite.stageName ?? 'Staff'} has been paid.`);
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Could not complete payment.');
+            } finally {
+              setPaying(false);
+            }
+          },
         },
       ],
     );
@@ -499,16 +520,29 @@ function TalentRow({
           </View>
         )}
 
-        {isAccepted && (
+        {isAccepted && isPaid && (
+          <View style={{
+            backgroundColor: '#34D399' + '22', borderRadius: 8,
+            paddingHorizontal: 10, paddingVertical: 6,
+            borderWidth: 1, borderColor: '#34D399' + '55',
+          }}>
+            <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 12 }}>✓ Paid</Text>
+          </View>
+        )}
+        {isAccepted && !isPaid && (
           <Pressable
             onPress={handlePay}
+            disabled={paying}
             style={{
               backgroundColor: '#34D399' + '22', borderRadius: 8,
               paddingHorizontal: 10, paddingVertical: 6,
               borderWidth: 1, borderColor: '#34D399' + '55',
+              opacity: paying ? 0.6 : 1,
             }}
           >
-            <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 12 }}>Pay</Text>
+            <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 12 }}>
+              {paying ? 'Paying…' : 'Pay'}
+            </Text>
           </Pressable>
         )}
         {isActive && (
@@ -559,12 +593,14 @@ function RoleSection({
   eventTitle,
   onRemoveTalent,
   onInviteMore,
+  onPaid,
 }: {
   role: EventRole;
   invites: EventTalentInvite[];
   eventTitle: string;
   onRemoveTalent: (inviteId: string) => void;
   onInviteMore: (role: EventRole) => void;
+  onPaid: (inviteId: string, paymentIntentId: string) => void;
 }) {
   const active   = invites.filter(i => i.status === 'accepted' || i.status === 'invited');
   const accepted = invites.filter(i => i.status === 'accepted');
@@ -607,6 +643,7 @@ function RoleSection({
               invite={inv}
               eventTitle={eventTitle}
               onRemove={() => onRemoveTalent(inv.id)}
+              onPaid={onPaid}
             />
           ))}
         </View>
@@ -615,7 +652,7 @@ function RoleSection({
       {declined.length > 0 && (
         <View style={{ marginTop: 8, opacity: 0.45 }}>
           {declined.map(inv => (
-            <TalentRow key={inv.id} invite={inv} eventTitle={eventTitle} onRemove={() => {}} />
+            <TalentRow key={inv.id} invite={inv} eventTitle={eventTitle} onRemove={() => {}} onPaid={() => {}} />
           ))}
         </View>
       )}
@@ -860,6 +897,12 @@ export default function RosterScreen() {
     }
   }
 
+  function handlePaid(inviteId: string, paymentIntentId: string) {
+    setTalent(prev => prev.map(t =>
+      t.id === inviteId ? { ...t, paymentStatus: 'paid', stripePaymentIntentId: paymentIntentId } : t,
+    ));
+  }
+
   function handleInviteAdded(invite: EventTalentInvite) {
     setTalent(prev => [...prev, invite]);
   }
@@ -1009,6 +1052,7 @@ export default function RosterScreen() {
               eventTitle={event?.title ?? 'Event'}
               onRemoveTalent={handleRemove}
               onInviteMore={role => setSheetRole(role)}
+              onPaid={handlePaid}
             />
           ))
         )}
