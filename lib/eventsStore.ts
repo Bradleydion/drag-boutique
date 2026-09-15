@@ -88,6 +88,17 @@ function rowToEvent(row: Record<string, any>): EventRecord {
   };
 }
 
+// ─── Fee tier volume ──────────────────────────────────────────────────────────
+
+/** Total shows this host has ever posted -- drives the ticket-sale fee tier. */
+export async function getHostEventCount(hostId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('events')
+    .select('id', { count: 'exact', head: true })
+    .eq('host_id', hostId);
+  return error ? 0 : (count ?? 0);
+}
+
 // ─── Image upload ─────────────────────────────────────────────────────────────
 
 /**
@@ -226,6 +237,8 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
     recurring_frequency:   d.isRecurring ? (d.recurringFrequency ?? null) : null,
     recurring_end_date:    d.isRecurring ? (d.recurringEndDate   ?? null) : null,
     is_promoted:           d.isPromoted  ?? false,
+    refund_window_days:    d.refundWindowDays ?? null,
+    all_sales_final:       d.allSalesFinal ?? false,
   };
 
   const { data, error } = await supabase
@@ -288,6 +301,8 @@ export async function updateEvent(
     imageLocalUri: string;
     performerIds: string[];
     isPromoted: boolean;
+    refundWindowDays: number | null;
+    allSalesFinal: boolean;
   }>,
 ): Promise<EventRecord> {
   const payload: Record<string, any> = {};
@@ -312,6 +327,8 @@ export async function updateEvent(
   if (patch.recurringEndDate !== undefined)   payload.recurring_end_date  = patch.recurringEndDate  || null;
   if (patch.performerIds !== undefined)     payload.performer_ids     = patch.performerIds;
   if (patch.isPromoted !== undefined)       payload.is_promoted       = patch.isPromoted;
+  if (patch.refundWindowDays !== undefined) payload.refund_window_days = patch.refundWindowDays;
+  if (patch.allSalesFinal !== undefined)    payload.all_sales_final    = patch.allSalesFinal;
 
   // Handle image upload if a new local URI was supplied
   if (patch.imageLocalUri) {

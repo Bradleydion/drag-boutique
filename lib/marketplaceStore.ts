@@ -361,6 +361,18 @@ export async function deleteListing(id: string): Promise<void> {
   }
 }
 
+// ── Fee tier volume ────────────────────────────────────────────────────────────
+
+/** Total items this seller has sold on Sequins -- drives the commission/sale fee tier. */
+export async function getSellerSoldCount(sellerId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', sellerId)
+    .eq('sold', true);
+  return error ? 0 : (count ?? 0);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export const CATEGORY_META: Record<ListingCategory, { label: string; emoji: string }> = {

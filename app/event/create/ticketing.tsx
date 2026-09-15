@@ -1,6 +1,6 @@
 // app/event/create/ticketing.tsx
 import { useState } from 'react';
-import { View, Text, TextInput, Alert, ScrollView, Pressable } from 'react-native';
+import { View, Text, TextInput, Alert, ScrollView, Pressable, Switch } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { getDraft, updateDraft } from '@/lib/createEventStore';
@@ -12,12 +12,20 @@ export default function CreateEvent_Ticketing() {
   const [payoutVenmo, setPayoutVenmo] = useState(d.payoutVenmo || '');
   const [salesStart, setSalesStart] = useState(d.salesStart || '');
   const [salesEnd, setSalesEnd] = useState(d.salesEnd || '');
+  const [allSalesFinal, setAllSalesFinal] = useState(d.allSalesFinal ?? false);
+  const [refundWindowDays, setRefundWindowDays] = useState(
+    d.refundWindowDays != null ? String(d.refundWindowDays) : '',
+  );
 
   function onProceedToReview() {
     const errors: string[] = [];
     const priceNum = ticketPrice.trim() === '' ? undefined : parseFloat(ticketPrice);
     if (ticketPrice && (priceNum === undefined || Number.isNaN(priceNum) || priceNum < 0)) {
       errors.push('Ticket price must be a positive number.');
+    }
+    const windowNum = refundWindowDays.trim() === '' ? null : parseInt(refundWindowDays, 10);
+    if (!allSalesFinal && refundWindowDays.trim() !== '' && (windowNum === null || Number.isNaN(windowNum) || windowNum < 0)) {
+      errors.push('Refund window must be a positive number of days.');
     }
     if (errors.length > 0) {
       Alert.alert('Fix required', errors.join('\n'));
@@ -29,6 +37,8 @@ export default function CreateEvent_Ticketing() {
       payoutVenmo: payoutVenmo.trim().replace(/^@/, ''),
       salesStart: salesStart.trim() || undefined,
       salesEnd: (salesEnd.trim() || d.datetimeEnd || '').trim() || undefined,
+      allSalesFinal,
+      refundWindowDays: allSalesFinal ? null : windowNum,
     });
 
     router.push('/event/create/roles');
@@ -100,6 +110,34 @@ export default function CreateEvent_Ticketing() {
           onChangeText={setSalesEnd}
           style={inputStyle}
         />
+      </View>
+
+      <View style={{ marginBottom: 24, backgroundColor: C.surface, borderRadius: 12, padding: 14 }}>
+        <Text style={{ color: C.textPrimary, fontWeight: '800', marginBottom: 4 }}>Refund Policy</Text>
+        <Text style={{ color: C.textMuted, fontSize: 12, marginBottom: 12 }}>
+          Buyers can request a refund through the app, within whatever window you set here.
+        </Text>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: allSalesFinal ? 0 : 12 }}>
+          <Text style={{ color: C.textPrimary, fontWeight: '600' }}>All Sales Are Final</Text>
+          <Switch value={allSalesFinal} onValueChange={setAllSalesFinal} trackColor={{ true: C.teal }} />
+        </View>
+
+        {!allSalesFinal && (
+          <View>
+            <Text style={{ color: C.textPrimary, fontWeight: '600', marginBottom: 4 }}>
+              Refund window (days before the event)
+            </Text>
+            <TextInput
+              keyboardType="numeric"
+              placeholder="Leave blank to allow refunds any time before the event"
+              placeholderTextColor={C.textMuted}
+              value={refundWindowDays}
+              onChangeText={setRefundWindowDays}
+              style={inputStyle}
+            />
+          </View>
+        )}
       </View>
 
       <PrimaryButton title="Roles & Lineup →" onPress={onProceedToReview} />

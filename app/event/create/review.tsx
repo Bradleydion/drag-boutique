@@ -49,6 +49,11 @@ export default function CreateEvent_Review() {
     { label: 'Payout Venmo',    value: d.payoutVenmo ? `@${d.payoutVenmo.replace(/^@/, '')}` : undefined },
     { label: 'Sales start',     value: d.salesStart },
     { label: 'Sales end',       value: d.salesEnd },
+    { label: 'Refund policy',   value: d.allSalesFinal
+        ? 'All Sales Are Final'
+        : d.refundWindowDays != null
+        ? `Refundable up to ${d.refundWindowDays} day${d.refundWindowDays === 1 ? '' : 's'} before the event`
+        : 'Refundable any time before the event' },
   ], [d, recurringLabel]);
 
   function togglePromoted(val: boolean) {

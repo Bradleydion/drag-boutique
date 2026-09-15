@@ -58,6 +58,8 @@ export default function EditEventScreen() {
   const [salesStart,    setSalesStart]    = useState('');
   const [salesEnd,      setSalesEnd]      = useState('');
   const [isPromoted,    setIsPromoted]    = useState(false);
+  const [allSalesFinal, setAllSalesFinal] = useState(false);
+  const [refundWindowDays, setRefundWindowDays] = useState('');
 
   useEffect(() => {
     fetchEventById(eventId).then(event => {
@@ -82,6 +84,8 @@ export default function EditEventScreen() {
       setSalesStart(event.ticketing?.salesStart ?? '');
       setSalesEnd(event.ticketing?.salesEnd ?? '');
       setIsPromoted(event.isPromoted ?? false);
+      setAllSalesFinal(event.allSalesFinal ?? false);
+      setRefundWindowDays(event.refundWindowDays != null ? String(event.refundWindowDays) : '');
       setLoading(false);
     });
   }, [eventId]);
@@ -133,6 +137,10 @@ export default function EditEventScreen() {
         salesStart,
         salesEnd,
         isPromoted,
+        allSalesFinal,
+        refundWindowDays: allSalesFinal
+          ? null
+          : (refundWindowDays.trim() === '' ? null : parseInt(refundWindowDays, 10)),
       });
       Alert.alert('✅ Saved', 'Your event has been updated.', [
         { text: 'Done', onPress: () => router.back() },
@@ -343,6 +351,21 @@ export default function EditEventScreen() {
               placeholderTextColor={C.textMuted} placeholder="YYYY-MM-DD" autoCapitalize="none" />
           </View>
         </View>
+
+        {/* ── Refund Policy ────────────────────────────────────────────── */}
+        <Text style={sectionLabel}>Refund Policy</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={labelStyle}>All Sales Are Final</Text>
+          <Switch value={allSalesFinal} onValueChange={setAllSalesFinal} trackColor={{ true: C.teal }} />
+        </View>
+        {!allSalesFinal && (
+          <>
+            <View style={{ height: 10 }} />
+            <Text style={labelStyle}>Refund window (days before the event)</Text>
+            <TextInput value={refundWindowDays} onChangeText={setRefundWindowDays} style={inputStyle}
+              placeholderTextColor={C.textMuted} placeholder="Blank = refundable any time before the event" keyboardType="numeric" />
+          </>
+        )}
 
         {/* ── Promote ──────────────────────────────────────────────────── */}
         <Text style={sectionLabel}>Visibility</Text>

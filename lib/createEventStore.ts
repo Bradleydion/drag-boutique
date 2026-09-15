@@ -23,9 +23,13 @@ export type DraftEvent = {
 
   // Ticketing
   ticketPrice?: number;   // USD
-  payoutVenmo?: string;   // @handle (without @ is fine too)
+  payoutVenmo?: string;   // @handle (without @ is fine too) -- legacy, superseded by Stripe Connect payouts
   salesStart?: string;    // ISO
   salesEnd?: string;      // ISO
+
+  // Refund policy
+  refundWindowDays?: number | null; // null/undefined = no explicit limit
+  allSalesFinal?: boolean;          // true = no refunds offered through the app
 
   // Media
   imageLocalUri?: string;          // local file URI — uploaded to storage on publish
