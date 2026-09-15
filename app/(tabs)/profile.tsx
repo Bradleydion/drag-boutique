@@ -30,6 +30,7 @@ const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: st
     { emoji: '📬', label: 'Event Invites', sublabel: 'Respond to role invitations from hosts' },
     { emoji: '💰', label: 'Earnings', sublabel: 'Tips, bookings, and commissions' },
     { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive commissions & tips' },
+    { emoji: '📈', label: 'Your Rankings', sublabel: 'See where you rank in Discover' },
   ],
   host: [
     { emoji: '🎪', label: 'My Events', sublabel: 'Manage events you\'ve created' },
@@ -38,6 +39,7 @@ const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: st
     { emoji: '💸', label: 'Payouts', sublabel: 'Pay staff via Stripe' },
     { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive ticket sale payouts' },
     { emoji: '👑', label: 'Subscription', sublabel: 'Free plan — 1 event/month' },
+    { emoji: '📈', label: 'Your Rankings', sublabel: 'See where your events rank in Discover' },
   ],
   fan: [
     { emoji: '🎟️', label: 'My Tickets', sublabel: 'Your purchased event tickets' },
@@ -303,6 +305,7 @@ export default function ProfileTab() {
             const isStaffRoster      = item.label === 'Staff Roster';
             const isPayoutSetup      = item.label === 'Payout Setup';
             const isSubscription     = item.label === 'Subscription';
+            const isRankings         = item.label === 'Your Rankings';
 
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
@@ -352,6 +355,8 @@ export default function ProfileTab() {
               ? () => router.push('/payouts/setup' as any)
               : isSubscription
               ? () => router.push('/subscription' as any)
+              : isRankings
+              ? () => router.push('/promotion/rankings' as any)
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
 
             const isActive = (isMyTickets && myTickets.length > 0)

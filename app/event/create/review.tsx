@@ -8,6 +8,8 @@ import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, resetDraft, updateDraft } from '../../../lib/createEventStore';
 import { publishDraft } from '../../../lib/eventsStore';
 import { parseTierLimitError } from '../../../lib/subscriptionStore';
+import { startPromotionCheckout, confirmEventPromotion, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
+import { useStripe } from '@stripe/stripe-react-native';
 import { saveEventRoles, inviteTalentToRole, roleLabel } from '../../../lib/eventRolesStore';
 import { colors as C } from '../../../src/theme/colors';
 
@@ -18,6 +20,7 @@ export default function CreateEvent_Review() {
   const [publishing, setPublishing] = useState(false);
   const [allPerformers, setAllPerformers] = useState<PerformerRecord[]>([]);
   const [promoted, setPromoted] = useState(d.isPromoted ?? false);
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   useEffect(() => {
     const cached = getPerformers();
@@ -68,6 +71,37 @@ export default function CreateEvent_Review() {
       const event = await publishDraft(draft);
       resetDraft();
 
+      // Promotion is a paid boost, so it happens after the event exists --
+      // if the host checked "Promote this event" we run the payment sheet
+      // now. A cancelled/failed payment never blocks the publish itself;
+      // they can always promote later from the event's edit screen.
+      let promotionOutcome: 'none' | 'success' | 'skipped' = 'none';
+      if (promoted && event?.id) {
+        promotionOutcome = 'skipped';
+        try {
+          const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout('event', event.id);
+          const { error: initError } = await initPaymentSheet({
+            merchantDisplayName: 'Sequins',
+            paymentIntentClientSecret: clientSecret,
+            appearance: {
+              colors: {
+                primary: C.teal, background: C.navy, componentBackground: C.surface,
+                componentBorder: C.border, primaryText: C.textPrimary,
+                secondaryText: C.textSecondary, placeholderText: C.textMuted,
+              },
+            },
+          });
+          if (initError) throw new Error(initError.message);
+          const { error: presentError } = await presentPaymentSheet();
+          if (!presentError) {
+            await confirmEventPromotion(event.id, paymentIntentId, promotionDays);
+            promotionOutcome = 'success';
+          }
+        } catch (_) {
+          // Promotion failure is non-blocking -- the event still published.
+        }
+      }
+
       // After publish, save roles + fire invites
       if (draft.eventRoles?.length && event?.id) {
         try {
@@ -93,9 +127,15 @@ export default function CreateEvent_Review() {
         }
       }
 
-      Alert.alert('🎉 Published!', 'Your event is now live on Sequins.', [
-        { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/organize') },
-      ]);
+      Alert.alert(
+        '🎉 Published!',
+        promotionOutcome === 'success'
+          ? `Your event is now live on Sequins and promoted for ${PROMOTION_DAYS} days.`
+          : promotionOutcome === 'skipped'
+          ? 'Your event is now live on Sequins. Promotion wasn\u2019t completed -- you can try again any time from the event\u2019s edit screen.'
+          : 'Your event is now live on Sequins.',
+        [{ text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/organize') }],
+      );
     } catch (e: any) {
       const tierLimit = parseTierLimitError(e?.message ?? '');
       if (tierLimit === 'monthly_limit') {
@@ -236,7 +276,7 @@ export default function CreateEvent_Review() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={{ fontSize: 20 }}>✦</Text>
                   <Text style={{ color: promoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
-                    Promote this event
+                    Promote this event — {PROMOTION_PRICE_LABEL}
                   </Text>
                 </View>
                 <Switch
@@ -250,12 +290,12 @@ export default function CreateEvent_Review() {
               <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19 }}>
                 Promoted events get a gold border and a{' '}
                 <Text style={{ color: promoted ? GOLD : C.textMuted, fontWeight: '700' }}>✦ Promoted</Text>
-                {' '}badge at the top of Discover — putting your event in front of more fans.
+                {' '}badge at the top of Discover for {PROMOTION_DAYS} days — putting your event in front of more fans.
               </Text>
               {promoted && (
                 <View style={{ marginTop: 10, backgroundColor: GOLD + '22', borderRadius: 8, padding: 10 }}>
                   <Text style={{ color: GOLD, fontWeight: '700', fontSize: 12 }}>
-                    ✦ Gold border + badge will appear on your event card.
+                    ✦ You'll be asked to pay {PROMOTION_PRICE_LABEL} right after your event publishes.
                   </Text>
                 </View>
               )}

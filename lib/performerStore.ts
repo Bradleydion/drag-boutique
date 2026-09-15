@@ -86,6 +86,7 @@ export type PerformerRecord = {
   phone?: string;
   createdAt?: string;
   isPromoted?: boolean;
+  promotedUntil?: string | null; // real source of truth for "currently boosted" -- see lib/promotionStore.ts
   // Talent roles — populated via loadTalentRoles()
   roles?: TalentProfileRole[];
 };
@@ -132,6 +133,7 @@ function rowToPerformer(row: Record<string, any>): PerformerRecord {
     phone:              row.phone ?? undefined,
     createdAt:          row.created_at,
     isPromoted:         row.is_promoted ?? false,
+    promotedUntil:      row.promoted_until,
   };
 }
 
@@ -540,4 +542,25 @@ export async function fetchPerformerUpcomingShows(performerId: string): Promise<
       imageUrl:      e.imageUrl,
     }))
     .slice(0, 5);
+}
+
+/** Marks a performer profile as promoted for `days` days after a successful
+ *  one-time Stripe payment (see lib/promotionStore.ts). */
+export async function markPerformerPromoted(
+  performerId: string,
+  paymentIntentId: string,
+  days: number,
+): Promise<void> {
+  const promotedUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error } = await supabase
+    .from('performers')
+    .update({
+      is_promoted: true,
+      promoted_until: promotedUntil,
+      promotion_payment_intent_id: paymentIntentId,
+    })
+    .eq('id', performerId);
+
+  if (error) throw new Error(error.message);
 }

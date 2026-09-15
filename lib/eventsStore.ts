@@ -39,6 +39,7 @@ export type EventRecord = {
   recurringEndDate?: string;
   // Promoted placement
   isPromoted?: boolean;
+  promotedUntil?: string | null; // real source of truth for "currently boosted" -- see lib/promotionStore.ts
   // Refund policy — set by the host per event
   refundWindowDays?: number | null; // null/undefined = no explicit limit, refundable any time before the event
   allSalesFinal?: boolean;          // true = no refunds offered through the app for this event
@@ -81,6 +82,7 @@ function rowToEvent(row: Record<string, any>): EventRecord {
     recurringFrequency: row.recurring_frequency,
     recurringEndDate:   row.recurring_end_date,
     isPromoted:         row.is_promoted ?? false,
+    promotedUntil:      row.promoted_until,
     refundWindowDays:   row.refund_window_days ?? null,
     allSalesFinal:      row.all_sales_final ?? false,
   };
@@ -248,7 +250,7 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
     is_recurring:          d.isRecurring ?? false,
     recurring_frequency:   d.isRecurring ? (d.recurringFrequency ?? null) : null,
     recurring_end_date:    d.isRecurring ? (d.recurringEndDate   ?? null) : null,
-    is_promoted:           d.isPromoted  ?? false,
+    is_promoted:           false, // promotion is now a paid post-publish action -- see markEventPromoted
     refund_window_days:    d.refundWindowDays ?? null,
     all_sales_final:       d.allSalesFinal ?? false,
   };
@@ -383,4 +385,35 @@ export async function fetchEventById(eventId: string): Promise<EventRecord | nul
 
   if (error || !data) return null;
   return rowToEvent(data);
+}
+
+/** Marks an event as promoted for `days` days after a successful one-time
+ *  Stripe payment (see lib/promotionStore.ts). Same trust model as
+ *  buyTicket/buyListing in this codebase: the client marks the row paid
+ *  right after the payment sheet reports success, no webhook round-trip. */
+export async function markEventPromoted(
+  eventId: string,
+  paymentIntentId: string,
+  days: number,
+): Promise<EventRecord> {
+  const promotedUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('events')
+    .update({
+      is_promoted: true,
+      promoted_until: promotedUntil,
+      promotion_payment_intent_id: paymentIntentId,
+    })
+    .eq('id', eventId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const record = rowToEvent(data);
+  const idx = _hostEvents.findIndex(e => e.id === eventId);
+  if (idx >= 0) _hostEvents[idx] = record;
+
+  return record;
 }

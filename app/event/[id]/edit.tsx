@@ -22,6 +22,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { fetchEventById, updateEvent } from '../../../lib/eventsStore';
 import { canUseRecurringFrequency, parseTierLimitError, loadSubscription } from '../../../lib/subscriptionStore';
+import { startPromotionCheckout, confirmEventPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
+import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
 
 type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -57,7 +59,9 @@ export default function EditEventScreen() {
   const [ticketPrice,   setTicketPrice]   = useState('');
   const [salesStart,    setSalesStart]    = useState('');
   const [salesEnd,      setSalesEnd]      = useState('');
-  const [isPromoted,    setIsPromoted]    = useState(false);
+  const [promotedUntil, setPromotedUntil] = useState<string | null | undefined>(undefined);
+  const [promoting,     setPromoting]     = useState(false);
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [allSalesFinal, setAllSalesFinal] = useState(false);
   const [refundWindowDays, setRefundWindowDays] = useState('');
 
@@ -87,7 +91,7 @@ export default function EditEventScreen() {
       setTicketPrice(event.ticketing?.price !== undefined ? String(event.ticketing.price) : '');
       setSalesStart(event.ticketing?.salesStart ?? '');
       setSalesEnd(event.ticketing?.salesEnd ?? '');
-      setIsPromoted(event.isPromoted ?? false);
+      setPromotedUntil(event.promotedUntil ?? null);
       setAllSalesFinal(event.allSalesFinal ?? false);
       setRefundWindowDays(event.refundWindowDays != null ? String(event.refundWindowDays) : '');
       setLoading(false);
@@ -139,7 +143,6 @@ export default function EditEventScreen() {
         ticketPrice: ticketPrice ? parseFloat(ticketPrice) : 0,
         salesStart,
         salesEnd,
-        isPromoted,
         allSalesFinal,
         refundWindowDays: allSalesFinal
           ? null
@@ -396,33 +399,67 @@ export default function EditEventScreen() {
         {/* ── Promote ──────────────────────────────────────────────────── */}
         <Text style={sectionLabel}>Visibility</Text>
         <View style={{
-          backgroundColor: isPromoted ? GOLD + '14' : C.surface,
+          backgroundColor: isCurrentlyPromoted(true, promotedUntil) ? GOLD + '14' : C.surface,
           borderRadius: 14,
-          borderWidth: isPromoted ? 2 : 1,
-          borderColor: isPromoted ? GOLD : C.border,
+          borderWidth: isCurrentlyPromoted(true, promotedUntil) ? 2 : 1,
+          borderColor: isCurrentlyPromoted(true, promotedUntil) ? GOLD : C.border,
           padding: 16,
           marginTop: 4,
         }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 18 }}>✦</Text>
-              <Text style={{ color: isPromoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
-                Promote this event
-              </Text>
-            </View>
-            <Switch
-              value={isPromoted}
-              onValueChange={setIsPromoted}
-              trackColor={{ false: C.border, true: GOLD + 'AA' }}
-              thumbColor={isPromoted ? GOLD : C.textMuted}
-              ios_backgroundColor={C.border}
-            />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <Text style={{ fontSize: 18 }}>✦</Text>
+            <Text style={{ color: isCurrentlyPromoted(true, promotedUntil) ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
+              {isCurrentlyPromoted(true, promotedUntil) ? 'Currently promoted' : 'Promote this event'}
+            </Text>
           </View>
-          <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19 }}>
-            Promoted events get a gold border and{' '}
-            <Text style={{ color: isPromoted ? GOLD : C.textMuted, fontWeight: '700' }}>✦ Promoted</Text>
-            {' '}badge in Discover — putting your event in front of more fans.
+          <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+            {isCurrentlyPromoted(true, promotedUntil)
+              ? `Boosted to the top of Discover until ${new Date(promotedUntil!).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}.`
+              : `Get a gold border and ✦ Promoted badge in Discover for ${PROMOTION_DAYS} days — putting your event in front of more fans.`}
           </Text>
+          <Pressable
+            onPress={async () => {
+              setPromoting(true);
+              try {
+                const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout('event', eventId);
+                const { error: initError } = await initPaymentSheet({
+                  merchantDisplayName: 'Sequins',
+                  paymentIntentClientSecret: clientSecret,
+                  appearance: {
+                    colors: {
+                      primary: C.teal, background: C.navy, componentBackground: C.surface,
+                      componentBorder: C.border, primaryText: C.textPrimary,
+                      secondaryText: C.textSecondary, placeholderText: C.textMuted,
+                    },
+                  },
+                });
+                if (initError) throw new Error(initError.message);
+                const { error: presentError } = await presentPaymentSheet();
+                if (presentError) {
+                  if (presentError.code === 'Canceled') return;
+                  throw new Error(presentError.message);
+                }
+                const record = await confirmEventPromotion(eventId, paymentIntentId, promotionDays);
+                setPromotedUntil(record.promotedUntil ?? null);
+                Alert.alert('✦ Promoted!', `Your event is now boosted for ${promotionDays} days.`);
+              } catch (err) {
+                Alert.alert('Error', err instanceof Error ? err.message : 'Could not start promotion.');
+              } finally {
+                setPromoting(false);
+              }
+            }}
+            disabled={promoting}
+            style={{
+              backgroundColor: GOLD, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+              opacity: promoting ? 0.7 : 1,
+            }}
+          >
+            {promoting ? <ActivityIndicator color={C.navy} /> : (
+              <Text style={{ color: '#1A1A2E', fontWeight: '800', fontSize: 14 }}>
+                {isCurrentlyPromoted(true, promotedUntil) ? `Renew — ${PROMOTION_PRICE_LABEL}` : `Promote — ${PROMOTION_PRICE_LABEL}`}
+              </Text>
+            )}
+          </Pressable>
         </View>
 
         {/* ── Errors ───────────────────────────────────────────────────── */}

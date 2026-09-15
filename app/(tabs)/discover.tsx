@@ -21,6 +21,7 @@ import { loadEvents, type EventRecord } from '@/lib/eventsStore';
 import { getFollowedIds } from '@/lib/followStore';
 import { loadPerformers, getPerformers, type PerformerRecord } from '@/lib/performerStore';
 import { roleEmoji, roleLabel } from '@/lib/eventRolesStore';
+import { isCurrentlyPromoted } from '@/lib/promotionStore';
 import { isGuest } from '@/lib/authStore';
 import { getRole } from '@/lib/userStore';
 import { colors } from '../../src/theme/colors';
@@ -80,10 +81,13 @@ function filterAndSort(
     return true;
   });
 
-  // Promoted always float to top; within each group apply user's sort
+  // Promoted always float to top (only while the paid boost hasn't expired);
+  // within each group apply user's sort
   return filtered.sort((a, b) => {
-    if (a.isPromoted && !b.isPromoted) return -1;
-    if (!a.isPromoted && b.isPromoted) return 1;
+    const aPromoted = isCurrentlyPromoted(a.isPromoted, a.promotedUntil);
+    const bPromoted = isCurrentlyPromoted(b.isPromoted, b.promotedUntil);
+    if (aPromoted && !bPromoted) return -1;
+    if (!aPromoted && bPromoted) return 1;
     if (sortBy === 'price-asc')  return (a.ticketing?.price ?? 0) - (b.ticketing?.price ?? 0);
     if (sortBy === 'price-desc') return (b.ticketing?.price ?? 0) - (a.ticketing?.price ?? 0);
     return new Date(a.datetimeStart!).getTime() - new Date(b.datetimeStart!).getTime();
@@ -190,10 +194,18 @@ export default function Discover() {
 
   const talentResults = useMemo(() => {
     const q = query.toLowerCase();
-    return allTalent.filter(p => {
-      if (q && !p.stageName.toLowerCase().includes(q)) return false;
-      return true;
-    });
+    return allTalent
+      .filter(p => {
+        if (q && !p.stageName.toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const aPromoted = isCurrentlyPromoted(a.isPromoted, a.promotedUntil);
+        const bPromoted = isCurrentlyPromoted(b.isPromoted, b.promotedUntil);
+        if (aPromoted && !bPromoted) return -1;
+        if (!aPromoted && bPromoted) return 1;
+        return 0;
+      });
   }, [allTalent, query]);
 
   const activeFilterCount = [
@@ -384,14 +396,14 @@ export default function Discover() {
                 <Link href={`/performer/${p.id}`} asChild>
                   <Pressable style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border, gap: 12 }}>
                     {p.photoUrl ? (
-                      <Image source={{ uri: p.photoUrl }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: p.isPromoted ? 2 : 0, borderColor: '#F59E0B' }} />
+                      <Image source={{ uri: p.photoUrl }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: isCurrentlyPromoted(p.isPromoted, p.promotedUntil) ? 2 : 0, borderColor: '#F59E0B' }} />
                     ) : (
                       <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: 24 }}>💃</Text>
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: p.isPromoted ? '#F59E0B' : colors.textPrimary, fontWeight: '800', fontSize: 15 }}>{p.stageName}</Text>
+                      <Text style={{ color: isCurrentlyPromoted(p.isPromoted, p.promotedUntil) ? '#F59E0B' : colors.textPrimary, fontWeight: '800', fontSize: 15 }}>{p.stageName}</Text>
                       {p.bookingInfo ? <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{p.bookingInfo}</Text> : null}
                     </View>
                     <Text style={{ color: colors.teal, fontSize: 22 }}>›</Text>

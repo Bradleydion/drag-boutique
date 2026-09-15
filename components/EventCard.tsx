@@ -2,13 +2,14 @@
 // Accepts EventRecord from eventsStore (Supabase shape).
 import { View, Text, Image } from 'react-native';
 import type { EventRecord } from '../lib/eventsStore';
+import { isCurrentlyPromoted } from '../lib/promotionStore';
 import { colors } from '../src/theme/colors';
 
 const GOLD = '#F59E0B';
 const GOLD_LIGHT = '#FDE68A';
 
 export function EventCard({ event }: { event: EventRecord }) {
-  const promoted = !!event.isPromoted;
+  const promoted = isCurrentlyPromoted(event.isPromoted, event.promotedUntil);
   const price = event.ticketing?.price ?? 0;
   const venueName = event.venue?.name ?? '';
   const city = event.venue?.city ?? '';

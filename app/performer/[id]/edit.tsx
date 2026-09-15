@@ -28,6 +28,8 @@ import {
   type PerformerRecord,
 } from '../../../lib/performerStore';
 import { type RoleKey } from '../../../lib/eventRolesStore';
+import { startPromotionCheckout, confirmPerformerPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
+import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
 
 export default function EditPerformerProfile() {
@@ -47,7 +49,9 @@ export default function EditPerformerProfile() {
   const [commissionBlurb,   setCommissionBlurb]   = useState('');
   const [commissionPricing, setCommissionPricing] = useState('');
   const [phone,             setPhone]             = useState('');
-  const [isPromoted,        setIsPromoted]        = useState(false);
+  const [promotedUntil,     setPromotedUntil]     = useState<string | null | undefined>(undefined);
+  const [promoting,         setPromoting]         = useState(false);
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [photoUri,          setPhotoUri]          = useState<string | undefined>();
   const [existingPhotoUrl,  setExistingPhotoUrl]  = useState<string | undefined>();
   const [selectedRoles,     setSelectedRoles]     = useState<SelectedRole[]>([]);
@@ -69,7 +73,7 @@ export default function EditPerformerProfile() {
       setCommissionBlurb(p.commissionBlurb ?? '');
       setCommissionPricing(p.commissionPricing ?? '');
       setPhone(p.phone ?? '');
-      setIsPromoted(p.isPromoted ?? false);
+      setPromotedUntil(p.promotedUntil ?? null);
       setExistingPhotoUrl(p.photoUrl);
 
       // Load existing talent roles
@@ -126,7 +130,6 @@ export default function EditPerformerProfile() {
         commissionBlurb:    commissionsOn ? (commissionBlurb.trim() || undefined) : undefined,
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
         phone:              phone.trim() || undefined,
-        isPromoted,
       });
       await saveTalentRoles(id, selectedRoles);
       Alert.alert('Saved!', 'Your profile has been updated.', [
@@ -355,35 +358,70 @@ export default function EditPerformerProfile() {
         {/* ── Promote ──────────────────────────────────────────────────── */}
         <View style={{ height: 24 }} />
         <View style={{
-          backgroundColor: isPromoted ? GOLD + '14' : C.surface,
+          backgroundColor: isCurrentlyPromoted(true, promotedUntil) ? GOLD + '14' : C.surface,
           borderRadius: 14,
-          borderWidth: isPromoted ? 2 : 1,
-          borderColor: isPromoted ? GOLD : C.border,
+          borderWidth: isCurrentlyPromoted(true, promotedUntil) ? 2 : 1,
+          borderColor: isCurrentlyPromoted(true, promotedUntil) ? GOLD : C.border,
           padding: 16,
         }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 18 }}>✦</Text>
-              <View>
-                <Text style={{ color: isPromoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
-                  Promote my profile
-                </Text>
-                <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>Gold ring on your avatar</Text>
-              </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <Text style={{ fontSize: 18 }}>✦</Text>
+            <View>
+              <Text style={{ color: isCurrentlyPromoted(true, promotedUntil) ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
+                {isCurrentlyPromoted(true, promotedUntil) ? 'Currently promoted' : 'Promote my profile'}
+              </Text>
+              <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>Gold ring on your avatar</Text>
             </View>
-            <Switch
-              value={isPromoted}
-              onValueChange={setIsPromoted}
-              trackColor={{ false: C.border, true: GOLD + 'AA' }}
-              thumbColor={isPromoted ? GOLD : C.textMuted}
-              ios_backgroundColor={C.border}
-            />
           </View>
-          <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19 }}>
-            Promoted performers get a{' '}
-            <Text style={{ color: isPromoted ? GOLD : C.textMuted, fontWeight: '700' }}>✦ gold ring</Text>
-            {' '}around their avatar when tagged in events — making you easier to spot in Discover.
+          <Text style={{ color: C.textMuted, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+            {isCurrentlyPromoted(true, promotedUntil)
+              ? `Boosted until ${new Date(promotedUntil!).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}.`
+              : `Get a gold ring around your avatar in Discover for ${PROMOTION_DAYS} days — making you easier to spot.`}
           </Text>
+          <Pressable
+            onPress={async () => {
+              if (!id) return;
+              setPromoting(true);
+              try {
+                const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout('performer', id);
+                const { error: initError } = await initPaymentSheet({
+                  merchantDisplayName: 'Sequins',
+                  paymentIntentClientSecret: clientSecret,
+                  appearance: {
+                    colors: {
+                      primary: C.teal, background: C.navy, componentBackground: C.surface,
+                      componentBorder: C.border, primaryText: C.textPrimary,
+                      secondaryText: C.textSecondary, placeholderText: C.textMuted,
+                    },
+                  },
+                });
+                if (initError) throw new Error(initError.message);
+                const { error: presentError } = await presentPaymentSheet();
+                if (presentError) {
+                  if (presentError.code === 'Canceled') return;
+                  throw new Error(presentError.message);
+                }
+                await confirmPerformerPromotion(id, paymentIntentId, promotionDays);
+                setPromotedUntil(new Date(Date.now() + promotionDays * 24 * 60 * 60 * 1000).toISOString());
+                Alert.alert('✦ Promoted!', `Your profile is now boosted for ${promotionDays} days.`);
+              } catch (err) {
+                Alert.alert('Error', err instanceof Error ? err.message : 'Could not start promotion.');
+              } finally {
+                setPromoting(false);
+              }
+            }}
+            disabled={promoting}
+            style={{
+              backgroundColor: GOLD, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+              opacity: promoting ? 0.7 : 1,
+            }}
+          >
+            {promoting ? <ActivityIndicator color={C.navy} /> : (
+              <Text style={{ color: '#1A1A2E', fontWeight: '800', fontSize: 14 }}>
+                {isCurrentlyPromoted(true, promotedUntil) ? `Renew — ${PROMOTION_PRICE_LABEL}` : `Promote — ${PROMOTION_PRICE_LABEL}`}
+              </Text>
+            )}
+          </Pressable>
         </View>
 
         {/* ── Save ─────────────────────────────────────────────────────── */}
