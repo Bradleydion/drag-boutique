@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
 import { getFollowedIds } from '../../lib/followStore';
+import { getPayoutAccount, loadPayoutAccount, type PayoutAccount } from '../../lib/payoutStore';
 import { getTickets, loadTickets, type Ticket } from '../../lib/ticketStore';
 import { deleteListing, getMyListings, loadListings, markSold, type Listing } from '../../lib/marketplaceStore';
 import { loadMyPerformerProfile, fetchPerformerById, type PerformerRecord } from '../../lib/performerStore';
@@ -27,12 +28,14 @@ const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: st
     { emoji: '📅', label: 'Bookings', sublabel: 'View upcoming and past gigs' },
     { emoji: '📬', label: 'Event Invites', sublabel: 'Respond to role invitations from hosts' },
     { emoji: '💰', label: 'Earnings', sublabel: 'Tips, bookings, and commissions' },
+    { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive commissions & tips' },
   ],
   host: [
     { emoji: '🎪', label: 'My Events', sublabel: 'Manage events you\'ve created' },
     { emoji: '👥', label: 'Staff Roster', sublabel: 'Manage DJs, door crew, tip takers' },
     { emoji: '🧾', label: 'Invoices', sublabel: 'View and send event invoices' },
     { emoji: '💸', label: 'Payouts', sublabel: 'Pay staff via Venmo or Stripe' },
+    { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive ticket sale payouts' },
   ],
   fan: [
     { emoji: '🎟️', label: 'My Tickets', sublabel: 'Your purchased event tickets' },
@@ -74,6 +77,7 @@ export default function ProfileTab() {
   const [myUpcomingShows,  setMyUpcomingShows]  = useState<EventRecord[]>([]);
   const [myHostEvents,     setMyHostEvents]     = useState<EventRecord[]>([]);
   const [followedProfiles, setFollowedProfiles] = useState<PerformerRecord[]>([]);
+  const [myPayoutAccount,   setMyPayoutAccount]   = useState<PayoutAccount | null>(null);
 
   // Reload tickets, listings, performer profile, and upcoming shows on focus.
   useFocusEffect(
@@ -84,6 +88,9 @@ export default function ProfileTab() {
         loadListings().then(() => setMyListings(getMyListings()));
         if (role === 'host') {
           loadHostEvents().then(() => setMyHostEvents(getHostEvents()));
+        }
+        if (role === 'host' || role === 'artist') {
+          loadPayoutAccount().then(() => setMyPayoutAccount(getPayoutAccount()));
         }
         // Load followed performer profiles from Supabase
         const followedIds = getFollowedIds();
@@ -288,6 +295,7 @@ export default function ProfileTab() {
             const isEventInvites     = item.label === 'Event Invites';
             const isMyEvents         = item.label === 'My Events';
             const isStaffRoster      = item.label === 'Staff Roster';
+            const isPayoutSetup      = item.label === 'Payout Setup';
 
             const sublabel = isMyTickets && myTickets.length > 0
               ? `${myTickets.length} ticket${myTickets.length === 1 ? '' : 's'} purchased`
@@ -301,6 +309,10 @@ export default function ProfileTab() {
               ? 'Create your talent profile first'
               : isEventInvites && !myArtistProfile
               ? 'Create your talent profile first'
+              : isPayoutSetup && myPayoutAccount?.onboarding_complete && myPayoutAccount?.payouts_enabled
+              ? 'Active — payouts are ready'
+              : isPayoutSetup && myPayoutAccount
+              ? 'Setup in progress — tap to continue'
               : item.sublabel;
 
             const upcomingHostEvent = myHostEvents.find(e =>
@@ -327,6 +339,8 @@ export default function ProfileTab() {
               ? () => router.push(`/performer/${myArtistProfile.id}/invites` as any)
               : isEventInvites
               ? () => router.push('/performer/create' as any)
+              : isPayoutSetup
+              ? () => router.push('/payouts/setup' as any)
               : () => Alert.alert('Coming Soon', `${item.label} will be available in a future update.`);
 
             const isActive = (isMyTickets && myTickets.length > 0)
@@ -334,7 +348,8 @@ export default function ProfileTab() {
               || (isBookings && !!myArtistProfile)
               || (isEventInvites && !!myArtistProfile)
               || isMyEvents
-              || isStaffRoster;
+              || isStaffRoster
+              || (isPayoutSetup && !!myPayoutAccount?.onboarding_complete && !!myPayoutAccount?.payouts_enabled);
 
             return (
               <Pressable

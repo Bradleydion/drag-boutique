@@ -36,6 +36,16 @@ export interface Listing {
   localPickup: boolean;
   createdAt: string;
   sold: boolean;
+  buyerId?: string;
+  paymentStatus?: 'unpaid' | 'paid';
+  stripePaymentIntentId?: string;
+  platformFeePercent?: number;
+  platformFeeAmount?: number;
+  refundReason?: string;
+  refundRequestedAt?: string;
+  stripeRefundId?: string;
+  refundWindowDays?: number;
+  allSalesFinal?: boolean;
 }
 
 // ── Seed data (always visible as demo content) ────────────────────────────────
@@ -158,6 +168,16 @@ function rowToListing(row: Record<string, unknown>): Listing {
     localPickup:     Boolean(row.local_pickup),
     createdAt:       row.created_at as string,
     sold:            Boolean(row.sold),
+    buyerId:         row.buyer_id as string | undefined,
+    paymentStatus:   row.payment_status as 'unpaid' | 'paid' | undefined,
+    stripePaymentIntentId: row.stripe_payment_intent_id as string | undefined,
+    platformFeePercent:    row.platform_fee_percent != null ? Number(row.platform_fee_percent) : undefined,
+    platformFeeAmount:     row.platform_fee_amount != null ? Number(row.platform_fee_amount) : undefined,
+    refundReason:          row.refund_reason as string | undefined,
+    refundRequestedAt:     row.refund_requested_at as string | undefined,
+    stripeRefundId:        row.stripe_refund_id as string | undefined,
+    refundWindowDays:      row.refund_window_days != null ? Number(row.refund_window_days) : undefined,
+    allSalesFinal:         Boolean(row.all_sales_final),
   };
 }
 
@@ -265,6 +285,67 @@ export async function markSold(id: string): Promise<void> {
   }
 }
 
+// ── Stripe: buy a listing (marketplace sale, swap, or priced commission) ─────
+
+/**
+ * Calls the Supabase Edge Function to create a Stripe PaymentIntent for a
+ * marketplace listing purchase. The seller's cut is sent directly to their
+ * Stripe Connect account; Sequins' service fee (7%→4% by seller volume) is
+ * collected automatically as the destination charge's application fee.
+ */
+export async function createListingPaymentIntent(
+  listingId: string,
+): Promise<{
+  clientSecret: string;
+  paymentIntentId: string;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+}> {
+  const session = getSession();
+  if (!session) throw new Error('Must be signed in to buy a listing.');
+
+  const { data, error } = await supabase.functions.invoke('create-listing-payment-intent', {
+    body: { listingId },
+  });
+
+  if (error) throw new Error(error.message ?? 'Could not initialise payment.');
+  if (!data?.clientSecret) throw new Error('Invalid response from payment service.');
+
+  return {
+    clientSecret: data.clientSecret,
+    paymentIntentId: data.paymentIntentId,
+    platformFeePercent: data.platformFeePercent ?? 0,
+    platformFeeAmount: data.platformFeeAmount ?? 0,
+  };
+}
+
+/** Record a listing purchase in Supabase after Stripe payment succeeds. */
+export async function buyListing(
+  id: string,
+  paymentIntentId: string,
+  platformFeePercent: number,
+  platformFeeAmount: number,
+): Promise<void> {
+  const session = getSession();
+  if (!session) throw new Error('Must be signed in to buy a listing.');
+
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      sold: true,
+      buyer_id: session.user.id,
+      payment_status: 'paid',
+      stripe_payment_intent_id: paymentIntentId,
+      platform_fee_percent: platformFeePercent,
+      platform_fee_amount: platformFeeAmount,
+    })
+    .eq('id', id)
+    .eq('sold', false); // guard against double-purchase races
+
+  if (error) throw error;
+  _dbListings.delete(id);
+}
+
 export async function deleteListing(id: string): Promise<void> {
   const session = getSession();
   if (!session) throw new Error('Must be signed in to delete a listing.');
@@ -296,3 +377,28 @@ export const CONDITION_LABELS: Record<ListingCondition, string> = {
   good:     'Good',
   fair:     'Fair',
 };
+
+// ─── Refunds ──────────────────────────────────────────────────────────────────
+// Same buyer-requests / seller-approves flow as ticket refunds (see
+// ticketStore.ts), applied to marketplace purchases.
+
+export async function requestListingRefund(listingId: string, reason?: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('process-refund', {
+    body: { itemType: 'listing', itemId: listingId, action: 'request', reason },
+  });
+  if (error) throw new Error(error.message ?? 'Could not submit refund request.');
+}
+
+export async function approveListingRefund(listingId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('process-refund', {
+    body: { itemType: 'listing', itemId: listingId, action: 'approve' },
+  });
+  if (error) throw new Error(error.message ?? 'Could not process refund.');
+}
+
+export async function denyListingRefund(listingId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('process-refund', {
+    body: { itemType: 'listing', itemId: listingId, action: 'deny' },
+  });
+  if (error) throw new Error(error.message ?? 'Could not deny refund.');
+}

@@ -14,7 +14,8 @@ import {
   isFollowing,
   unfollowPerformer,
 } from '@/lib/followStore';
-import { openVenmoPay } from '@/lib/venmo';
+import { createTipIntent } from '@/lib/tipStore';
+import { useStripe } from '@stripe/stripe-react-native';
 import * as Linking from 'expo-linking';
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -25,6 +26,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,6 +54,10 @@ export default function PerformerProfile() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
   const [upcomingShows, setUpcomingShows] = useState<UpcomingShow[]>([]);
+  const [showTipInput, setShowTipInput] = useState(false);
+  const [tipAmount, setTipAmount] = useState('');
+  const [tipping, setTipping] = useState(false);
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const currentUserId = getSession()?.user?.id;
   const isOwner = !!performer?.userId && performer.userId === currentUserId;
@@ -133,6 +139,55 @@ export default function PerformerProfile() {
   // ── Main render ────────────────────────────────────────────────────────────
 
   const p = performer;
+
+  async function handleTip() {
+    if (!p?.userId) {
+      Alert.alert('Tipping unavailable', 'This performer hasn\u2019t set up tipping yet.');
+      return;
+    }
+    const amt = parseFloat(tipAmount);
+    if (!amt || amt <= 0) {
+      Alert.alert('Enter an amount', 'Please enter how much you\u2019d like to tip.');
+      return;
+    }
+
+    setTipping(true);
+    try {
+      const { clientSecret } = await createTipIntent(amt, p.id, p.userId, p.stageName);
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Sequins',
+        paymentIntentClientSecret: clientSecret,
+        defaultBillingDetails: {},
+        appearance: {
+          colors: {
+            primary: colors.teal,
+            background: colors.navy,
+            componentBackground: colors.surface,
+            componentBorder: colors.border,
+            primaryText: colors.textPrimary,
+            secondaryText: colors.textSecondary,
+            placeholderText: colors.textMuted,
+          },
+        },
+      });
+      if (initError) throw new Error(initError.message);
+
+      const { error: presentError } = await presentPaymentSheet();
+      if (presentError) {
+        if (presentError.code === 'Canceled') return;
+        throw new Error(presentError.message);
+      }
+
+      Alert.alert('\ud83d\udc96 Tip sent!', `Your $${amt.toFixed(2)} tip to ${p.stageName} is on its way.`);
+      setTipAmount('');
+      setShowTipInput(false);
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not send tip. Please try again.');
+    } finally {
+      setTipping(false);
+    }
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
@@ -255,12 +310,61 @@ export default function PerformerProfile() {
           {/* ── Action buttons ─────────────────────────────────────────── */}
           {!isOwner && (
             <View style={{ marginTop: 20, gap: 10 }}>
-              {p.venmoHandle ? (
+              {showTipInput ? (
+                <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, gap: 10 }}>
+                  <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 14 }}>
+                    Send {p.stageName} a tip
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {[5, 10, 20].map(preset => (
+                      <Pressable
+                        key={preset}
+                        onPress={() => setTipAmount(String(preset))}
+                        style={{
+                          backgroundColor: tipAmount === String(preset) ? colors.teal : colors.background,
+                          borderRadius: 10,
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        <Text style={{ color: tipAmount === String(preset) ? colors.navy : colors.textPrimary, fontWeight: '700' }}>
+                          ${preset}
+                        </Text>
+                      </Pressable>
+                    ))}
+                    <TextInput
+                      value={tipAmount}
+                      onChangeText={setTipAmount}
+                      placeholder="Custom $"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                      style={{
+                        flex: 1,
+                        backgroundColor: colors.background,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        color: colors.textPrimary,
+                        paddingHorizontal: 12,
+                      }}
+                    />
+                  </View>
+                  <PrimaryButton
+                    title={tipping ? 'Opening payment…' : 'Send Tip'}
+                    onPress={tipping ? () => {} : handleTip}
+                  />
+                  <Text style={{ color: colors.textMuted, fontSize: 11, textAlign: 'center' }}>
+                    100% of your tip goes to {p.stageName} — Sequins never takes a cut.
+                  </Text>
+                </View>
+              ) : (
                 <PrimaryButton
-                  title="💸 Tip via Venmo"
-                  onPress={() => openVenmoPay(p.venmoHandle!, undefined, `Tip-${p.id}`)}
+                  title="💸 Send a Tip"
+                  onPress={() => setShowTipInput(true)}
                 />
-              ) : null}
+              )}
               <PrimaryButton
                 title="Request Booking"
                 variant="ghost"

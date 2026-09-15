@@ -26,6 +26,11 @@ export type Ticket = {
   checked_in_at?: string | null;
   stripe_payment_intent_id?: string | null;
   payment_status: PaymentStatus;
+  platform_fee_percent?: number | null;
+  platform_fee_amount?: number | null;
+  refund_reason?: string | null;
+  refund_requested_at?: string | null;
+  stripe_refund_id?: string | null;
 };
 
 export type CheckInResult =
@@ -73,7 +78,12 @@ export async function createPaymentIntent(
   amount: number,
   eventId: string,
   eventTitle: string,
-): Promise<{ clientSecret: string; paymentIntentId: string }> {
+): Promise<{
+  clientSecret: string;
+  paymentIntentId: string;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+}> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to purchase tickets.');
 
@@ -84,7 +94,12 @@ export async function createPaymentIntent(
   if (error) throw new Error(error.message ?? 'Could not initialise payment.');
   if (!data?.clientSecret) throw new Error('Invalid response from payment service.');
 
-  return { clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };
+  return {
+    clientSecret: data.clientSecret,
+    paymentIntentId: data.paymentIntentId,
+    platformFeePercent: data.platformFeePercent ?? 0,
+    platformFeeAmount: data.platformFeeAmount ?? 0,
+  };
 }
 
 // ─── Purchase ─────────────────────────────────────────────────────────────────
@@ -99,6 +114,8 @@ export async function buyTicket(
   eventId: string,
   price: number,
   paymentIntentId?: string,
+  platformFeePercent?: number,
+  platformFeeAmount?: number,
 ): Promise<Ticket> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to buy tickets.');
@@ -116,6 +133,8 @@ export async function buyTicket(
       price,
       payment_status,
       stripe_payment_intent_id: paymentIntentId ?? null,
+      platform_fee_percent: platformFeePercent ?? null,
+      platform_fee_amount: platformFeeAmount ?? null,
     })
     .select()
     .single();
@@ -193,4 +212,49 @@ export async function getEventTicketStats(
     total:     data.length,
     checkedIn: data.filter(t => t.checked_in_at).length,
   };
+}
+
+// ─── Refunds ──────────────────────────────────────────────────────────────────
+//
+// Sequins facilitates refunds between the buyer and the host, per each
+// event's own refund policy (a window in days, or "All Sales Final"). The
+// buyer requests a refund; the host approves (triggers the actual Stripe
+// refund, reversing the host's payout) or denies it.
+
+/** Buyer: request a refund for a paid ticket. Throws with a user-facing message on failure. */
+export async function requestTicketRefund(ticketId: string, reason?: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('process-refund', {
+    body: { itemType: 'ticket', itemId: ticketId, action: 'request', reason },
+  });
+  if (error) throw new Error(error.message ?? 'Could not submit refund request.');
+  await loadTickets();
+}
+
+/** Host: approve a pending refund request — actually refunds the buyer via Stripe. */
+export async function approveTicketRefund(ticketId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('process-refund', {
+    body: { itemType: 'ticket', itemId: ticketId, action: 'approve' },
+  });
+  if (error) throw new Error(error.message ?? 'Could not process refund.');
+}
+
+/** Host: deny a pending refund request — reverts the ticket back to paid. */
+export async function denyTicketRefund(ticketId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('process-refund', {
+    body: { itemType: 'ticket', itemId: ticketId, action: 'deny' },
+  });
+  if (error) throw new Error(error.message ?? 'Could not deny refund.');
+}
+
+/** Host: load pending refund requests for a specific event (bypasses local cache -- always fresh). */
+export async function loadEventRefundRequests(eventId: string): Promise<Ticket[]> {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('payment_status', 'refund_requested')
+    .order('refund_requested_at', { ascending: true });
+
+  if (error || !data) return [];
+  return data as Ticket[];
 }

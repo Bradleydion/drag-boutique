@@ -40,6 +40,9 @@ export type EventRecord = {
   recurringEndDate?: string;
   // Promoted placement
   isPromoted?: boolean;
+  // Refund policy — set by the host per event
+  refundWindowDays?: number | null; // null/undefined = no explicit limit, refundable any time before the event
+  allSalesFinal?: boolean;          // true = no refunds offered through the app for this event
 };
 
 // ─── Local cache ──────────────────────────────────────────────────────────────
@@ -80,6 +83,8 @@ function rowToEvent(row: Record<string, any>): EventRecord {
     recurringFrequency: row.recurring_frequency,
     recurringEndDate:   row.recurring_end_date,
     isPromoted:         row.is_promoted ?? false,
+    refundWindowDays:   row.refund_window_days ?? null,
+    allSalesFinal:      row.all_sales_final ?? false,
   };
 }
 

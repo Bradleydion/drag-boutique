@@ -141,6 +141,20 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
           <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 12 }} numberOfLines={1}>✏️ Edit</Text>
         </Pressable>
         <Pressable
+          onPress={() => router.push(`/event/${event.id}/refunds` as any)}
+          style={{
+            flex: 1,
+            backgroundColor: '#F05D5E' + '18',
+            borderRadius: 10,
+            paddingVertical: 10,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: '#F05D5E' + '55',
+          }}
+        >
+          <Text style={{ color: '#F05D5E', fontWeight: '700', fontSize: 12 }} numberOfLines={1}>💳 Refunds</Text>
+        </Pressable>
+        <Pressable
           onPress={() => router.push(`/event/${event.id}` as any)}
           style={{
             flex: 1,

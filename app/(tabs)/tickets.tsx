@@ -1,16 +1,29 @@
 // app/(tabs)/tickets.tsx
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { isGuest } from '@/lib/authStore';
-import { getTickets, loadTickets, type Ticket } from '@/lib/ticketStore';
+import { getTickets, loadTickets, requestTicketRefund, type Ticket } from '@/lib/ticketStore';
 import { fetchEventById, type EventRecord } from '@/lib/eventsStore';
 import { colors } from '../../src/theme/colors';
 
-function TicketCard({ ticket, event }: { ticket: Ticket; event: EventRecord | null }) {
+/** Whether a paid ticket is still within its event's refund window (or has no limit set). */
+function isRefundEligible(ticket: Ticket, event: EventRecord | null): boolean {
+  if (ticket.payment_status !== 'paid') return false;
+  if (!event) return false;
+  if (event.allSalesFinal) return false;
+  if (event.refundWindowDays == null) return true; // no explicit limit -> refundable any time before the event
+  if (!event.datetimeStart) return true;
+  const deadline = new Date(event.datetimeStart);
+  deadline.setDate(deadline.getDate() - event.refundWindowDays);
+  return new Date() <= deadline;
+}
+
+function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: EventRecord | null; onRefunded: () => void }) {
   const [modalVisible, setModalVisible] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   const title     = event?.title      ?? 'Loading…';
   const dateStart = event?.datetimeStart;
@@ -27,6 +40,33 @@ function TicketCard({ ticket, event }: { ticket: Ticket; event: EventRecord | nu
 
   const shortId = ticket.id.slice(0, 8).toUpperCase();
   const qrData  = `SEQ-TICKET:${ticket.id}`;
+  const refundEligible = isRefundEligible(ticket, event);
+
+  async function handleRequestRefund() {
+    Alert.alert(
+      'Request a refund?',
+      `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Request Refund',
+          style: 'destructive',
+          onPress: async () => {
+            setRequesting(true);
+            try {
+              await requestTicketRefund(ticket.id);
+              Alert.alert('Refund requested', 'The host has been notified and will review your request.');
+              onRefunded();
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Could not submit refund request.');
+            } finally {
+              setRequesting(false);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   return (
     <>
@@ -164,6 +204,29 @@ function TicketCard({ ticket, event }: { ticket: Ticket; event: EventRecord | nu
               Tap to show QR →
             </Text>
           </View>
+
+          {/* Refund status / request */}
+          {ticket.payment_status === 'refund_requested' && (
+            <View style={{ marginTop: 10, backgroundColor: colors.warning + '18', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: colors.warning }}>
+              <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '700' }}>⏳ Refund requested — awaiting host approval</Text>
+            </View>
+          )}
+          {ticket.payment_status === 'refunded' && (
+            <View style={{ marginTop: 10, backgroundColor: colors.textMuted + '18', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: colors.textMuted }}>
+              <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>↩️ Refunded</Text>
+            </View>
+          )}
+          {refundEligible && (
+            <Pressable
+              onPress={handleRequestRefund}
+              disabled={requesting}
+              style={{ marginTop: 10, alignItems: 'center', paddingVertical: 8 }}
+            >
+              <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600', textDecorationLine: 'underline' }}>
+                {requesting ? 'Submitting…' : 'Request Refund'}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </Pressable>
     </>
@@ -268,7 +331,12 @@ export default function TicketsTab() {
 
         {/* Ticket list */}
         {!guest && !loading && tickets.map(ticket => (
-          <TicketCard key={ticket.id} ticket={ticket} event={eventMap[ticket.event_id] ?? null} />
+          <TicketCard
+            key={ticket.id}
+            ticket={ticket}
+            event={eventMap[ticket.event_id] ?? null}
+            onRefunded={() => { loadTickets().then(() => setTickets(getTickets())); }}
+          />
         ))}
 
       </ScrollView>

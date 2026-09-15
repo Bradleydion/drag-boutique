@@ -92,12 +92,10 @@ export default function EventDetail() {
       } else {
         // ── Paid ticket: Stripe payment sheet ───────────────────────────────
 
-        // 1. Create PaymentIntent via Edge Function
-        const { clientSecret, paymentIntentId } = await createPaymentIntent(
-          price,
-          event.id,
-          event.title,
-        );
+        // 1. Create PaymentIntent via Edge Function (Stripe Connect destination
+        //    charge: Sequins' service fee + the host's payout, split automatically)
+        const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } =
+          await createPaymentIntent(price, event.id, event.title);
 
         // 2. Initialise Stripe payment sheet
         const { error: initError } = await initPaymentSheet({
@@ -129,7 +127,7 @@ export default function EventDetail() {
         }
 
         // 4. Payment succeeded — record the ticket
-        await buyTicket(event.id, price, paymentIntentId);
+        await buyTicket(event.id, price, paymentIntentId, platformFeePercent, platformFeeAmount);
         setTicketed(true);
 
         Alert.alert(
