@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getRole } from '../../lib/userStore';
+import { isGuest } from '../../lib/authStore';
 import {
   CATEGORY_META,
   CONDITION_LABELS,
@@ -49,6 +50,7 @@ export default function MarketplaceTab() {
     : rawListings;
 
   const canList = role === 'artist' || role === 'host';
+  const guest = isGuest();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['left', 'right', 'bottom']}>
@@ -76,6 +78,36 @@ export default function MarketplaceTab() {
             List Something
           </Text>
         </Pressable>
+      )}
+
+      {/* My Purchases / Refund Requests shortcuts */}
+      {!guest && (
+        <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 16, marginTop: 10 }}>
+          <Pressable
+            onPress={() => router.push('/marketplace/purchases')}
+            style={{
+              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+              backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 9,
+              borderWidth: 1, borderColor: colors.border,
+            }}
+          >
+            <Text style={{ fontSize: 13 }}>🛍️</Text>
+            <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }}>My Purchases</Text>
+          </Pressable>
+          {canList && (
+            <Pressable
+              onPress={() => router.push('/marketplace/seller-refunds')}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 9,
+                borderWidth: 1, borderColor: colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 13 }}>💳</Text>
+              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }}>Refund Requests</Text>
+            </Pressable>
+          )}
+        </View>
       )}
 
       {/* Category filter pills */}

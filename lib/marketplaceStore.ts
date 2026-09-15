@@ -37,7 +37,7 @@ export interface Listing {
   createdAt: string;
   sold: boolean;
   buyerId?: string;
-  paymentStatus?: 'unpaid' | 'paid';
+  paymentStatus?: 'unpaid' | 'pending' | 'paid' | 'refund_requested' | 'refunded' | 'failed';
   stripePaymentIntentId?: string;
   platformFeePercent?: number;
   platformFeeAmount?: number;
@@ -46,6 +46,7 @@ export interface Listing {
   stripeRefundId?: string;
   refundWindowDays?: number;
   allSalesFinal?: boolean;
+  purchasedAt?: string;
 }
 
 // ── Seed data (always visible as demo content) ────────────────────────────────
@@ -169,7 +170,7 @@ function rowToListing(row: Record<string, unknown>): Listing {
     createdAt:       row.created_at as string,
     sold:            Boolean(row.sold),
     buyerId:         row.buyer_id as string | undefined,
-    paymentStatus:   row.payment_status as 'unpaid' | 'paid' | undefined,
+    paymentStatus:   row.payment_status as 'unpaid' | 'pending' | 'paid' | 'refund_requested' | 'refunded' | 'failed' | undefined,
     stripePaymentIntentId: row.stripe_payment_intent_id as string | undefined,
     platformFeePercent:    row.platform_fee_percent != null ? Number(row.platform_fee_percent) : undefined,
     platformFeeAmount:     row.platform_fee_amount != null ? Number(row.platform_fee_amount) : undefined,
@@ -178,6 +179,7 @@ function rowToListing(row: Record<string, unknown>): Listing {
     stripeRefundId:        row.stripe_refund_id as string | undefined,
     refundWindowDays:      row.refund_window_days != null ? Number(row.refund_window_days) : undefined,
     allSalesFinal:         Boolean(row.all_sales_final),
+    purchasedAt:           row.purchased_at as string | undefined,
   };
 }
 
@@ -338,6 +340,7 @@ export async function buyListing(
       stripe_payment_intent_id: paymentIntentId,
       platform_fee_percent: platformFeePercent,
       platform_fee_amount: platformFeeAmount,
+      purchased_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('sold', false); // guard against double-purchase races
@@ -406,6 +409,34 @@ export async function approveListingRefund(listingId: string): Promise<void> {
     body: { itemType: 'listing', itemId: listingId, action: 'approve' },
   });
   if (error) throw new Error(error.message ?? 'Could not process refund.');
+}
+
+/** Buyer: everything they've purchased on the marketplace (fresh from Supabase, not the local cache). */
+export async function loadMyPurchases(): Promise<Listing[]> {
+  const session = getSession();
+  if (!session) return [];
+
+  const { data, error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('buyer_id', session.user.id)
+    .order('purchased_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map((r: Record<string, unknown>) => rowToListing(r));
+}
+
+/** Seller: pending refund requests on their listings. */
+export async function loadSellerRefundRequests(sellerId: string): Promise<Listing[]> {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('seller_id', sellerId)
+    .eq('payment_status', 'refund_requested')
+    .order('refund_requested_at', { ascending: true });
+
+  if (error || !data) return [];
+  return data.map((r: Record<string, unknown>) => rowToListing(r));
 }
 
 export async function denyListingRefund(listingId: string): Promise<void> {
