@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { deleteAccount, getEmail, getSession, isGuest, signOut, updateDisplayName } from '../../lib/authStore';
 import { getFollowedIds } from '../../lib/followStore';
 import { getPayoutAccount, loadPayoutAccount, type PayoutAccount } from '../../lib/payoutStore';
@@ -125,6 +126,14 @@ export default function ProfileTab() {
   async function saveName() {
     await updateDisplayName(nameInput);
     setEditingName(false);
+  }
+
+  function handleOpenLegal() {
+    Alert.alert('Legal', 'Choose a document to view', [
+      { text: 'Privacy Policy', onPress: () => WebBrowser.openBrowserAsync('https://www.thebradleyproject.com/privacy') },
+      { text: 'Terms of Service', onPress: () => WebBrowser.openBrowserAsync('https://www.thebradleyproject.com/terms') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleSignOut() {
@@ -741,6 +750,27 @@ export default function ProfileTab() {
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>Change Role</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>Switch between Fan, Artist, or Host</Text>
+            </View>
+            <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleOpenLegal}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: colors.border,
+              gap: 14,
+            }}
+          >
+            <Text style={{ fontSize: 22 }}>📜</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>Legal</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>Privacy Policy & Terms of Service</Text>
             </View>
             <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
           </Pressable>
