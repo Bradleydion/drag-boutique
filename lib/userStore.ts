@@ -4,6 +4,7 @@
 // In a future auth sprint this will be backed by a real user record.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isGuest } from './authStore';
 
 export type UserRole = 'fan' | 'artist' | 'host';
 
@@ -15,9 +16,37 @@ export function getRole(): UserRole | null {
   return _role;
 }
 
+/**
+ * The role to actually build UI around. Collapses the "no role chosen yet"
+ * and "signed in as a guest" cases down to 'fan', which is the deliberate
+ * default per the Week 2 role-aware-navigation checklist item — guests have
+ * no role of their own, so they see exactly what a Fan sees.
+ */
+export function getEffectiveRole(): UserRole {
+  if (isGuest()) return 'fan';
+  return _role ?? 'fan';
+}
+
+// ─── Role-change subscriptions ─────────────────────────────────────────────────
+// Lets UI (namely the tab bar in app/(tabs)/_layout.tsx) react to a role
+// change immediately, without needing to unmount/remount or restart the app.
+
+type RoleListener = () => void;
+const _roleListeners = new Set<RoleListener>();
+
+export function subscribeToRoleChanges(listener: RoleListener): () => void {
+  _roleListeners.add(listener);
+  return () => _roleListeners.delete(listener);
+}
+
+function notifyRoleListeners(): void {
+  for (const listener of _roleListeners) listener();
+}
+
 export async function setRole(role: UserRole): Promise<void> {
   _role = role;
   await AsyncStorage.setItem(ROLE_KEY, role);
+  notifyRoleListeners();
 }
 
 export async function loadRole(): Promise<UserRole | null> {
@@ -35,6 +64,7 @@ export function hasRole(): boolean {
 export async function clearRole(): Promise<void> {
   _role = null;
   await AsyncStorage.removeItem(ROLE_KEY);
+  notifyRoleListeners();
 }
 
 export const ROLES: {

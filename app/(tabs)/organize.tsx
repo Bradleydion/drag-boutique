@@ -10,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getRole } from '../../lib/userStore';
+import { getEffectiveRole } from '../../lib/userStore';
+import TalentBookingsScreen from '../../components/TalentBookingsScreen';
 import { loadHostEvents, getHostEvents, deleteEvent, EventRecord } from '../../lib/eventsStore';
 import { canCreateNewEvent } from '../../lib/subscriptionStore';
 import { colors } from '../../src/theme/colors';
@@ -204,18 +205,19 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function OrganizeTab() {
-  const role = getRole();
+  const role = getEffectiveRole();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
+      if (role !== 'host') return; // only the Host branch below needs this list
       setLoading(true);
       loadHostEvents().then(() => {
         setEvents(getHostEvents());
         setLoading(false);
       });
-    }, []),
+    }, [role]),
   );
 
   async function handleDelete(event: EventRecord) {
@@ -227,7 +229,15 @@ export default function OrganizeTab() {
     }
   }
 
-  // Non-host: just show the create event prompt
+  // Talent: this tab is "My Bookings" instead of "Create" (Week 2 role-aware
+  // nav) — a completely different screen, not a locked-out version of this one.
+  if (role === 'artist') {
+    return <TalentBookingsScreen />;
+  }
+
+  // Fan (and guests, who are treated as Fan): this tab is hidden entirely in
+  // app/(tabs)/_layout.tsx via href: null, so this is just a safety-net
+  // fallback for anyone who reaches the route directly.
   if (role !== 'host') {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>

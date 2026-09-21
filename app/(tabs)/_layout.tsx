@@ -5,9 +5,19 @@ import { Platform, Pressable, Text, View } from 'react-native';
 import { IconSymbol } from '../../components/ui/IconSymbol';
 import { colors } from '../../src/theme/colors';
 import { loadNotifications, getUnreadCount } from '../../lib/notificationsStore';
+import { getEffectiveRole, subscribeToRoleChanges } from '../../lib/userStore';
 
 export default function TabLayout() {
   const [unread, setUnread] = useState(0);
+  const [role, setRole] = useState(getEffectiveRole());
+
+  // Week 2 role-aware-navigation requirement: react to a role change (or a
+  // guest signing in/out of guest mode) immediately, without an app restart.
+  // userStore notifies this subscriber on every setRole()/clearRole() call.
+  useEffect(() => {
+    setRole(getEffectiveRole());
+    return subscribeToRoleChanges(() => setRole(getEffectiveRole()));
+  }, []);
 
   useEffect(() => {
     // Load on mount, then poll every 60 s
@@ -87,12 +97,20 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Create / Organize tab */}
+      {/* Create / Organize tab — Week 2 role-aware navigation:
+          Host sees Create exactly as before; Talent sees My Bookings in the
+          same slot (see components/TalentBookingsScreen.tsx, rendered by
+          organize.tsx); Fan (and guests, treated as Fan) don't get this tab
+          at all — href: null removes it from the bar rather than greying
+          it out, per "the plating principle" in the launch checklist. */}
       <Tabs.Screen
         name="organize"
         options={{
-          title: 'Create',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="plus" color={color} />,
+          title: role === 'artist' ? 'Bookings' : 'Create',
+          href: role === 'fan' ? null : undefined,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name={role === 'artist' ? 'calendar' : 'plus'} color={color} />
+          ),
         }}
       />
 

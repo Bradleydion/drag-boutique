@@ -285,6 +285,64 @@ function mapInvite(row: any): EventTalentInvite {
   };
 }
 
+// ─── My Bookings (Talent role tab) ─────────────────────────────────────────────
+// Feeds the Talent role's "Bookings" tab (app/(tabs)/organize.tsx renders
+// components/TalentBookingsScreen.tsx for role === 'artist'), per the Week 2
+// launch-checklist item: query events where the signed-in performer is
+// booked, joined through to the role they were booked as, event details,
+// and agreed pay. "Host contact" in the checklist is the event's host_name —
+// there's no host phone/email field in the schema yet, so that's what's shown.
+
+export type MyBooking = {
+  id: string;              // event_talent row id
+  eventId: string;
+  eventTitle: string;
+  eventImageUrl?: string;
+  venueName?: string;
+  venueCity?: string;
+  datetimeStart?: string;
+  hostName?: string;
+  hostId: string;
+  roleName: RoleKey;
+  customRoleName?: string;
+  payAgreed?: number;       // dollars
+  paymentStatus?: 'unpaid' | 'paid' | 'failed';
+};
+
+export async function loadMyBookings(talentId: string): Promise<MyBooking[]> {
+  const { data, error } = await supabase
+    .from('event_talent')
+    .select(`
+      id,
+      event_id,
+      status,
+      pay_agreed,
+      payment_status,
+      event_roles!event_talent_event_role_id_fkey (role_name, custom_name),
+      events!event_talent_event_id_fkey (title, image_url, venue_name, venue_city, datetime_start, host_name, host_id)
+    `)
+    .eq('talent_id', talentId)
+    .eq('status', 'accepted');
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: any) => ({
+    id:             row.id,
+    eventId:        row.event_id,
+    eventTitle:     row.events?.title ?? 'Untitled event',
+    eventImageUrl:  row.events?.image_url ?? undefined,
+    venueName:      row.events?.venue_name ?? undefined,
+    venueCity:      row.events?.venue_city ?? undefined,
+    datetimeStart:  row.events?.datetime_start ?? undefined,
+    hostName:       row.events?.host_name ?? undefined,
+    hostId:         row.events?.host_id ?? '',
+    roleName:       (row.event_roles?.role_name ?? 'other') as RoleKey,
+    customRoleName: row.event_roles?.custom_name ?? undefined,
+    payAgreed:      row.pay_agreed ? row.pay_agreed / 100 : undefined,
+    paymentStatus:  row.payment_status ?? 'unpaid',
+  }));
+}
+
 // ─── Removal ─────────────────────────────────────────────────────────────────
 
 /** Host removes a staff member from an event role. */
