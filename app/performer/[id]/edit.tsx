@@ -27,6 +27,8 @@ import {
   saveTalentRoles,
   type PerformerRecord,
 } from '../../../lib/performerStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { type RoleKey } from '../../../lib/eventRolesStore';
 import { startPromotionCheckout, confirmPerformerPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -37,6 +39,7 @@ export default function EditPerformerProfile() {
 
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
+  const [isOwner, setIsOwner]   = useState(true);
 
   // Form fields
   const [stageName,         setStageName]         = useState('');
@@ -75,6 +78,7 @@ export default function EditPerformerProfile() {
       setPhone(p.phone ?? '');
       setPromotedUntil(p.promotedUntil ?? null);
       setExistingPhotoUrl(p.photoUrl);
+      setIsOwner(p.userId === getSession()?.user?.id);
 
       // Load existing talent roles
       loadTalentRoles(id).then(roles => {
@@ -163,6 +167,10 @@ export default function EditPerformerProfile() {
         <ActivityIndicator color={C.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
+  }
+
+  if (!isOwner) {
+    return <AccessRestricted title="Not your profile" body="You can only edit your own talent profile." />;
   }
 
   const displayPhoto = photoUri ?? existingPhotoUrl;

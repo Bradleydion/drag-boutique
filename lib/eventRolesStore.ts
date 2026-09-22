@@ -343,6 +343,26 @@ export async function loadMyBookings(talentId: string): Promise<MyBooking[]> {
   }));
 }
 
+// ─── Ownership checks (dead-control audit) ─────────────────────────────────────
+// Used by app/event/[id]/checkin.tsx to gate itself the same way the
+// database already does: the check-in screen is for the host OR an accepted
+// door-staff member, matching the "hosts and door staff can check in
+// tickets" RLS policy on public.tickets. Relies on RLS scoping a non-host's
+// event_talent read to just their own row(s) -- see that policy's SELECT
+// side ("talent can view own invites") -- so this never sees anyone else's
+// staffing data, it just checks whether one of the caller's own rows is an
+// accepted 'door' role for this event.
+export async function isAcceptedDoorStaffForEvent(eventId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('event_talent')
+    .select('status, event_roles!event_talent_event_role_id_fkey(role_name)')
+    .eq('event_id', eventId)
+    .eq('status', 'accepted');
+
+  if (error || !data) return false;
+  return data.some((row: any) => row.event_roles?.role_name === 'door');
+}
+
 // ─── Removal ─────────────────────────────────────────────────────────────────
 
 /** Host removes a staff member from an event role. */

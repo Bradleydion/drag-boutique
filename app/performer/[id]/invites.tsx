@@ -22,6 +22,9 @@ import {
   type EventTalentInvite,
 } from '../../../lib/eventRolesStore';
 import { fetchEventById } from '../../../lib/eventsStore';
+import { fetchPerformerById } from '../../../lib/performerStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { colors as C } from '../../../src/theme/colors';
 
 // ─── Pending invite card ──────────────────────────────────────────────────────
@@ -160,13 +163,16 @@ export default function InvitesScreen() {
   const [eventTitles, setEventTitles] = useState<Record<string, string>>({});
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isOwner,    setIsOwner]    = useState(true);
 
   async function load(spinner = false) {
     if (spinner) setLoading(true);
-    const [pData, cData] = await Promise.all([
+    const [pData, cData, performer] = await Promise.all([
       loadMyInvites(talentId),
       loadMyConfirmedRoles(talentId),
+      fetchPerformerById(talentId),
     ]);
+    setIsOwner(performer?.userId === getSession()?.user?.id);
     setPending(pData);
     setConfirmed(cData);
 
@@ -259,6 +265,10 @@ export default function InvitesScreen() {
   }
 
   const isEmpty = pending.length === 0 && confirmed.length === 0;
+
+  if (!loading && !isOwner) {
+    return <AccessRestricted title="Not your inbox" body="You can only view your own invites and gigs." />;
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>

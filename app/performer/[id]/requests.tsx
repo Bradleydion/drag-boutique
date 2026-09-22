@@ -19,6 +19,8 @@ import {
   fetchPerformerById,
   type BookingRequest,
 } from '../../../lib/performerStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { colors as C } from '../../../src/theme/colors';
 
 // ─── Single request card ──────────────────────────────────────────────────────
@@ -145,6 +147,7 @@ export default function RequestsScreen() {
   const [performerName, setPerformerName] = useState('');
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isOwner, setIsOwner]       = useState(true);
 
   async function load(spinner = false) {
     if (spinner) setLoading(true);
@@ -154,6 +157,7 @@ export default function RequestsScreen() {
     ]);
     setRequests(reqs);
     setPerformerName(performer?.stageName ?? '');
+    setIsOwner(performer?.userId === getSession()?.user?.id);
     if (spinner) setLoading(false);
   }
 
@@ -210,6 +214,10 @@ export default function RequestsScreen() {
 
   const pending  = requests.filter(r => r.status === 'pending');
   const resolved = requests.filter(r => r.status !== 'pending');
+
+  if (!loading && !isOwner) {
+    return <AccessRestricted title="Not your inbox" body="You can only view booking requests sent to your own profile." />;
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>

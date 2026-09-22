@@ -21,6 +21,8 @@ const GOLD = '#F59E0B';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { fetchEventById, updateEvent } from '../../../lib/eventsStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { canUseRecurringFrequency, parseTierLimitError, loadSubscription } from '../../../lib/subscriptionStore';
 import { startPromotionCheckout, confirmEventPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -38,6 +40,7 @@ export default function EditEventScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const [loading, setLoading]   = useState(true);
   const [saving,  setSaving]    = useState(false);
+  const [isHost,  setIsHost]    = useState(true);
 
   // Form state — populated from Supabase on mount
   const [title,         setTitle]         = useState('');
@@ -94,6 +97,7 @@ export default function EditEventScreen() {
       setPromotedUntil(event.promotedUntil ?? null);
       setAllSalesFinal(event.allSalesFinal ?? false);
       setRefundWindowDays(event.refundWindowDays != null ? String(event.refundWindowDays) : '');
+      setIsHost(event.hostId === getSession()?.user?.id);
       setLoading(false);
     });
   }, [eventId]);
@@ -191,6 +195,10 @@ export default function EditEventScreen() {
         <ActivityIndicator color={C.teal} />
       </SafeAreaView>
     );
+  }
+
+  if (!isHost) {
+    return <AccessRestricted title="Host-only screen" body="Only this event's host can edit it." />;
   }
 
   const displayImage = imageUri ?? existingImageUrl;

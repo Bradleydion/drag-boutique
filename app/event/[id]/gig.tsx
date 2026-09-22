@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { loadEventTalent, roleEmoji, roleLabel, type EventTalentInvite } from '../../../lib/eventRolesStore';
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { colors as C } from '../../../src/theme/colors';
@@ -153,6 +155,11 @@ export default function GigScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  const isHost = event.hostId === getSession()?.user?.id;
+  if (!isHost && !myInvite) {
+    return <AccessRestricted title="Not your gig" body="This call sheet is only visible to confirmed crew for this event." />;
   }
 
   return (

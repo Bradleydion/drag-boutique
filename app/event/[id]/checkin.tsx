@@ -22,6 +22,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchEventById, EventRecord } from '../../../lib/eventsStore';
 import { checkInTicket, getEventTicketStats, CheckInResult } from '../../../lib/ticketStore';
+import { isAcceptedDoorStaffForEvent } from '../../../lib/eventRolesStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { colors } from '../../../src/theme/colors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -46,6 +49,7 @@ export default function CheckInScreen() {
 
   const [event, setEvent]             = useState<EventRecord | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
+  const [authorized, setAuthorized]   = useState(false);
   const [stats, setStats]             = useState({ total: 0, checkedIn: 0 });
   const [input, setInput]             = useState('');
   const [processing, setProcessing]   = useState(false);
@@ -60,10 +64,14 @@ export default function CheckInScreen() {
 
   useEffect(() => {
     if (!eventId) return;
-    fetchEventById(eventId).then(e => {
+    (async () => {
+      const e = await fetchEventById(eventId);
       setEvent(e);
+      const isHost = e?.hostId === getSession()?.user?.id;
+      const ok = isHost || (e ? await isAcceptedDoorStaffForEvent(eventId) : false);
+      setAuthorized(ok);
       setLoadingEvent(false);
-    });
+    })();
     refreshStats();
   }, [eventId]);
 
@@ -146,6 +154,15 @@ export default function CheckInScreen() {
         <Stack.Screen options={headerOptions('Door Check-In')} />
         <ActivityIndicator color={colors.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <AccessRestricted
+        title="Door check-in is restricted"
+        body="Only this event's host or accepted door staff can check tickets in."
+      />
     );
   }
 

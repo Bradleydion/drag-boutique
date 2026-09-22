@@ -9,6 +9,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import {
   approveTicketRefund,
   denyTicketRefund,
@@ -73,6 +75,11 @@ export default function EventRefundsScreen() {
     } finally {
       setActingId(null);
     }
+  }
+
+  const isHost = event?.hostId === getSession()?.user?.id;
+  if (!loading && event && !isHost) {
+    return <AccessRestricted title="Host-only screen" body="Only this event's host can view refund requests." />;
   }
 
   return (

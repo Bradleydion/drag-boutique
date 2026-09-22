@@ -32,6 +32,8 @@ import {
 } from '../../../lib/eventRolesStore';
 import { useStripe } from '@stripe/stripe-react-native';
 import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { createStaffPaymentIntent, markInvitePaid } from '../../../lib/eventRolesStore';
 import { loadPerformers, getPerformers, type PerformerRecord } from '../../../lib/performerStore';
 import { colors as C } from '../../../src/theme/colors';
@@ -943,6 +945,11 @@ export default function RosterScreen() {
         <ActivityIndicator color={C.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
+  }
+
+  const isHost = event?.hostId === getSession()?.user?.id;
+  if (!isHost) {
+    return <AccessRestricted title="Host-only screen" body="Only this event's host can view the staff roster." />;
   }
 
   return (

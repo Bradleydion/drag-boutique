@@ -15,6 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { loadEventAnalytics, type EventAnalytics } from '../../../lib/analyticsStore';
 import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
+import { getSession } from '../../../lib/authStore';
+import { AccessRestricted } from '../../../components/AccessRestricted';
 import { colors as C } from '../../../src/theme/colors';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -146,6 +148,11 @@ export default function AnalyticsScreen() {
         <ActivityIndicator color={C.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
+  }
+
+  const isHost = event?.hostId === getSession()?.user?.id;
+  if (!isHost) {
+    return <AccessRestricted title="Host-only screen" body="Only this event's host can view Analytics." />;
   }
 
   const a = analytics!;
