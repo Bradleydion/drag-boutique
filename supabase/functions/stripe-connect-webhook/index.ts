@@ -7,24 +7,32 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // so it is deployed with verify_jwt=false and instead authenticates the
 // request via Stripe's own signature scheme.
 //
-// Setup required in the Stripe Dashboard (Bradley must do this manually --
-// the webhook signing secret is a new secret that must be pasted in by hand,
-// never entered by an assistant):
-//   1. Go to Stripe Dashboard -> Developers -> Webhooks -> Add endpoint.
-//   2. Endpoint URL: https://vrlsphktnvxrbuwwuvpk.supabase.co/functions/v1/stripe-connect-webhook
-//   3. Events to send: account.updated, customer.subscription.created,
-//      customer.subscription.updated, customer.subscription.deleted
-//   4. Copy the generated "Signing secret" (starts with whsec_...).
-//   5. Set it as a Supabase Edge Function secret named STRIPE_CONNECT_WEBHOOK_SECRET
-//      (Supabase Dashboard -> Edge Functions -> Secrets, or `supabase secrets set`).
-//   (If this endpoint is already set up from the payouts feature, just add
-//   the three customer.subscription.* events to it -- no new secret needed.)
+// Setup (Stripe Dashboard -> Developers -> Workbench -> Webhooks). Two event
+// destinations, same endpoint URL
+// https://vrlsphktnvxrbuwwuvpk.supabase.co/functions/v1/stripe-connect-webhook :
+//   1. "Your account": customer.subscription.created/updated/deleted
+//      -> signing secret in Supabase secret STRIPE_CONNECT_WEBHOOK_SECRET
+//   2. "Connected accounts": account.updated (hosts'/performers' Express
+//      onboarding status) -> signing secret in STRIPE_CONNECTED_ACCOUNTS_WEBHOOK_SECRET
+// A "Your account" destination never receives connected accounts' events, which
+// is why (2) must exist separately. Signing secrets are pasted in by Bradley,
+// never entered by an assistant.
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2024-06-20',
 });
 
-const webhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET') ?? '';
+// Stripe sends platform events (customer.subscription.*) and connected-account
+// events (account.updated from hosts'/performers' Express accounts) through two
+// SEPARATE event destinations, each with its own signing secret:
+//   - "Your account" destination       -> STRIPE_CONNECT_WEBHOOK_SECRET
+//   - "Connected accounts" destination -> STRIPE_CONNECTED_ACCOUNTS_WEBHOOK_SECRET
+// Both point at this same function; a request is accepted if it verifies
+// against either secret.
+const webhookSecrets = [
+  Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET'),
+  Deno.env.get('STRIPE_CONNECTED_ACCOUNTS_WEBHOOK_SECRET'),
+].filter((s): s is string => !!s);
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -42,8 +50,19 @@ Deno.serve(async (req: Request) => {
   let event: Stripe.Event;
   try {
     if (!signature) throw new Error('Missing stripe-signature header');
-    if (!webhookSecret) throw new Error('STRIPE_CONNECT_WEBHOOK_SECRET is not configured');
-    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    if (webhookSecrets.length === 0) throw new Error('No Stripe webhook signing secret is configured');
+    let verified: Stripe.Event | null = null;
+    let lastErr: unknown = null;
+    for (const secret of webhookSecrets) {
+      try {
+        verified = await stripe.webhooks.constructEventAsync(body, signature, secret);
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!verified) throw lastErr ?? new Error('Signature verification failed');
+    event = verified;
   } catch (err) {
     console.error('stripe-connect-webhook signature verification failed:', err);
     return new Response(
