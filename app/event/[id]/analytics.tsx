@@ -18,6 +18,7 @@ import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
 import { getSession } from '../../../lib/authStore';
 import { AccessRestricted } from '../../../components/AccessRestricted';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,14 +131,14 @@ export default function AnalyticsScreen() {
   }, [eventId]);
 
   const headerLeft = () => (
-    <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+    <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 16, paddingVertical: 4 }}>
       <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
     </Pressable>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         <Stack.Screen options={{
           title: 'Analytics',
           headerStyle: { backgroundColor: C.navy },
@@ -159,7 +160,7 @@ export default function AnalyticsScreen() {
   const netPositive = a.netEstimate >= 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
           title: 'Analytics',
@@ -181,7 +182,7 @@ export default function AnalyticsScreen() {
         </Text>
         {event?.datetimeStart && (
           <Text style={{ color: C.textMuted, fontSize: 13, marginTop: 3 }}>
-            📅 {formatDate(event.datetimeStart)}
+            🗓 {formatDate(event.datetimeStart)}
           </Text>
         )}
         {event?.venue?.name && (

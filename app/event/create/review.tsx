@@ -33,6 +33,15 @@ export default function CreateEvent_Review() {
     [allPerformers, d.performerIds],
   );
 
+  // Human-readable dates instead of raw ISO strings.
+  const fmt = (iso?: string) => {
+    if (!iso) return undefined;
+    const t = new Date(iso);
+    return Number.isNaN(t.getTime()) ? iso : t.toLocaleString(undefined, {
+      weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  };
+
   const recurringLabel = useMemo(() => {
     if (!d.isRecurring || !d.recurringFrequency) return undefined;
     const freq = d.recurringFrequency.charAt(0).toUpperCase() + d.recurringFrequency.slice(1);
@@ -42,16 +51,19 @@ export default function CreateEvent_Review() {
   const rows = useMemo(() => [
     { label: 'Title',           value: d.title },
     { label: 'Description',     value: d.description },
-    { label: 'Start',           value: d.datetimeStart },
-    { label: 'End',             value: d.datetimeEnd },
-    { label: 'Timezone',        value: d.timezone },
+    { label: 'Start',           value: fmt(d.datetimeStart) },
+    { label: 'End',             value: fmt(d.datetimeEnd) },
     { label: 'Recurring',       value: recurringLabel },
     { label: 'Venue',           value: d.venueName },
     { label: 'Address',         value: [d.venueAddress, d.venueCity, d.venueState, d.venueZip].filter(Boolean).join(', ') },
     { label: 'Venue Instagram', value: d.venueInstagram },
     { label: 'Ticket price',    value: typeof d.ticketPrice === 'number' ? (d.ticketPrice === 0 ? 'Free' : `$${d.ticketPrice.toFixed(2)}`) : undefined },
-    { label: 'Sales start',     value: d.salesStart },
-    { label: 'Sales end',       value: d.salesEnd },
+    { label: 'Capacity',        value: d.capacity ? `${d.capacity} tickets` : undefined },
+    { label: 'Sales start',     value: fmt(d.salesStart) },
+    { label: 'Sales end',       value: fmt(d.salesEnd) },
+    { label: 'Lineup & roles',  value: d.eventRoles?.length
+        ? d.eventRoles.map(r => `${r.customName || r.roleName} ×${r.slots} ($${r.payAmount})`).join(', ')
+        : undefined },
     { label: 'Refund policy',   value: d.allSalesFinal
         ? 'All Sales Are Final'
         : d.refundWindowDays != null
@@ -236,10 +248,9 @@ export default function CreateEvent_Review() {
             <View style={{ flexDirection: 'row', gap: 6, marginTop: 20 }}>
               {[
                 { title: 'Basics',      path: '/event/create/basics' },
-                { title: 'Performers',  path: '/event/create/performers' },
                 { title: 'Venue',       path: '/event/create/venue' },
                 { title: 'Tickets',     path: '/event/create/ticketing' },
-                { title: 'Roles',       path: '/event/create/roles' },
+                { title: 'Lineup',      path: '/event/create/roles' },
               ].map(btn => (
                 <Pressable
                   key={btn.title}

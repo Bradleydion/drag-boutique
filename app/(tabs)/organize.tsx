@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getEffectiveRole } from '../../lib/userStore';
 import TalentBookingsScreen from '../../components/TalentBookingsScreen';
 import { loadHostEvents, getHostEvents, deleteEvent, EventRecord } from '../../lib/eventsStore';
+import { supabase } from '../../lib/supabase';
 import { canCreateNewEvent } from '../../lib/subscriptionStore';
 import { colors } from '../../src/theme/colors';
 
@@ -51,7 +52,7 @@ async function goToCreateEvent() {
 
 // ─── Event Card ───────────────────────────────────────────────────────────────
 
-function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => void; }) {
+function EventCard({ event, onDelete, pendingRefunds = 0 }: { event: EventRecord; onDelete: () => void; pendingRefunds?: number; }) {
   const upcoming = isUpcoming(event);
   const price = event.ticketing?.price;
 
@@ -91,7 +92,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
 
       {/* Date + Venue */}
       <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 2 }}>
-        📅 {formatDate(event.datetimeStart)}
+        🗓 {formatDate(event.datetimeStart)}
       </Text>
       {event.venue?.name && (
         <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
@@ -114,12 +115,12 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
       </Pressable>
 
       {/* Action buttons — row 2 */}
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {upcoming && (
           <Pressable
             onPress={() => router.push(`/event/${event.id}/checkin` as any)}
             style={{
-              flex: 1,
+              flexGrow: 1, flexBasis: '30%',
               backgroundColor: colors.coral,
               borderRadius: 10,
               paddingVertical: 10,
@@ -134,7 +135,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
         <Pressable
           onPress={() => router.push(`/event/${event.id}/roster` as any)}
           style={{
-            flex: 1,
+            flexGrow: 1, flexBasis: '30%',
             backgroundColor: '#6366F1' + '22',
             borderRadius: 10,
             paddingVertical: 10,
@@ -148,7 +149,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
         <Pressable
           onPress={() => router.push(`/event/${event.id}/edit` as any)}
           style={{
-            flex: 1,
+            flexGrow: 1, flexBasis: '30%',
             backgroundColor: colors.teal + '22',
             borderRadius: 10,
             paddingVertical: 10,
@@ -162,7 +163,7 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
         <Pressable
           onPress={() => router.push(`/event/${event.id}/refunds` as any)}
           style={{
-            flex: 1,
+            flexGrow: 1, flexBasis: '30%',
             backgroundColor: '#F05D5E' + '18',
             borderRadius: 10,
             paddingVertical: 10,
@@ -172,11 +173,19 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
           }}
         >
           <Text style={{ color: '#F05D5E', fontWeight: '700', fontSize: 12 }} numberOfLines={1}>💳 Refunds</Text>
+          {pendingRefunds > 0 && (
+            <View style={{
+              position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10,
+              backgroundColor: '#F05D5E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5,
+            }}>
+              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{pendingRefunds}</Text>
+            </View>
+          )}
         </Pressable>
         <Pressable
           onPress={() => router.push(`/event/${event.id}` as any)}
           style={{
-            flex: 1,
+            flexGrow: 1, flexBasis: '30%',
             backgroundColor: colors.border,
             borderRadius: 10,
             paddingVertical: 10,
@@ -193,9 +202,11 @@ function EventCard({ event, onDelete }: { event: EventRecord; onDelete: () => vo
             paddingVertical: 10,
             paddingHorizontal: 12,
             alignItems: 'center',
+            flexGrow: 1, flexBasis: '30%',
           }}
+          accessibilityLabel="Delete event"
         >
-          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>✕</Text>
+          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>✕ Delete</Text>
         </Pressable>
       </View>
     </View>
@@ -208,14 +219,27 @@ export default function OrganizeTab() {
   const role = getEffectiveRole();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refundCounts, setRefundCounts] = useState<Record<string, number>>({});
 
   useFocusEffect(
     useCallback(() => {
       if (role !== 'host') return; // only the Host branch below needs this list
       setLoading(true);
-      loadHostEvents().then(() => {
-        setEvents(getHostEvents());
+      loadHostEvents().then(async () => {
+        const evs = getHostEvents();
+        setEvents(evs);
         setLoading(false);
+        // Pending refund requests per event → red badge on each Refunds button.
+        if (evs.length) {
+          const { data } = await supabase
+            .from('tickets')
+            .select('event_id')
+            .in('event_id', evs.map(e => e.id))
+            .eq('payment_status', 'refund_requested');
+          const counts: Record<string, number> = {};
+          (data ?? []).forEach((t: { event_id: string }) => { counts[t.event_id] = (counts[t.event_id] ?? 0) + 1; });
+          setRefundCounts(counts);
+        }
       });
     }, [role]),
   );
@@ -333,7 +357,7 @@ export default function OrganizeTab() {
                   Past · {past.length}
                 </Text>
               )}
-              <EventCard event={item} onDelete={() => handleDelete(item)} />
+              <EventCard event={item} onDelete={() => handleDelete(item)} pendingRefunds={refundCounts[item.id] ?? 0} />
             </>
           )}
         />

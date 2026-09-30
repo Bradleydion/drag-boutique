@@ -163,7 +163,9 @@ export async function loadEvents(): Promise<EventRecord[]> {
     .select('*')
     .or(
       `and(is_recurring.eq.false,datetime_start.gte.${now}),` +
-      `and(is_recurring.eq.true,recurring_end_date.gte.${today})`
+      `and(is_recurring.eq.true,recurring_end_date.gte.${today}),` +
+      // Recurring shows with no end date run indefinitely.
+      `and(is_recurring.eq.true,recurring_end_date.is.null)`
     )
     .order('is_promoted', { ascending: false })
     .order('datetime_start', { ascending: true });
@@ -172,7 +174,60 @@ export async function loadEvents(): Promise<EventRecord[]> {
     console.warn('[eventsStore] loadEvents error:', error.message);
     return [];
   }
-  return (data ?? []).map(rowToEvent);
+  return (data ?? [])
+    .map(rowToEvent)
+    .map(rollToNextOccurrence)
+    .filter((e): e is EventRecord => e !== null);
+}
+
+// ─── Recurring events ─────────────────────────────────────────────────────────
+// A recurring show is stored once, with its FIRST date. For listing, move it
+// forward to its next upcoming date so it keeps showing in Discover.
+// Weekly/daily/yearly step by a fixed interval; monthly keeps the same
+// "nth weekday" (e.g. third Saturday), matching how drag nights are scheduled.
+
+function nthWeekdayOfMonth(year: number, month: number, weekday: number, n: number, ref: Date): Date {
+  const first = new Date(year, month, 1, ref.getHours(), ref.getMinutes(), ref.getSeconds());
+  const offset = (weekday - first.getDay() + 7) % 7;
+  let day = 1 + offset + (n - 1) * 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  while (day > daysInMonth) day -= 7; // "5th" weekday that doesn't exist → last one
+  return new Date(year, month, day, ref.getHours(), ref.getMinutes(), ref.getSeconds());
+}
+
+function stepOccurrence(d: Date, freq: string, original: Date): Date {
+  switch (freq) {
+    // Step by calendar days (not milliseconds) so 8 PM stays 8 PM across DST changes.
+    case 'daily':   { const n = new Date(d); n.setDate(n.getDate() + 1); return n; }
+    case 'weekly':  { const n = new Date(d); n.setDate(n.getDate() + 7); return n; }
+    case 'yearly':  { const n = new Date(d); n.setFullYear(n.getFullYear() + 1); return n; }
+    case 'monthly':
+    default: {
+      const n = Math.ceil(original.getDate() / 7);
+      return nthWeekdayOfMonth(d.getFullYear(), d.getMonth() + 1, original.getDay(), n, original);
+    }
+  }
+}
+
+/** Exported for Discover and other listings; returns null once a series has ended. */
+export function rollToNextOccurrence(e: EventRecord): EventRecord | null {
+  if (!e.isRecurring || !e.datetimeStart) return e;
+  const original = new Date(e.datetimeStart);
+  const now = Date.now();
+  if (original.getTime() >= now) return e;
+
+  const duration = e.datetimeEnd ? new Date(e.datetimeEnd).getTime() - original.getTime() : 0;
+  let next = original;
+  for (let i = 0; i < 1000 && next.getTime() < now; i++) {
+    next = stepOccurrence(next, e.recurringFrequency ?? 'weekly', original);
+  }
+  if (e.recurringEndDate && next.toISOString().slice(0, 10) > e.recurringEndDate) return null;
+
+  return {
+    ...e,
+    datetimeStart: next.toISOString(),
+    datetimeEnd: duration > 0 ? new Date(next.getTime() + duration).toISOString() : e.datetimeEnd,
+  };
 }
 
 /** Load upcoming events where this performer is tagged. */
@@ -218,9 +273,17 @@ export function getHostEvents(): EventRecord[] {
 export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
   const session = getSession();
   const hostId   = session?.user?.id   ?? 'guest';
-  const hostName = session?.user?.user_metadata?.display_name as string | undefined
-                ?? session?.user?.email?.split('@')[0]
-                ?? 'Host';
+  const meta = session?.user?.user_metadata ?? {};
+  // The name the host chose (display name or host/venue name), never the email.
+  const hostName = (meta.display_name as string | undefined)?.trim()
+                || (meta.venue_name as string | undefined)?.trim()
+                || session?.user?.email?.split('@')[0]
+                || 'Host';
+  const clean = (v?: string) => (v ?? '').trim() || null;
+  const cleanState = (v?: string) => {
+    const t = (v ?? '').trim();
+    return !t ? null : t.length <= 3 ? t.toUpperCase() : t; // "or" → "OR"
+  };
 
   // Upload event flyer if a local URI was picked
   let imageUrl: string | undefined = undefined;
@@ -236,12 +299,13 @@ export async function publishDraft(d: DraftEvent): Promise<EventRecord> {
     datetime_start: d.datetimeStart || null,
     datetime_end:  d.datetimeEnd   || null,
     timezone:      d.timezone,
-    venue_name:    d.venueName,
-    venue_address: d.venueAddress,
-    venue_city:    d.venueCity,
-    venue_state:   d.venueState,
-    venue_zip:     d.venueZip,
-    venue_instagram: d.venueInstagram,
+    venue_name:    clean(d.venueName),
+    venue_address: clean(d.venueAddress),
+    venue_city:    clean(d.venueCity),
+    venue_state:   cleanState(d.venueState),
+    venue_zip:     clean(d.venueZip),
+    venue_instagram: clean(d.venueInstagram),
+    capacity:      d.capacity ?? null,
     ticket_price:  d.ticketPrice ?? 0,
     sales_start:   d.salesStart || null,
     sales_end:     d.salesEnd   || null,

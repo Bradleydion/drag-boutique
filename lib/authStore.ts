@@ -172,8 +172,10 @@ export async function resendConfirmationEmail(email: string): Promise<void> {
 // ─── Profile updates ─────────────────────────────────────────────────────────
 
 export async function updateDisplayName(name: string): Promise<void> {
-  if (!_session) return;
-  await supabase.auth.updateUser({ data: { display_name: name.trim() } });
+  if (!_session || !name.trim()) return;
+  // Goes through updateUserMetadata so the local session refreshes and the
+  // Profile header shows the new name immediately.
+  await updateUserMetadata({ display_name: name.trim() });
 }
 
 /**

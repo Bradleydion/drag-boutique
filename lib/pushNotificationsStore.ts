@@ -11,6 +11,7 @@
 // REQUIRES: expo-notifications must be installed:
 //   npx expo install expo-notifications
 
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getSession, isGuest } from './authStore';
@@ -47,12 +48,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   const session = getSession();
   if (!session || isGuest()) return null;
 
-  // Physical device only — push does not work in simulators
-  const { isDevice } = await import('expo-constants').then(m => m.default);
-  if (!isDevice) {
-    console.log('[push] Skipping push registration — not a physical device');
-    return null;
-  }
+  // NOTE: this used to check Constants.isDevice, which no longer exists in
+  // expo-constants — it was always undefined, so registration quit here on
+  // every real phone and no push token was ever saved. On a simulator the
+  // token request below simply fails and is caught.
 
   // Request permission
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -69,14 +68,20 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   // Get the Expo push token
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: '6b8fe22f-a1c2-4f7e-bb04-5c1f0d1d6e0a', // from app.json expo.extra.eas.projectId if set
-  }).catch(async () => {
-    // Fallback without projectId for local dev builds
-    return Notifications.getExpoPushTokenAsync();
-  });
+  // The EAS project id from app.json (expo.extra.eas.projectId). The old
+  // hard-coded id belonged to a different project.
+  const projectId =
+    (Constants.expoConfig?.extra as any)?.eas?.projectId ??
+    (Constants as any).easConfig?.projectId ??
+    '035ca1dc-9fd0-4464-b308-f17c4cc97594';
 
-  const token = tokenData.data;
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch (e: any) {
+    console.log('[push] Could not get a push token (simulator or no network):', e?.message);
+    return null;
+  }
   _pushToken = token;
 
   // Determine platform

@@ -23,6 +23,7 @@ import {
 import { getHostEventCountThisMonth } from '../../lib/eventsStore';
 import { getSession } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
+import { goBack } from '../../lib/nav';
 
 const PRO_BENEFITS = [
   'Unlimited event posts every month',
@@ -77,6 +78,8 @@ export default function SubscriptionScreen() {
             componentBackground: colors.surface,
             componentBorder: colors.border,
             primaryText: colors.textPrimary,
+            componentText: colors.textPrimary, // typed card number/expiry/CVC
+            icon: colors.textSecondary,
             secondaryText: colors.textSecondary,
             placeholderText: colors.textMuted,
           },
@@ -208,7 +211,7 @@ export default function SubscriptionScreen() {
             </Pressable>
 
             {!pro && (
-              <Pressable onPress={() => router.back()} style={{ marginTop: 16, alignItems: 'center' }}>
+              <Pressable onPress={() => goBack('/(tabs)/profile')} hitSlop={12} style={{ marginTop: 16, alignItems: 'center' }}>
                 <Text style={{ color: colors.textMuted, fontSize: 13 }}>Maybe later</Text>
               </Pressable>
             )}

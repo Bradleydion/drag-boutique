@@ -5,6 +5,7 @@ import { Dimensions, Image, Pressable, ScrollView, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { ROLES, UserRole, setRole } from '../../lib/userStore';
+import { getSession } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -26,8 +27,10 @@ export default function RoleSelectScreen() {
       // Send talent straight to profile creation — they need a public page to get booked.
       router.replace('/performer/create' as any);
     } else if (selected === 'host') {
-      // Host gets a quick setup screen (venue name, city, bio) before the organize tab.
-      router.replace('/host/setup' as any);
+      // Host gets a quick setup screen (venue name, city, bio) before the organize tab,
+      // unless they already filled it in on this account.
+      const hasHostProfile = !!getSession()?.user?.user_metadata?.venue_name;
+      router.replace(hasHostProfile ? '/(tabs)/organize' : '/host/setup' as any);
     } else {
       // Fan lands on Discover; a dismissible nudge there prompts profile completion.
       router.replace('/(tabs)/discover');

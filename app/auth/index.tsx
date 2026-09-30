@@ -21,7 +21,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from '../../lib/authStore';
-import { clearRole, hasRole } from '../../lib/userStore';
+import { clearRole, hasRole, restoreRoleFromAccount } from '../../lib/userStore';
 import { colors } from '../../src/theme/colors';
 
 type Mode = 'signin' | 'signup' | 'forgot';
@@ -67,7 +67,9 @@ export default function AuthScreen() {
       } else {
         await signInWithEmail(email.trim(), password);
         await clearRole();
-        router.replace('/onboarding');
+        // Returning users go straight in with the role saved on their account.
+        const savedRole = await restoreRoleFromAccount();
+        router.replace(savedRole ? '/(tabs)/discover' : '/onboarding');
       }
     } catch (e: any) {
       const msg: string = e?.message ?? '';
@@ -268,41 +270,8 @@ export default function AuthScreen() {
           {/* Divider + social stubs — hidden on forgot mode */}
           {!isForgot && (
             <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 24 }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                <Text style={{ color: colors.textMuted, marginHorizontal: 12, fontSize: 13 }}>or</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-              </View>
-
-              <View style={{ gap: 12 }}>
-                <Pressable
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
-                    borderWidth: 1, borderColor: colors.border, gap: 10,
-                  }}
-                  onPress={() => setError('Apple Sign In coming soon.')}
-                >
-                  <Text style={{ fontSize: 20 }}>🍎</Text>
-                  <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 16 }}>
-                    Continue with Apple
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
-                    borderWidth: 1, borderColor: colors.border, gap: 10,
-                  }}
-                  onPress={() => setError('Google Sign In coming soon.')}
-                >
-                  <Text style={{ fontSize: 20 }}>G</Text>
-                  <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 16 }}>
-                    Continue with Google
-                  </Text>
-                </Pressable>
-              </View>
+              {/* Apple / Google sign-in removed until they're actually built (Apple 4.8 requires both together). */}
+              <View style={{ height: 8 }} />
 
               <Pressable onPress={handleGuest} style={{ marginTop: 28 }}>
                 <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 14 }}>

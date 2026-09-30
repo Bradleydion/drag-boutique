@@ -26,6 +26,7 @@ import { isAcceptedDoorStaffForEvent } from '../../../lib/eventRolesStore';
 import { getSession } from '../../../lib/authStore';
 import { AccessRestricted } from '../../../components/AccessRestricted';
 import { colors } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ export default function CheckInScreen() {
 
   if (loadingEvent) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
         <Stack.Screen options={headerOptions('Door Check-In')} />
         <ActivityIndicator color={colors.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
@@ -385,7 +386,7 @@ function headerOptions(title: string) {
     headerTintColor: colors.teal,
     headerLeft: () => (
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => goBack('/(tabs)/discover')} hitSlop={12}
         style={{ paddingRight: 16, paddingVertical: 4 }}
         accessibilityLabel="Go back"
       >

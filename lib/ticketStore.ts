@@ -10,12 +10,13 @@
 //
 // Free tickets skip steps 1-3 entirely.
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSession, isGuest } from './authStore';
 import { supabase } from './supabase';
 import { addNotification } from './notificationsStore';
 import { fetchEventById } from './eventsStore';
 
-export type PaymentStatus = 'free' | 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentStatus = 'free' | 'pending' | 'paid' | 'failed' | 'refund_requested' | 'refunded';
 
 export type Ticket = {
   id: string;
@@ -47,14 +48,52 @@ export async function loadTickets(): Promise<void> {
   const session = getSession();
   if (!session || isGuest()) { _tickets = []; _loaded = true; return; }
 
+  // Show the last-saved tickets first, so they work with no signal at the door.
+  const cacheKey = ticketCacheKey(session.user.id);
+  try {
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) _tickets = JSON.parse(cached) as Ticket[];
+  } catch { /* ignore a bad cache */ }
+
   const { data, error } = await supabase
     .from('tickets')
     .select('*')
     .eq('user_id', session.user.id)
     .order('purchased_at', { ascending: false });
 
-  if (!error && data) _tickets = data as Ticket[];
+  // Offline or failed: keep the cached tickets rather than showing none.
+  if (!error && data) {
+    _tickets = data as Ticket[];
+    AsyncStorage.setItem(cacheKey, JSON.stringify(_tickets)).catch(() => {});
+  }
   _loaded = true;
+}
+
+// ─── Offline cache ────────────────────────────────────────────────────────────
+// Tickets and the events they're for are saved on the device so the Tickets
+// tab (and each QR code) still works in airplane mode or a basement venue.
+
+function ticketCacheKey(userId: string) { return `@sequins/tickets:${userId}`; }
+function ticketEventsCacheKey(userId: string) { return `@sequins/ticketEvents:${userId}`; }
+
+export async function getCachedTicketEvents<T = unknown>(): Promise<Record<string, T>> {
+  const session = getSession();
+  if (!session) return {};
+  try {
+    const raw = await AsyncStorage.getItem(ticketEventsCacheKey(session.user.id));
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+export async function saveTicketEvents(map: Record<string, unknown>): Promise<void> {
+  const session = getSession();
+  if (!session) return;
+  await AsyncStorage.setItem(ticketEventsCacheKey(session.user.id), JSON.stringify(map)).catch(() => {});
+}
+
+function persistTickets() {
+  const session = getSession();
+  if (session) AsyncStorage.setItem(ticketCacheKey(session.user.id), JSON.stringify(_tickets)).catch(() => {});
 }
 
 // ─── Reads ────────────────────────────────────────────────────────────────────
@@ -151,6 +190,7 @@ export async function buyTicket(
 
   const ticket = data as Ticket;
   _tickets = [ticket, ..._tickets];
+  persistTickets();
 
   // Notify host of ticket sale (non-fatal)
   try {

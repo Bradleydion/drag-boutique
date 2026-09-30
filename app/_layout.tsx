@@ -110,6 +110,7 @@ export default Sentry.wrap(function RootLayout() {
         {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
         <Stack
           screenOptions={{
+            headerBackTitle: 'Back', // never show internal route names like "(tabs)"
             headerShown: true,
             headerStyle: { backgroundColor: colors.navy },
             headerTitleStyle: { color: colors.textPrimary },

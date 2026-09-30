@@ -18,6 +18,7 @@ import {
   type Ticket,
 } from '../../../lib/ticketStore';
 import { colors } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 export default function EventRefundsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -83,7 +84,7 @@ export default function EventRefundsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen
         options={{
           title: 'Refund Requests',
@@ -163,7 +164,7 @@ export default function EventRefundsScreen() {
           </View>
         )}
 
-        <Pressable onPress={() => router.back()} style={{ marginTop: 24, alignItems: 'center' }}>
+        <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ marginTop: 24, alignItems: 'center' }}>
           <Text style={{ color: colors.teal, fontWeight: '700' }}>← Back</Text>
         </Pressable>
       </ScrollView>

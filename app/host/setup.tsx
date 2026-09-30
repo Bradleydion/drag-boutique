@@ -10,7 +10,7 @@
 // performer profile shares the same user ID so the two records are implicitly
 // linked without any extra join table.
 
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,7 +25,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { updateUserMetadata } from '../../lib/authStore';
+import { getSession, updateUserMetadata } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
 
 const HOST_PURPLE = '#A78BFA';
@@ -48,11 +48,16 @@ const HOST_TYPES: { id: HostType; emoji: string; title: string; subtitle: string
 ];
 
 export default function HostSetupScreen() {
-  const [hostType,    setHostType]    = useState<HostType>('venue');
-  const [name,        setName]        = useState('');
-  const [city,        setCity]        = useState('');
-  const [bio,         setBio]         = useState('');
-  const [wantProfile, setWantProfile] = useState(true); // artist-host: also set up performer profile?
+  // ?edit=1 → opened from the Profile tab to change an existing host profile.
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
+  const meta = (isEdit ? getSession()?.user?.user_metadata : undefined) ?? {};
+
+  const [hostType,    setHostType]    = useState<HostType>(meta.host_type === 'artist' ? 'artist' : 'venue');
+  const [name,        setName]        = useState<string>(meta.venue_name ?? '');
+  const [city,        setCity]        = useState<string>(meta.city ?? '');
+  const [bio,         setBio]         = useState<string>(meta.host_bio ?? '');
+  const [wantProfile, setWantProfile] = useState(!isEdit); // artist-host: also set up performer profile?
   const [saving,      setSaving]      = useState(false);
 
   const isArtist = hostType === 'artist';
@@ -80,7 +85,14 @@ export default function HostSetupScreen() {
         venue_name: name.trim(),   // 'venue_name' used as generic "primary display name" for hosts
         city:       city.trim(),
         host_bio:   bio.trim(),
+        // The name shown at the top of the Profile tab.
+        display_name: name.trim(),
       });
+
+      if (isEdit) {
+        router.back();
+        return;
+      }
 
       if (isArtist && wantProfile) {
         // Route to performer/create so they can build their public talent page.
@@ -97,6 +109,10 @@ export default function HostSetupScreen() {
   }
 
   function skip() {
+    if (isEdit) {
+      router.back();
+      return;
+    }
     router.replace('/(tabs)/organize');
   }
 
@@ -122,10 +138,16 @@ export default function HostSetupScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen options={{ headerShown: false }} />
 
+      {/* Keep the fields and Next button above the keyboard (TestFlight feedback 9/24). */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 56 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <Text style={{ fontSize: 48, textAlign: 'center', marginTop: 8, marginBottom: 4 }}>🎪</Text>
@@ -134,7 +156,7 @@ export default function HostSetupScreen() {
           fontSize: 26, fontWeight: '900',
           textAlign: 'center', marginBottom: 10,
         }}>
-          Set up your host profile
+          {isEdit ? 'Edit your host profile' : 'Set up your host profile'}
         </Text>
         <Text style={{
           color: colors.textMuted,
@@ -238,7 +260,7 @@ export default function HostSetupScreen() {
         />
 
         {/* ── Artist host: performer profile toggle ─────────────────────────── */}
-        {isArtist && (
+        {isArtist && !isEdit && (
           <View style={{
             marginTop: 24,
             backgroundColor: colors.surface,
@@ -282,7 +304,7 @@ export default function HostSetupScreen() {
               }}
             >
               <Text style={{ color: colors.navy, fontWeight: '900', fontSize: 17, letterSpacing: 0.3 }}>
-                {isArtist && wantProfile ? 'Next: Build Performer Profile →' : 'Let\'s go →'}
+                {isEdit ? 'Save changes' : isArtist && wantProfile ? 'Next: Build Performer Profile →' : 'Let\'s go →'}
               </Text>
             </Pressable>
           )}
@@ -296,7 +318,7 @@ export default function HostSetupScreen() {
             textDecorationLine: 'underline',
             fontSize: 13,
           }}>
-            Skip for now
+            {isEdit ? 'Cancel' : 'Skip for now'}
           </Text>
         </Pressable>
 
@@ -307,6 +329,7 @@ export default function HostSetupScreen() {
           You can update this anytime from your profile.
         </Text>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

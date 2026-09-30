@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchEventById, type EventRecord } from '../../../lib/eventsStore';
+import { fetchEventById, rollToNextOccurrence, type EventRecord } from '../../../lib/eventsStore';
 import { isGuest } from '../../../lib/authStore';
 import { buyTicket, createPaymentIntent, hasTicket, loadTickets } from '../../../lib/ticketStore';
 import { fetchPerformerById } from '../../../lib/performerStore';
@@ -45,7 +45,8 @@ export default function EventDetail() {
     if (!id) return;
     (async () => {
       const [ev] = await Promise.all([fetchEventById(id), loadTickets()]);
-      setEvent(ev);
+      // Recurring shows display their next upcoming date (matches Discover).
+      setEvent(ev ? (rollToNextOccurrence(ev) ?? ev) : null);
       setTicketed(hasTicket(id));
 
       if (ev?.performerIds?.length) {
@@ -109,6 +110,8 @@ export default function EventDetail() {
               componentBackground: colors.surface,
               componentBorder: colors.border,
               primaryText: colors.textPrimary,
+              componentText: colors.textPrimary, // typed card number/expiry/CVC
+              icon: colors.textSecondary,
               secondaryText: colors.textSecondary,
               placeholderText: colors.textMuted,
             },
@@ -149,7 +152,7 @@ export default function EventDetail() {
   // ── Loading / not found states ───────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
         <Stack.Screen options={{
           title: 'Event',
           headerStyle: { backgroundColor: colors.navy },
@@ -163,7 +166,7 @@ export default function EventDetail() {
 
   if (!event) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
         <Stack.Screen options={{
           title: 'Event',
           headerStyle: { backgroundColor: colors.navy },
@@ -190,7 +193,7 @@ export default function EventDetail() {
   const GOLD   = '#F59E0B';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen
         options={{
           title: event.title,
@@ -231,7 +234,7 @@ export default function EventDetail() {
           </Text>
 
           <Text style={{ color: colors.teal, marginTop: 6, fontWeight: '600', fontSize: 15 }}>
-            📅 {formatDate(event.datetimeStart)}
+            🗓 {formatDate(event.datetimeStart)}
           </Text>
 
           {event.venue?.name && (

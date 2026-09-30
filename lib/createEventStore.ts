@@ -23,6 +23,7 @@ export type DraftEvent = {
 
   // Ticketing
   ticketPrice?: number;   // USD
+  capacity?: number;      // optional max tickets
   salesStart?: string;    // ISO
   salesEnd?: string;      // ISO
 

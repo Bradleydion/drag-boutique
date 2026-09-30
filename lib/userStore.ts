@@ -4,7 +4,7 @@
 // In a future auth sprint this will be backed by a real user record.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isGuest } from './authStore';
+import { getSession, isGuest, updateUserMetadata } from './authStore';
 
 export type UserRole = 'fan' | 'artist' | 'host';
 
@@ -47,6 +47,25 @@ export async function setRole(role: UserRole): Promise<void> {
   _role = role;
   await AsyncStorage.setItem(ROLE_KEY, role);
   notifyRoleListeners();
+  // Also save it on the account so it survives sign-out and new devices.
+  if (getSession() && !isGuest()) {
+    updateUserMetadata({ role }).catch(() => {});
+  }
+}
+
+/**
+ * After sign-in: adopt the role saved on the account (if any) so returning
+ * users skip role selection. Returns the restored role, or null.
+ */
+export async function restoreRoleFromAccount(): Promise<UserRole | null> {
+  const saved = getSession()?.user?.user_metadata?.role;
+  if (saved === 'fan' || saved === 'artist' || saved === 'host') {
+    _role = saved;
+    await AsyncStorage.setItem(ROLE_KEY, saved);
+    notifyRoleListeners();
+    return saved;
+  }
+  return null;
 }
 
 export async function loadRole(): Promise<UserRole | null> {

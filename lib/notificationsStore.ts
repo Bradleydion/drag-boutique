@@ -11,7 +11,8 @@ export type NotificationType =
   | 'booking_declined'
   | 'performer_tagged'
   | 'event_updated'
-  | 'event_invite';
+  | 'event_invite'
+  | 'refund_update';
 
 export type NotificationRecord = {
   id: string;

@@ -334,6 +334,11 @@ export default function CreateEvent_Roles() {
     setInviteTarget(null);
   }
 
+  // Save every change right away, so Back never loses the lineup.
+  useEffect(() => {
+    updateDraft({ eventRoles: roles });
+  }, [roles]);
+
   // ── Proceed to review ─────────────────────────────────────────────────────
 
   function onProceed() {
@@ -356,13 +361,13 @@ export default function CreateEvent_Roles() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
 
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900', marginBottom: 4 }}>
-          Roles & Lineup
+          Lineup & Roles
         </Text>
         <Text style={{ color: C.textMuted, lineHeight: 20, marginBottom: 24 }}>
-          Define what positions you need filled, set your pay offer, and invite talent. You can always add more after publishing.
+          Add the roles you need (performers, MC, DJ…), set your fee offer, and invite talent. Invited talent see your offer, and they appear in the public lineup once they accept. You can always add more after publishing.
         </Text>
 
         {/* Role cards */}

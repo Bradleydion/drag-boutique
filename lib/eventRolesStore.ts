@@ -63,6 +63,7 @@ export type EventTalentInvite = {
   photoUrl?: string;
   status: 'invited' | 'accepted' | 'declined' | 'removed';
   payAgreed?: number;  // dollars
+  payOffered?: number; // dollars — the host's offer for this role
   phoneNumber?: string;
   invitedAt: string;
   respondedAt?: string;
@@ -176,7 +177,8 @@ export async function inviteTalentToRole(params: {
         type:   'event_invite',
         title:  `You've been invited! 🎉`,
         body:   `You've been invited as ${roleLabel(params.roleName)} for "${params.eventTitle}" — $${params.payAmount}/show`,
-        link:   `/event/${params.eventId}`,
+        // Open the invite itself (role, fee, Accept/Decline), not the ticket page.
+        link:   `/performer/${params.talentId}/invites`,
       });
     }
   } catch (_) {
@@ -209,10 +211,12 @@ export async function loadEventTalent(eventId: string): Promise<EventTalentInvit
     .select(`
       *,
       performers!event_talent_talent_id_fkey (stage_name, photo_url, phone),
-      event_roles!event_talent_event_role_id_fkey (role_name, custom_name)
+      event_roles!event_talent_event_role_id_fkey (role_name, custom_name, pay_amount)
     `)
     .eq('event_id', eventId)
-    .order('created_at');
+    // event_talent has no created_at column — ordering by it made every
+    // lineup/roster/gig query fail.
+    .order('invited_at');
 
   if (error) throw new Error(error.message);
 
@@ -227,6 +231,7 @@ export async function loadEventTalent(eventId: string): Promise<EventTalentInvit
     photoUrl:        row.performers?.photo_url ?? undefined,
     status:          row.status,
     payAgreed:       row.pay_agreed ? row.pay_agreed / 100 : undefined,
+    payOffered:      row.event_roles?.pay_amount != null ? row.event_roles.pay_amount / 100 : undefined,
     phoneNumber:     row.performers?.phone ?? undefined,
     invitedAt:       row.invited_at,
     respondedAt:     row.responded_at ?? undefined,
@@ -241,7 +246,7 @@ export async function loadMyInvites(talentId: string): Promise<EventTalentInvite
     .from('event_talent')
     .select(`
       *,
-      event_roles!event_talent_event_role_id_fkey (role_name, custom_name)
+      event_roles!event_talent_event_role_id_fkey (role_name, custom_name, pay_amount)
     `)
     .eq('talent_id', talentId)
     .eq('status', 'invited')
@@ -258,7 +263,7 @@ export async function loadMyConfirmedRoles(talentId: string): Promise<EventTalen
     .from('event_talent')
     .select(`
       *,
-      event_roles!event_talent_event_role_id_fkey (role_name, custom_name)
+      event_roles!event_talent_event_role_id_fkey (role_name, custom_name, pay_amount)
     `)
     .eq('talent_id', talentId)
     .eq('status', 'accepted')
@@ -279,6 +284,7 @@ function mapInvite(row: any): EventTalentInvite {
     talentId:       row.talent_id ?? undefined,
     status:         row.status,
     payAgreed:      row.pay_agreed ? row.pay_agreed / 100 : undefined,
+    payOffered:     row.event_roles?.pay_amount != null ? row.event_roles.pay_amount / 100 : undefined,
     phoneNumber:    row.phone_number ?? undefined,
     invitedAt:      row.invited_at,
     respondedAt:    row.responded_at ?? undefined,
@@ -318,7 +324,7 @@ export async function loadMyBookings(talentId: string): Promise<MyBooking[]> {
       status,
       pay_agreed,
       payment_status,
-      event_roles!event_talent_event_role_id_fkey (role_name, custom_name),
+      event_roles!event_talent_event_role_id_fkey (role_name, custom_name, pay_amount),
       events!event_talent_event_id_fkey (title, image_url, venue_name, venue_city, datetime_start, host_name, host_id)
     `)
     .eq('talent_id', talentId)

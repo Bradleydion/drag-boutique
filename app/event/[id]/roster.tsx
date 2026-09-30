@@ -37,6 +37,7 @@ import { AccessRestricted } from '../../../components/AccessRestricted';
 import { createStaffPaymentIntent, markInvitePaid } from '../../../lib/eventRolesStore';
 import { loadPerformers, getPerformers, type PerformerRecord } from '../../../lib/performerStore';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -749,7 +750,7 @@ function InviteSheet({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         {/* Header */}
         <View style={{
           flexDirection: 'row', alignItems: 'center',
@@ -930,14 +931,14 @@ export default function RosterScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         <Stack.Screen options={{
           title: 'Staff Roster',
           headerStyle: { backgroundColor: C.navy },
           headerTitleStyle: { color: C.textPrimary },
           headerTintColor: C.teal,
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+            <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 16, paddingVertical: 4 }}>
               <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
             </Pressable>
           ),
@@ -953,7 +954,7 @@ export default function RosterScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
           title: 'Staff Roster',
@@ -962,7 +963,7 @@ export default function RosterScreen() {
           headerTintColor: C.teal,
           headerBackTitle: 'Back',
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+            <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 16, paddingVertical: 4 }}>
               <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
             </Pressable>
           ),
@@ -981,7 +982,7 @@ export default function RosterScreen() {
         onInvited={handleInviteAdded}
       />
 
-      <ScrollView
+      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive"
         contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
       >
@@ -991,7 +992,7 @@ export default function RosterScreen() {
         </Text>
         {event?.datetimeStart && (
           <Text style={{ color: C.textMuted, fontSize: 13, marginTop: 3 }}>
-            📅 {formatDate(event.datetimeStart)}
+            🗓 {formatDate(event.datetimeStart)}
           </Text>
         )}
         {event?.venue?.name && (
@@ -1040,7 +1041,7 @@ export default function RosterScreen() {
               Edit the event to add roles and invite staff.
             </Text>
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => goBack('/(tabs)/discover')} hitSlop={12}
               style={{
                 marginTop: 20, backgroundColor: C.teal, borderRadius: 12,
                 paddingHorizontal: 24, paddingVertical: 12,

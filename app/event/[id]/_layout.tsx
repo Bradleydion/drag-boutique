@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { Pressable } from 'react-native';
 import { colors } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 export default function EventLayout() {
   return (
@@ -21,7 +22,7 @@ export default function EventLayout() {
         options={{
           title: 'Event',
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} hitSlop={12} style={{ paddingRight: 8 }}>
+            <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 8 }}>
               <Ionicons name="chevron-back" size={26} color={colors.teal} />
             </Pressable>
           ),

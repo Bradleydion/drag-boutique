@@ -93,7 +93,7 @@ function RequestCard({
       {/* Event date if provided */}
       {req.eventDate ? (
         <Text style={{ color: C.textSecondary, fontSize: 13, marginTop: 10 }}>
-          📅 {req.eventDate}
+          🗓 {req.eventDate}
         </Text>
       ) : null}
 

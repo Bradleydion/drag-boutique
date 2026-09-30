@@ -1,7 +1,7 @@
 // app/event/create/venue.tsx
 import * as Linking from 'expo-linking';
 import { Stack, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
@@ -29,6 +29,11 @@ export default function CreateEvent_Venue() {
 
   const canPreview = !!(venueAddress || venueCity || venueState || venueZip);
 
+  // Save as the host types, so Back never loses anything.
+  useEffect(() => {
+    updateDraft({ venueName, venueAddress, venueCity, venueState, venueZip, venueInstagram });
+  }, [venueName, venueAddress, venueCity, venueState, venueZip, venueInstagram]);
+
   function onNext() {
     updateDraft({
       venueName,
@@ -54,7 +59,7 @@ export default function CreateEvent_Venue() {
         }}
       />
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={{ color: s.text, fontSize: 22, fontWeight: '900' }}>Venue details</Text>
         <Text style={{ color: s.muted, marginTop: 4 }}>Add the location so fans can get directions.</Text>
 

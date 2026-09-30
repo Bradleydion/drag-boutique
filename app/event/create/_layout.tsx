@@ -17,7 +17,7 @@ export default function CreateEventLayout() {
       <Stack.Screen name="performers" options={{ title: 'Create Event • Performers' }} />
       <Stack.Screen name="venue"      options={{ title: 'Create Event • Venue' }} />
       <Stack.Screen name="ticketing"  options={{ title: 'Create Event • Ticketing' }} />
-      <Stack.Screen name="roles"      options={{ title: 'Create Event • Roles & Lineup' }} />
+      <Stack.Screen name="roles"      options={{ title: 'Create Event • Lineup & Roles' }} />
       <Stack.Screen name="review"     options={{ title: 'Review & Publish' }} />
       <Stack.Screen name="costs"      options={{ title: 'Cost Breakdown' }} />
     </Stack>

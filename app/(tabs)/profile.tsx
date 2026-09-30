@@ -27,7 +27,7 @@ import { colors } from '../../src/theme/colors';
 const ROLE_SECTIONS: Record<string, { emoji: string; label: string; sublabel: string }[]> = {
   artist: [
     { emoji: '🎭', label: 'Performer Profile', sublabel: 'Edit your public page, bio & photos' },
-    { emoji: '📅', label: 'Bookings', sublabel: 'View upcoming and past gigs' },
+    { emoji: '🗓', label: 'Bookings', sublabel: 'View upcoming and past gigs' },
     { emoji: '📬', label: 'Event Invites', sublabel: 'Respond to role invitations from hosts' },
     { emoji: '💰', label: 'Earnings', sublabel: 'Tips, bookings, and commissions' },
     { emoji: '🏦', label: 'Payout Setup', sublabel: 'Connect Stripe to receive commissions & tips' },
@@ -70,7 +70,16 @@ function getInitials(name?: string, email?: string): string {
 export default function ProfileTab() {
   const email = getEmail();
   const guest = isGuest();
-  const displayNameFromMeta = getSession()?.user?.user_metadata?.display_name as string | undefined;
+  const meta = getSession()?.user?.user_metadata ?? {};
+  const displayNameFromMeta = meta.display_name as string | undefined;
+  // Host details saved by host/setup.tsx
+  const hostName = (meta.venue_name as string | undefined)?.trim();
+  const hostCity = (meta.city as string | undefined)?.trim();
+  const hostBio  = (meta.host_bio as string | undefined)?.trim();
+  const hostType = meta.host_type as string | undefined;
+  // Bumped on focus so the header and host card re-read the refreshed session
+  // after returning from the host or performer edit screens.
+  const [, setFocusTick] = useState(0);
   const role = getRole() ?? 'fan';
 
   const [editingName,      setEditingName]      = useState(false);
@@ -88,6 +97,7 @@ export default function ProfileTab() {
   // Reload tickets, listings, performer profile, and upcoming shows on focus.
   useFocusEffect(
     useCallback(() => {
+      setFocusTick(t => t + 1);
       if (!guest) {
         loadEvents().then(evs => setEvents(evs));
         loadTickets().then(() => setMyTickets(getTickets()));
@@ -108,6 +118,10 @@ export default function ProfileTab() {
             .then(profiles => setFollowedProfiles(profiles.filter(Boolean) as PerformerRecord[]));
         } else {
           setFollowedProfiles([]);
+        }
+        if (role === 'host') {
+          // Artist-hosts can also have a performer page.
+          loadMyPerformerProfile().then(profile => setMyArtistProfile(profile));
         }
         if (role === 'artist') {
           loadMyPerformerProfile().then(profile => {
@@ -200,11 +214,21 @@ export default function ProfileTab() {
   }
 
   const followedPerformers = followedProfiles;
-  const sections = ROLE_SECTIONS[role] ?? ROLE_SECTIONS.fan;
+  const baseSections = ROLE_SECTIONS[role] ?? ROLE_SECTIONS.fan;
+  // Artist-hosts (or hosts who also made a performer page) get a shortcut to it.
+  const sections = role === 'host' && (myArtistProfile || hostType === 'artist')
+    ? [ROLE_SECTIONS.artist[0], ROLE_SECTIONS.artist.find(x => x.label === 'Event Invites')!, ...baseSections]
+    : baseSections;
   const roleColor = ROLE_COLORS[role] ?? colors.teal;
   const roleLabel = ROLE_LABELS[role] ?? 'Fan';
-  const initials = getInitials(displayNameFromMeta, email);
-  const displayName = displayNameFromMeta || (email ? email.split('@')[0] : 'Guest');
+  // Name shown on the Profile card: whatever the user named themselves
+  // (display name, host name, or stage name) before falling back to the email.
+  const chosenName = displayNameFromMeta?.trim()
+    || (role === 'host' ? hostName : undefined)
+    || (role === 'artist' ? myArtistProfile?.stageName : undefined)
+    || undefined;
+  const initials = getInitials(chosenName, email);
+  const displayName = chosenName || (email ? email.split('@')[0] : 'Guest');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
@@ -255,7 +279,10 @@ export default function ProfileTab() {
               </Pressable>
             </View>
           ) : (
-            <Pressable onPress={() => setEditingName(true)} style={{ marginBottom: 8 }}>
+            <Pressable
+              onPress={() => { setNameInput(chosenName ?? ''); setEditingName(true); }}
+              style={{ marginBottom: 8 }}
+            >
               <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: '800', textAlign: 'center' }}>
                 {displayName}{' '}
                 <Text style={{ color: colors.textMuted, fontSize: 14, fontWeight: '400' }}>✎</Text>
@@ -299,6 +326,54 @@ export default function ProfileTab() {
             </Pressable>
           )}
         </View>
+
+        {/* ── Host profile card ─────────────────────────────────────────── */}
+        {role === 'host' && !guest && (
+          <View style={{
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            padding: 18,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: 24,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={{ flex: 1, color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
+                YOUR HOST PROFILE
+              </Text>
+              <Pressable
+                onPress={() => router.push('/host/setup?edit=1' as any)}
+                accessibilityRole="button"
+                hitSlop={10}
+              >
+                <Text style={{ color: colors.teal, fontWeight: '700', fontSize: 14 }}>
+                  {hostName ? 'Edit' : 'Set up'}
+                </Text>
+              </Pressable>
+            </View>
+            {hostName ? (
+              <>
+                <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: '800' }}>{hostName}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  {[hostType === 'artist' ? 'Artist Host' : 'Venue / Business', hostCity].filter(Boolean).join(' · ')}
+                </Text>
+                {hostBio ? (
+                  <Text style={{ color: colors.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 10 }}>
+                    {hostBio}
+                  </Text>
+                ) : (
+                  <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 10 }}>
+                    Add a few lines about your shows so performers and fans know what to expect.
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 19 }}>
+                Add your host name, city and a short bio so performers know who's inviting them.
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Role-specific sections */}
         <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>

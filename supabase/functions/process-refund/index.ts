@@ -17,6 +17,26 @@ const cors = {
 };
 
 type ItemType = 'ticket' | 'listing';
+
+// In-app notification + best-effort Expo push. Never blocks the refund itself.
+async function notify(userId: string | null | undefined, title: string, body: string, link: string) {
+  if (!userId) return;
+  try {
+    await supabaseAdmin.from('notifications').insert({ user_id: userId, type: 'refund_update', title, body, link });
+    const { data: tokens } = await supabaseAdmin.from('user_push_tokens').select('token').eq('user_id', userId);
+    if (tokens?.length) {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tokens.map((t: { token: string }) => ({ to: t.token, title, body, data: { link }, sound: 'default' }))),
+      });
+    }
+  } catch (e) {
+    console.warn('process-refund notify failed:', e);
+  }
+}
+
+const money = (n: unknown) => `$${Number(n ?? 0).toFixed(2)}`;
 type Action = 'request' | 'approve' | 'deny';
 
 Deno.serve(async (req: Request) => {
@@ -76,11 +96,12 @@ Deno.serve(async (req: Request) => {
     let policyWindowDays: number | null = null;
     let policyAllSalesFinal = false;
     let eventStart: string | null = null;
+    let itemTitle = itemType === 'ticket' ? 'your event' : (item.title ?? 'your listing');
 
     if (itemType === 'ticket') {
       const { data: event } = await supabaseAdmin
         .from('events')
-        .select('host_id, refund_window_days, all_sales_final, datetime_start')
+        .select('host_id, title, refund_window_days, all_sales_final, datetime_start')
         .eq('id', item.event_id)
         .maybeSingle();
       if (!event) {
@@ -92,6 +113,7 @@ Deno.serve(async (req: Request) => {
       policyWindowDays = event.refund_window_days;
       policyAllSalesFinal = !!event.all_sales_final;
       eventStart = event.datetime_start;
+      itemTitle = event.title ?? itemTitle;
     } else {
       sellerId = item.seller_id;
       policyWindowDays = item.refund_window_days;
@@ -145,6 +167,12 @@ Deno.serve(async (req: Request) => {
         .eq('id', itemId);
 
       if (updateError) throw updateError;
+      await notify(
+        sellerId,
+        'Refund requested',
+        `A buyer asked for a refund on ${itemTitle} (${money(item.price)})${reason ? `: "${String(reason).slice(0, 120)}"` : ''}.`,
+        itemType === 'ticket' ? `/event/${item.event_id}/refunds` : '/marketplace/seller-refunds',
+      );
       return new Response(JSON.stringify({ status: 'refund_requested' }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
@@ -168,6 +196,7 @@ Deno.serve(async (req: Request) => {
         .update({ payment_status: 'paid' })
         .eq('id', itemId);
       if (updateError) throw updateError;
+      await notify(buyerId, 'Refund declined', `The ${itemType === 'ticket' ? 'host' : 'seller'} declined your refund request for ${itemTitle}.`, itemType === 'ticket' ? '/(tabs)/tickets' : '/(tabs)/profile');
       return new Response(JSON.stringify({ status: 'denied' }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
@@ -194,6 +223,7 @@ Deno.serve(async (req: Request) => {
       .eq('id', itemId);
 
     if (updateError) throw updateError;
+    await notify(buyerId, 'Refund approved', `Your ${money(item.price)} refund for ${itemTitle} is on its way. It usually lands in 5–10 business days.`, itemType === 'ticket' ? '/(tabs)/tickets' : '/(tabs)/profile');
 
     return new Response(JSON.stringify({ status: 'refunded', refundId: refund.id }), {
       headers: { ...cors, 'Content-Type': 'application/json' },

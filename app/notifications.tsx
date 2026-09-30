@@ -29,7 +29,9 @@ const TYPE_META: Record<NotificationType, { emoji: string; accent: string }> = {
   booking_accepted:  { emoji: '✅', accent: '#34D399' },   // green
   booking_declined:  { emoji: '❌', accent: '#F87171' },   // red
   performer_tagged:  { emoji: '💃', accent: C.teal },
-  event_updated:     { emoji: '📅', accent: '#FBBF24' },   // amber
+  event_updated:     { emoji: '🗓', accent: '#FBBF24' },   // amber
+  event_invite:      { emoji: '💌', accent: '#A78BFA' },
+  refund_update:     { emoji: '💳', accent: '#F05D5E' },
 };
 
 // ─── Single notification row ──────────────────────────────────────────────────

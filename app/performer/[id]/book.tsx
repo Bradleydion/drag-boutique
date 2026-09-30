@@ -18,6 +18,7 @@ import { supabase } from '../../../lib/supabase';
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { addNotification } from '../../../lib/notificationsStore';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 type RequestType = 'booking' | 'commission';
 
@@ -120,7 +121,7 @@ export default function BookingForm() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>{title}</Text>
         <Text style={{ color: C.textMuted, marginTop: 4, marginBottom: 24, lineHeight: 20 }}>
           {requestType === 'commission'
@@ -192,7 +193,7 @@ export default function BookingForm() {
           <PrimaryButton title="Send Request" onPress={handleSend} />
         )}
         <View style={{ height: 12 }} />
-        <Pressable onPress={() => router.back()} accessibilityRole="button">
+        <Pressable onPress={() => goBack('/(tabs)/profile')} hitSlop={12} accessibilityRole="button">
           <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>Cancel</Text>
         </Pressable>
       </ScrollView>

@@ -20,6 +20,7 @@ import { AccessRestricted } from '../../../components/AccessRestricted';
 import { loadEventTalent, type EventTalentInvite } from '../../../lib/eventRolesStore';
 import { generateAndShareInvoice, printInvoice } from '../../../lib/invoiceStore';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export default function InvoiceScreen() {
   }, [eventId]);
 
   const headerLeft = () => (
-    <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+    <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 16, paddingVertical: 4 }}>
       <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
     </Pressable>
   );
@@ -112,7 +113,7 @@ export default function InvoiceScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         <Stack.Screen options={{
           title: 'Invoice',
           headerStyle: { backgroundColor: C.navy },
@@ -132,7 +133,7 @@ export default function InvoiceScreen() {
 
   if (!event || !analytics) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         <Stack.Screen options={{ title: 'Invoice', headerStyle: { backgroundColor: C.navy }, headerTitleStyle: { color: C.textPrimary }, headerTintColor: C.teal, headerLeft }} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: C.textMuted }}>Could not load event data.</Text>
@@ -146,7 +147,7 @@ export default function InvoiceScreen() {
   const confirmedStaff = talent.filter(t => t.payAgreed);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
           title: 'Invoice',
@@ -199,7 +200,7 @@ export default function InvoiceScreen() {
             </Text>
             {event.datetimeStart && (
               <Text style={{ color: C.textSecondary, fontSize: 12 }}>
-                📅 {formatDate(event.datetimeStart)}
+                🗓 {formatDate(event.datetimeStart)}
               </Text>
             )}
             {event.venue?.name && (

@@ -1,5 +1,6 @@
 // app/event/create/ticketing.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { DateTimeField } from '@/components/DateTimeField';
 import { View, Text, TextInput, Alert, ScrollView, Pressable, Switch } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -15,6 +16,22 @@ export default function CreateEvent_Ticketing() {
   const [refundWindowDays, setRefundWindowDays] = useState(
     d.refundWindowDays != null ? String(d.refundWindowDays) : '',
   );
+  const [capacity, setCapacity] = useState(d.capacity != null ? String(d.capacity) : '');
+
+  // Save as the host types (valid values only), so Back never loses anything.
+  useEffect(() => {
+    const p = ticketPrice.trim() === '' ? undefined : parseFloat(ticketPrice);
+    const w = refundWindowDays.trim() === '' ? null : parseInt(refundWindowDays, 10);
+    const c = capacity.trim() === '' ? undefined : parseInt(capacity, 10);
+    updateDraft({
+      ticketPrice: p !== undefined && !Number.isNaN(p) ? p : undefined,
+      salesStart: salesStart || undefined,
+      salesEnd: salesEnd || undefined,
+      allSalesFinal,
+      refundWindowDays: allSalesFinal ? null : (w !== null && !Number.isNaN(w) ? w : null),
+      capacity: c !== undefined && !Number.isNaN(c) && c > 0 ? c : undefined,
+    });
+  }, [ticketPrice, salesStart, salesEnd, allSalesFinal, refundWindowDays, capacity]);
 
   function onProceedToReview() {
     const errors: string[] = [];
@@ -31,7 +48,14 @@ export default function CreateEvent_Ticketing() {
       return;
     }
 
+    const capNum = capacity.trim() === '' ? undefined : parseInt(capacity, 10);
+    if (capacity.trim() !== '' && (capNum === undefined || Number.isNaN(capNum) || capNum <= 0)) {
+      Alert.alert('Fix required', 'Capacity must be a whole number, or leave it blank.');
+      return;
+    }
+
     updateDraft({
+      capacity: capNum,
       ticketPrice: priceNum,
       salesStart: salesStart.trim() || undefined,
       salesEnd: (salesEnd.trim() || d.datetimeEnd || '').trim() || undefined,
@@ -51,7 +75,7 @@ export default function CreateEvent_Ticketing() {
   };
 
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: C.navy }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+    <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: C.navy }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       <Stack.Screen
         options={{
           title: 'Create Event • Ticketing',
@@ -77,24 +101,36 @@ export default function CreateEvent_Ticketing() {
       </View>
 
       <View style={{ marginBottom: 16 }}>
-        <Text style={{ color: C.textPrimary, fontWeight: '800' }}>Sales Start (optional)</Text>
+        <Text style={{ color: C.textPrimary, fontWeight: '800' }}>Capacity (optional)</Text>
         <TextInput
-          placeholder="YYYY-MM-DD"
+          keyboardType="number-pad"
+          placeholder="Max tickets — leave blank for no limit"
           placeholderTextColor={C.textMuted}
-          value={salesStart}
-          onChangeText={setSalesStart}
+          value={capacity}
+          onChangeText={setCapacity}
           style={inputStyle}
         />
       </View>
 
+      <View style={{ marginBottom: 16 }}>
+        <DateTimeField
+          label="Sales start (optional)"
+          placeholder="Tickets on sale right away"
+          value={salesStart}
+          onChange={setSalesStart}
+          onClear={() => setSalesStart('')}
+          defaultDate={new Date()}
+        />
+      </View>
+
       <View style={{ marginBottom: 24 }}>
-        <Text style={{ color: C.textPrimary, fontWeight: '800' }}>Sales End (optional)</Text>
-        <TextInput
-          placeholder="Defaults to event end time"
-          placeholderTextColor={C.textMuted}
+        <DateTimeField
+          label="Sales end (optional)"
+          placeholder="When the show ends"
           value={salesEnd}
-          onChangeText={setSalesEnd}
-          style={inputStyle}
+          onChange={setSalesEnd}
+          onClear={() => setSalesEnd('')}
+          defaultDate={d.datetimeStart ? new Date(d.datetimeStart) : undefined}
         />
       </View>
 
@@ -126,7 +162,7 @@ export default function CreateEvent_Ticketing() {
         )}
       </View>
 
-      <PrimaryButton title="Roles & Lineup →" onPress={onProceedToReview} />
+      <PrimaryButton title="Next: Lineup & Roles →" onPress={onProceedToReview} />
       <View style={{ height: 12 }} />
       <Pressable onPress={() => router.replace('/(tabs)/discover')} accessibilityRole="button">
         <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>

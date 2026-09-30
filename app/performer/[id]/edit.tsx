@@ -27,12 +27,13 @@ import {
   saveTalentRoles,
   type PerformerRecord,
 } from '../../../lib/performerStore';
-import { getSession } from '../../../lib/authStore';
+import { getSession, updateDisplayName } from '../../../lib/authStore';
 import { AccessRestricted } from '../../../components/AccessRestricted';
 import { type RoleKey } from '../../../lib/eventRolesStore';
 import { startPromotionCheckout, confirmPerformerPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 export default function EditPerformerProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -135,6 +136,8 @@ export default function EditPerformerProfile() {
         commissionPricing:  commissionsOn ? (commissionPricing.trim() || undefined) : undefined,
         phone:              phone.trim() || undefined,
       });
+      // Keep the Profile tab header in sync with the stage name.
+      await updateDisplayName(stageName.trim()).catch(() => {});
       await saveTalentRoles(id, selectedRoles);
       Alert.alert('Saved!', 'Your profile has been updated.', [
         { text: 'OK', onPress: () => router.back() },
@@ -398,7 +401,7 @@ export default function EditPerformerProfile() {
                   appearance: {
                     colors: {
                       primary: C.teal, background: C.navy, componentBackground: C.surface,
-                      componentBorder: C.border, primaryText: C.textPrimary,
+                      componentBorder: C.border, primaryText: C.textPrimary, componentText: C.textPrimary, icon: C.textSecondary,
                       secondaryText: C.textSecondary, placeholderText: C.textMuted,
                     },
                   },
@@ -440,7 +443,7 @@ export default function EditPerformerProfile() {
           <PrimaryButton title="Save Changes" onPress={handleSave} />
         )}
         <View style={{ height: 12 }} />
-        <Pressable onPress={() => router.back()} accessibilityRole="button">
+        <Pressable onPress={() => goBack('/(tabs)/profile')} hitSlop={12} accessibilityRole="button">
           <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>
             Cancel
           </Text>

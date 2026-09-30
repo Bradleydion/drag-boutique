@@ -8,7 +8,8 @@ import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, updateDraft } from '../../../lib/createEventStore';
 import { canUseRecurringFrequency } from '../../../lib/subscriptionStore';
 import { Stack, router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { DateTimeField } from '../../../components/DateTimeField';
 import {
   Alert,
   Image,
@@ -22,6 +23,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 // ─── Recurring frequency options ─────────────────────────────────────────────
 
@@ -43,9 +45,8 @@ export default function CreateEvent_Basics() {
   const [description,    setDescription]    = useState(draft.description ?? '');
   const [datetimeStart,  setDatetimeStart]  = useState(draft.datetimeStart ?? '');
   const [datetimeEnd,    setDatetimeEnd]    = useState(draft.datetimeEnd ?? '');
-  const [timezone,       setTimezone]       = useState(
-    draft.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
+  // Always the phone's timezone; hosts shouldn't have to type one.
+  const timezone = draft.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Image
   const [imageUri, setImageUri] = useState<string | undefined>(draft.imageLocalUri);
@@ -93,7 +94,8 @@ export default function CreateEvent_Basics() {
 
   // ── Save + navigate ─────────────────────────────────────────────────────────
 
-  function onNext() {
+  // Save as the host types, so going Back and forward never loses anything.
+  useEffect(() => {
     updateDraft({
       title,
       description,
@@ -105,7 +107,26 @@ export default function CreateEvent_Basics() {
       recurringFrequency: isRecurring ? frequency : undefined,
       recurringEndDate:   isRecurring ? (recurringEnd || undefined) : undefined,
     });
-    router.push('/event/create/performers');
+  }, [title, description, datetimeStart, datetimeEnd, timezone, imageUri, isRecurring, frequency, recurringEnd]);
+
+  function onNext() {
+    if (!datetimeStart) {
+      Alert.alert('Pick a start time', 'Choose when your show starts.');
+      return;
+    }
+    updateDraft({
+      title,
+      description,
+      datetimeStart,
+      datetimeEnd,
+      timezone,
+      imageLocalUri:      imageUri,
+      isRecurring,
+      recurringFrequency: isRecurring ? frequency : undefined,
+      recurringEndDate:   isRecurring ? (recurringEnd || undefined) : undefined,
+    });
+    // Performers are chosen in the Lineup & Roles step now (one place, with fees).
+    router.push('/event/create/venue');
   }
 
   // ── Shared styles ───────────────────────────────────────────────────────────
@@ -132,7 +153,7 @@ export default function CreateEvent_Basics() {
           // to go back to within this navigator — add a manual back button.
           headerLeft: () => (
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => goBack('/(tabs)/discover')}
               hitSlop={12}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: -4 }}
             >
@@ -239,41 +260,32 @@ export default function CreateEvent_Basics() {
           </Pressable>
         )}
 
-        {/* ── Start date ────────────────────────────────────────────────── */}
+        {/* ── Start / end ─────────────────────────────────────────────── */}
         <View style={{ height: 16 }} />
-        <Text style={labelStyle}>Start date & time</Text>
-        <TextInput
+        <DateTimeField
+          label="Starts *"
           value={datetimeStart}
-          onChangeText={setDatetimeStart}
-          placeholder={Platform.select({ default: '2026-06-01T20:00:00-07:00' })}
-          autoCapitalize="none"
-          placeholderTextColor={C.textMuted}
-          style={inputStyle}
+          minimumDate={new Date()}
+          onChange={iso => {
+            setDatetimeStart(iso);
+            // Default a 3-hour show if no end is set (or the end is now before the start).
+            if (!datetimeEnd || Date.parse(datetimeEnd) <= Date.parse(iso)) {
+              setDatetimeEnd(new Date(Date.parse(iso) + 3 * 3600 * 1000).toISOString());
+            }
+          }}
         />
-
-        {/* ── End date ──────────────────────────────────────────────────── */}
         <View style={{ height: 14 }} />
-        <Text style={labelStyle}>End date & time</Text>
-        <TextInput
+        <DateTimeField
+          label="Ends"
           value={datetimeEnd}
-          onChangeText={setDatetimeEnd}
-          placeholder={Platform.select({ default: '2026-06-02T00:00:00-07:00' })}
-          autoCapitalize="none"
-          placeholderTextColor={C.textMuted}
-          style={inputStyle}
+          minimumDate={datetimeStart ? new Date(datetimeStart) : new Date()}
+          defaultDate={datetimeStart ? new Date(Date.parse(datetimeStart) + 3 * 3600 * 1000) : undefined}
+          onChange={setDatetimeEnd}
+          onClear={() => setDatetimeEnd('')}
         />
-
-        {/* ── Timezone ──────────────────────────────────────────────────── */}
-        <View style={{ height: 14 }} />
-        <Text style={labelStyle}>Timezone</Text>
-        <TextInput
-          value={timezone}
-          onChangeText={setTimezone}
-          placeholder="America/Los_Angeles"
-          autoCapitalize="none"
-          placeholderTextColor={C.textMuted}
-          style={inputStyle}
-        />
+        <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 6 }}>
+          Times are in your phone's timezone ({timezone.replace(/_/g, ' ')}).
+        </Text>
 
         {/* ── Recurring ─────────────────────────────────────────────────── */}
         <View style={{ height: 24 }} />
@@ -370,16 +382,19 @@ export default function CreateEvent_Basics() {
               </View>
 
               <View style={{ height: 16 }} />
-              <Text style={{ color: C.textPrimary, fontWeight: '800', fontSize: 13 }}>
-                Series end date (optional)
-              </Text>
-              <TextInput
-                value={recurringEnd}
-                onChangeText={setRecurringEnd}
-                placeholder="YYYY-MM-DD"
-                autoCapitalize="none"
-                placeholderTextColor={C.textMuted}
-                style={[inputStyle, { fontSize: 14 }]}
+              <DateTimeField
+                label="Series end date (optional)"
+                mode="date"
+                placeholder="Runs until you stop it"
+                value={recurringEnd ? new Date(recurringEnd + 'T12:00:00').toISOString() : ''}
+                minimumDate={datetimeStart ? new Date(datetimeStart) : new Date()}
+                onChange={iso => {
+                  // Store as a local YYYY-MM-DD, matching recurring_end_date (a date column).
+                  const d = new Date(iso);
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  setRecurringEnd(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+                }}
+                onClear={() => setRecurringEnd('')}
               />
             </View>
           )}

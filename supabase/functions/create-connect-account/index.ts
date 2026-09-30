@@ -64,6 +64,12 @@ Deno.serve(async (req: Request) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        // Pre-fill the business details so Stripe doesn't ask performers
+        // and hosts (most of whom have no website) for a site or description.
+        business_profile: {
+          mcc: '7922', // Theatrical producers / ticket agencies
+          product_description: 'Drag performances, hosting and event ticket sales booked through Sequins',
+        },
         metadata: { supabase_user_id: userId },
       });
       accountId = account.id;
@@ -75,12 +81,19 @@ Deno.serve(async (req: Request) => {
       if (insertError) throw insertError;
     }
 
-    const fallbackReturnUrl = returnUrl ?? 'sequins://payouts/return';
+    const appReturnUrl = returnUrl ?? 'sequins://payouts/return';
+
+    // Stripe only accepts https return/refresh URLs, so app deep links
+    // (sequins://…) go through the public payout-return bounce function,
+    // which redirects straight back into the app.
+    const httpsReturnUrl = /^https:\/\//.test(appReturnUrl)
+      ? appReturnUrl
+      : `${Deno.env.get('SUPABASE_URL')}/functions/v1/payout-return?to=${encodeURIComponent(appReturnUrl)}`;
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: fallbackReturnUrl,
-      return_url: fallbackReturnUrl,
+      refresh_url: httpsReturnUrl,
+      return_url: httpsReturnUrl,
       type: 'account_onboarding',
     });
 

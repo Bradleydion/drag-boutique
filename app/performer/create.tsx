@@ -21,7 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { RolePicker, type SelectedRole } from '../../components/RolePicker';
-import { getSession, isGuest } from '../../lib/authStore';
+import { getSession, isGuest, updateDisplayName } from '../../lib/authStore';
 import { createPerformerProfile, saveTalentRoles } from '../../lib/performerStore';
 import { colors as C } from '../../src/theme/colors';
 
@@ -121,6 +121,8 @@ export default function CreateArtistProfile() {
       if (selectedRoles.length > 0) {
         await saveTalentRoles(profile.id, selectedRoles);
       }
+      // Show the stage name at the top of the Profile tab instead of the email.
+      await updateDisplayName(stageName.trim()).catch(() => {});
 
       Alert.alert('🎉 Profile Created!', 'Your talent profile is now live on Sequins.', [
         { text: 'View My Profile', onPress: () => router.replace(`/performer/${profile.id}` as any) },

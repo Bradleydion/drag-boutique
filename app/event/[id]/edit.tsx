@@ -27,6 +27,7 @@ import { canUseRecurringFrequency, parseTierLimitError, loadSubscription } from 
 import { startPromotionCheckout, confirmEventPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 const FREQ_OPTIONS: { value: Frequency; label: string }[] = [
@@ -191,7 +192,7 @@ export default function EditEventScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={C.teal} />
       </SafeAreaView>
     );
@@ -204,7 +205,7 @@ export default function EditEventScreen() {
   const displayImage = imageUri ?? existingImageUrl;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
           title: 'Edit Event',
@@ -215,7 +216,7 @@ export default function EditEventScreen() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>Edit event</Text>
         <Text style={{ color: C.textMuted, marginTop: 4, marginBottom: 20 }}>Changes save immediately to your live event.</Text>
 
@@ -483,7 +484,7 @@ export default function EditEventScreen() {
           <PrimaryButton title="Save Changes" onPress={handleSave} />
         )}
         <View style={{ height: 12 }} />
-        <Pressable onPress={() => router.back()} accessibilityRole="button">
+        <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} accessibilityRole="button">
           <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>
             Cancel
           </Text>

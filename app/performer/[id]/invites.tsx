@@ -2,6 +2,7 @@
 // Event invite inbox for talent — pending invites + confirmed gigs with withdraw option.
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { goBack } from '../../../lib/nav';
 import {
   ActivityIndicator,
   Alert,
@@ -61,9 +62,10 @@ function PendingCard({
           </Text>
           <Text style={{ color: C.textMuted, fontSize: 12 }}>{date}</Text>
         </View>
-        {invite.payAgreed !== undefined && (
-          <View style={{ backgroundColor: C.teal + '22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: C.teal, fontWeight: '900', fontSize: 14 }}>${invite.payAgreed}</Text>
+        {(invite.payAgreed ?? invite.payOffered) !== undefined && (
+          <View style={{ backgroundColor: C.teal + '22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignItems: 'center' }}>
+            <Text style={{ color: C.teal, fontWeight: '900', fontSize: 14 }}>${invite.payAgreed ?? invite.payOffered}</Text>
+            <Text style={{ color: C.teal, fontSize: 10 }}>offered</Text>
           </View>
         )}
       </View>
@@ -130,9 +132,9 @@ function ConfirmedCard({
           </Text>
           <Text style={{ color: '#34D399', fontSize: 12, marginTop: 1 }}>✓ Confirmed · tap to open gig card</Text>
         </View>
-        {invite.payAgreed !== undefined && (
+        {(invite.payAgreed ?? invite.payOffered) !== undefined && (
           <View style={{ backgroundColor: '#34D399' + '22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#34D399' + '55' }}>
-            <Text style={{ color: '#34D399', fontWeight: '900', fontSize: 14 }}>${invite.payAgreed}</Text>
+            <Text style={{ color: '#34D399', fontWeight: '900', fontSize: 14 }}>${invite.payAgreed ?? invite.payOffered}</Text>
           </View>
         )}
       </View>
@@ -200,17 +202,17 @@ export default function InvitesScreen() {
   async function handleAccept(inv: EventTalentInvite) {
     Alert.alert(
       'Accept invite?',
-      `Accept the ${roleLabel(inv.roleName)} role${inv.payAgreed !== undefined ? ` for $${inv.payAgreed}` : ''}?`,
+      `Accept the ${roleLabel(inv.roleName)} role${(inv.payAgreed ?? inv.payOffered) !== undefined ? ` for $${inv.payAgreed ?? inv.payOffered}` : ''}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Accept',
           onPress: async () => {
             try {
-              await respondToInvite(inv.id, true, inv.payAgreed ?? 0);
+              await respondToInvite(inv.id, true, inv.payAgreed ?? inv.payOffered ?? 0);
               // Move from pending to confirmed
               setPending(prev => prev.filter(i => i.id !== inv.id));
-              setConfirmed(prev => [{ ...inv, status: 'accepted' }, ...prev]);
+              setConfirmed(prev => [{ ...inv, status: 'accepted', payAgreed: inv.payAgreed ?? inv.payOffered }, ...prev]);
             } catch (e: any) {
               Alert.alert('Error', e?.message ?? 'Could not accept invite.');
             }
@@ -279,6 +281,12 @@ export default function InvitesScreen() {
           headerTitleStyle: { color: C.textPrimary, fontWeight: '800' },
           headerTintColor: C.teal,
           headerBackTitle: 'Back',
+          // Explicit Back: the native one did nothing for testers here.
+          headerLeft: () => (
+            <Pressable onPress={() => goBack('/(tabs)/profile')} hitSlop={12} style={{ paddingRight: 8 }}>
+              <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Profile</Text>
+            </Pressable>
+          ),
         }}
       />
 

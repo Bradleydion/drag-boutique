@@ -166,6 +166,8 @@ export default function PerformerProfile() {
             componentBackground: colors.surface,
             componentBorder: colors.border,
             primaryText: colors.textPrimary,
+            componentText: colors.textPrimary, // typed card number/expiry/CVC
+            icon: colors.textSecondary,
             secondaryText: colors.textSecondary,
             placeholderText: colors.textMuted,
           },

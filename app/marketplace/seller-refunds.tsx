@@ -15,6 +15,7 @@ import {
   type Listing,
 } from '../../lib/marketplaceStore';
 import { colors } from '../../src/theme/colors';
+import { goBack } from '../../lib/nav';
 
 export default function SellerRefundsScreen() {
   const [requests, setRequests] = useState<Listing[]>([]);
@@ -147,7 +148,7 @@ export default function SellerRefundsScreen() {
           </View>
         )}
 
-        <Pressable onPress={() => router.back()} style={{ marginTop: 24, alignItems: 'center' }}>
+        <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ marginTop: 24, alignItems: 'center' }}>
           <Text style={{ color: colors.teal, fontWeight: '700' }}>← Back</Text>
         </Pressable>
       </ScrollView>

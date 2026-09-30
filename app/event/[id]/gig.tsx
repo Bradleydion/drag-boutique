@@ -22,6 +22,7 @@ import { AccessRestricted } from '../../../components/AccessRestricted';
 import { loadEventTalent, roleEmoji, roleLabel, type EventTalentInvite } from '../../../lib/eventRolesStore';
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { colors as C } from '../../../src/theme/colors';
+import { goBack } from '../../../lib/nav';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,14 +94,24 @@ export default function GigScreen() {
   const [myInvite,    setMyInvite]    = useState<EventTalentInvite | null>(null);
   const [crew,        setCrew]        = useState<EventTalentInvite[]>([]);
   const [loading,     setLoading]     = useState(true);
+  const [loadError,   setLoadError]   = useState<string | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
     (async () => {
-      const [ev, allTalent] = await Promise.all([
-        fetchEventById(eventId),
-        loadEventTalent(eventId),
-      ]);
+      let ev: EventRecord | null = null;
+      let allTalent: EventTalentInvite[] = [];
+      try {
+        [ev, allTalent] = await Promise.all([
+          fetchEventById(eventId),
+          loadEventTalent(eventId),
+        ]);
+      } catch (e: any) {
+        // Never leave the performer staring at a spinner.
+        setLoadError(e?.message ?? 'Could not load this gig.');
+        setLoading(false);
+        return;
+      }
       setEvent(ev);
 
       // Separate my invite from the rest of the crew
@@ -125,16 +136,25 @@ export default function GigScreen() {
     event?.venue?.zip,
   ].filter(Boolean).join(', ');
 
+  if (!loading && loadError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Text style={{ color: C.textPrimary, fontSize: 17, fontWeight: '800', marginBottom: 8 }}>Couldn't load this gig</Text>
+        <Text style={{ color: C.textMuted, fontSize: 14, textAlign: 'center' }}>Check your connection and try again.</Text>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         <Stack.Screen options={{
           title: 'My Gig',
           headerStyle: { backgroundColor: C.navy },
           headerTitleStyle: { color: C.textPrimary },
           headerTintColor: C.teal,
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+            <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 16, paddingVertical: 4 }}>
               <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
             </Pressable>
           ),
@@ -146,7 +166,7 @@ export default function GigScreen() {
 
   if (!event) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
         <Stack.Screen options={{ title: 'My Gig', headerStyle: { backgroundColor: C.navy }, headerTitleStyle: { color: C.textPrimary }, headerTintColor: C.teal }} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ color: C.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center' }}>
@@ -163,7 +183,7 @@ export default function GigScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: C.navy }}>
       <Stack.Screen
         options={{
           title: 'My Gig',
@@ -172,7 +192,7 @@ export default function GigScreen() {
           headerTintColor: C.teal,
           headerBackTitle: 'Back',
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ paddingRight: 16, paddingVertical: 4 }}>
+            <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 16, paddingVertical: 4 }}>
               <Text style={{ color: C.teal, fontSize: 16, fontWeight: '600' }}>‹ Back</Text>
             </Pressable>
           ),

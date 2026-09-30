@@ -14,6 +14,7 @@ import {
 } from '../../lib/marketplaceStore';
 import { getSession, isGuest } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
+import { goBack } from '../../lib/nav';
 
 export default function ListingDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -68,6 +69,8 @@ export default function ListingDetail() {
             componentBackground: colors.surface,
             componentBorder: colors.border,
             primaryText: colors.textPrimary,
+            componentText: colors.textPrimary, // typed card number/expiry/CVC
+            icon: colors.textSecondary,
             secondaryText: colors.textSecondary,
             placeholderText: colors.textMuted,
           },
@@ -210,7 +213,7 @@ export default function ListingDetail() {
             <PrimaryButton
               title="Back to Marketplace"
               variant="ghost"
-              onPress={() => router.back()}
+              onPress={() => goBack('/(tabs)/discover')}
             />
           </View>
 

@@ -1,11 +1,11 @@
 // app/(tabs)/tickets.tsx
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Image, Modal, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { isGuest } from '@/lib/authStore';
-import { getTickets, loadTickets, requestTicketRefund, type Ticket } from '@/lib/ticketStore';
+import { getCachedTicketEvents, getTickets, loadTickets, requestTicketRefund, saveTicketEvents, type Ticket } from '@/lib/ticketStore';
 import { fetchEventById, type EventRecord } from '@/lib/eventsStore';
 import { colors } from '../../src/theme/colors';
 
@@ -42,7 +42,34 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
   const qrData  = `SEQ-TICKET:${ticket.id}`;
   const refundEligible = isRefundEligible(ticket, event);
 
+  async function submitRefund(reason?: string) {
+    setRequesting(true);
+    try {
+      await requestTicketRefund(ticket.id, reason?.trim() || undefined);
+      Alert.alert('Refund requested', 'The host has been notified and will review your request.');
+      onRefunded();
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not submit refund request.');
+    } finally {
+      setRequesting(false);
+    }
+  }
+
   async function handleRequestRefund() {
+    const msg = `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.`;
+    if (Platform.OS === 'ios') {
+      // Let the fan say why, so the host isn't approving blind.
+      Alert.prompt(
+        'Request a refund?',
+        `${msg}\n\nReason (optional):`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Request Refund', style: 'destructive', onPress: (reason?: string) => submitRefund(reason) },
+        ],
+        'plain-text',
+      );
+      return;
+    }
     Alert.alert(
       'Request a refund?',
       `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.`,
@@ -249,11 +276,15 @@ export default function TicketsTab() {
         setTickets(loaded);
         // Fetch event details for each unique event_id in parallel
         const uniqueEventIds = [...new Set(loaded.map(t => t.event_id))];
-        const results = await Promise.all(uniqueEventIds.map(id => fetchEventById(id)));
-        const map: Record<string, EventRecord> = {};
+        // Start from the saved copy so tickets render offline, then refresh.
+        const cached = await getCachedTicketEvents<EventRecord>();
+        setEventMap(cached);
+        setLoading(false);
+        const results = await Promise.all(uniqueEventIds.map(id => fetchEventById(id).catch(() => null)));
+        const map: Record<string, EventRecord> = { ...cached };
         results.forEach((ev, i) => { if (ev) map[uniqueEventIds[i]] = ev; });
         setEventMap(map);
-        setLoading(false);
+        saveTicketEvents(map);
       })();
     }, [guest]),
   );
