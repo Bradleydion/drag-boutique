@@ -35,6 +35,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "the-bradley-project"
+        }
+      ],
       "expo-router",
       [
         "expo-notifications",
@@ -63,15 +71,6 @@
           "enableGooglePay": true
         }
       ],
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "react-native",
-          "organization": "the-bradley-project"
-        }
-      ],
-      "@sentry/react-native",
       "expo-secure-store",
       "expo-camera"
     ],

@@ -43,3 +43,5 @@ app-example
 # Google Play service account key (never commit — used by eas submit)
 google-play-service-account.json
 Claude outputs/
+
+.env.local

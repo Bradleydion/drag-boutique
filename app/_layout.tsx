@@ -19,15 +19,16 @@ Sentry.init({
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
+  sendDefaultPii: false, // no IPs/cookies for beta testers
 
   // Enable Logs
   enableLogs: true,
 
   // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
+  enabled: !__DEV__, // only report from real builds, not Expo Go
+  replaysSessionSampleRate: 0, // record only sessions that hit an error
   replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  integrations: [Sentry.mobileReplayIntegration({ maskAllText: true, maskAllImages: true, maskAllVectors: true }), Sentry.feedbackIntegration()],
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
