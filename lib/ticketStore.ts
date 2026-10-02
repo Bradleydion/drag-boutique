@@ -106,38 +106,70 @@ export function ticketsLoaded(): boolean { return _loaded; }
 
 // ─── Stripe: create payment intent ───────────────────────────────────────────
 
+export type TicketPriceBreakdown = {
+  ticketPrice: number;
+  serviceFee: number;
+  total: number;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+  tierName: string;
+};
+
+function toBreakdown(data: any): TicketPriceBreakdown {
+  return {
+    ticketPrice: Number(data.ticketPrice ?? 0),
+    serviceFee: Number(data.serviceFee ?? 0),
+    total: Number(data.total ?? 0),
+    platformFeePercent: Number(data.platformFeePercent ?? 0),
+    platformFeeAmount: Number(data.platformFeeAmount ?? 0),
+    tierName: data.tierName ?? '',
+  };
+}
+
+/**
+ * Ask the server what a ticket costs right now: ticket price + Sequins
+ * service fee = total. Used to show the all-in price on the event page
+ * before checkout. Returns null if the quote can't be loaded.
+ */
+export async function getTicketQuote(eventId: string): Promise<TicketPriceBreakdown | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+      body: { eventId, quoteOnly: true },
+    });
+    if (error || !data || data.error) return null;
+    return toBreakdown(data);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Calls the Supabase Edge Function to create a Stripe PaymentIntent.
- * Returns the clientSecret needed to present the Stripe payment sheet,
- * plus the paymentIntentId to store on the ticket after success.
+ * The server sets the price from the event record and adds the service fee;
+ * the buyer is charged `total`. Returns the clientSecret for the payment
+ * sheet plus the breakdown to store on the ticket after success.
  *
  * Throws on network/Stripe errors — caller should catch and show an alert.
  */
 export async function createPaymentIntent(
-  amount: number,
   eventId: string,
   eventTitle: string,
-): Promise<{
-  clientSecret: string;
-  paymentIntentId: string;
-  platformFeePercent: number;
-  platformFeeAmount: number;
-}> {
+): Promise<TicketPriceBreakdown & { clientSecret: string; paymentIntentId: string }> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to purchase tickets.');
 
   const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-    body: { amount, eventId, eventTitle },
+    body: { eventId, eventTitle },
   });
 
   if (error) throw new Error(error.message ?? 'Could not initialise payment.');
+  if (data?.error) throw new Error(data.error);
   if (!data?.clientSecret) throw new Error('Invalid response from payment service.');
 
   return {
+    ...toBreakdown(data),
     clientSecret: data.clientSecret,
     paymentIntentId: data.paymentIntentId,
-    platformFeePercent: data.platformFeePercent ?? 0,
-    platformFeeAmount: data.platformFeeAmount ?? 0,
   };
 }
 

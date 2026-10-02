@@ -16,16 +16,40 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Volume-based sliding scale for Sequins' commission/marketplace-sale service
-// fee: starts at 7%, floors at 4%, based on how many listings this seller has
-// already sold on Sequins. Mirrors the ticket-fee tiering in
-// create-payment-intent (kept as a separate copy since edge functions can't
-// share modules across deployments) -- same placeholder-thresholds caveat.
-function saleFeePercent(itemsSold: number): number {
-  if (itemsSold >= 31) return 0.04;
-  if (itemsSold >= 16) return 0.05;
-  if (itemsSold >= 6)  return 0.06;
-  return 0.07;
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+
+// ── Sequins service fee (Oct 2026 model) ─────────────────────────────────────
+// The BUYER pays the service fee on top of the item price; the seller receives
+// 100% of the item price. Sequins pays Stripe's processing fee out of the
+// service fee (destination charges bill Stripe fees to the platform).
+//   fee = tier% of price + $0.50, never less than $0.99
+//   tier is set by paid items the seller has sold this calendar month (UTC):
+//     Opening Act 0-99 → 7% · Featured 100-249 → 6% · Headliner 250-499 → 5% · Icon 500+ → 4%
+// Keep in sync with lib/feeTiers.ts and create-payment-intent.
+const FEE_TIERS = [
+  { threshold: 0,   percent: 0.07, name: 'Opening Act' },
+  { threshold: 100, percent: 0.06, name: 'Featured' },
+  { threshold: 250, percent: 0.05, name: 'Headliner' },
+  { threshold: 500, percent: 0.04, name: 'Icon' },
+];
+const FLAT_FEE_CENTS = 50;
+const MIN_FEE_CENTS = 99;
+
+function tierFor(monthlySales: number) {
+  let tier = FEE_TIERS[0];
+  for (const t of FEE_TIERS) if (monthlySales >= t.threshold) tier = t;
+  return tier;
+}
+
+function serviceFeeCents(priceCents: number, percent: number): number {
+  if (priceCents <= 0) return 0;
+  return Math.max(MIN_FEE_CENTS, Math.round(priceCents * percent) + FLAT_FEE_CENTS);
+}
+
+function monthStartUtc(): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 
 Deno.serve(async (req: Request) => {
@@ -34,7 +58,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { listingId } = await req.json();
+    // quoteOnly: return the price breakdown without creating a payment, so the
+    // listing page can show the all-in total up front.
+    const { listingId, quoteOnly } = await req.json();
     if (!listingId || typeof listingId !== 'string') {
       return new Response(
         JSON.stringify({ error: 'listingId is required' }),
@@ -50,7 +76,7 @@ Deno.serve(async (req: Request) => {
       buyerId = payload.sub ?? null;
     } catch { /* ignore */ }
 
-    if (!buyerId) {
+    if (!buyerId && !quoteOnly) {
       return new Response(JSON.stringify({ error: 'Could not identify user from token.' }), {
         status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
       });
@@ -72,7 +98,7 @@ Deno.serve(async (req: Request) => {
         status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
-    if (listing.seller_id === buyerId) {
+    if (!quoteOnly && listing.seller_id === buyerId) {
       return new Response(JSON.stringify({ error: 'You can’t buy your own listing.' }), {
         status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
       });
@@ -82,6 +108,30 @@ Deno.serve(async (req: Request) => {
         status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
+
+    const { count: soldThisMonth } = await supabaseAdmin
+      .from('listings')
+      .select('id', { count: 'exact', head: true })
+      .eq('seller_id', listing.seller_id)
+      .eq('sold', true)
+      .in('payment_status', ['paid', 'refund_requested'])
+      .gte('purchased_at', monthStartUtc());
+
+    const tier = tierFor(soldThisMonth ?? 0);
+    const priceCents = Math.round(Number(listing.price) * 100);
+    const feeCents = serviceFeeCents(priceCents, tier.percent);
+    const totalCents = priceCents + feeCents;
+
+    const breakdown = {
+      itemPrice: priceCents / 100,
+      serviceFee: feeCents / 100,
+      total: totalCents / 100,
+      platformFeePercent: tier.percent,
+      platformFeeAmount: feeCents / 100,
+      tierName: tier.name,
+    };
+
+    if (quoteOnly) return json(breakdown);
 
     const { data: payoutAccount } = await supabaseAdmin
       .from('payout_accounts')
@@ -98,21 +148,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { count: itemsSold } = await supabaseAdmin
-      .from('listings')
-      .select('id', { count: 'exact', head: true })
-      .eq('seller_id', listing.seller_id)
-      .eq('sold', true);
-
-    const feePercent = saleFeePercent(itemsSold ?? 0);
-    const amountCents = Math.round(Number(listing.price) * 100);
-    const applicationFeeAmount = Math.round(amountCents * feePercent);
-
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
+      amount: totalCents,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: applicationFeeAmount,
+      application_fee_amount: feeCents,
       transfer_data: {
         destination: payoutAccount.stripe_account_id,
       },
@@ -122,17 +162,19 @@ Deno.serve(async (req: Request) => {
         listing_type: listing.type ?? '',
         buyer_id: buyerId,
         seller_id: listing.seller_id,
-        platform_fee_percent: String(feePercent),
-        platform_fee_amount: String(applicationFeeAmount),
+        item_price_cents: String(priceCents),
+        platform_fee_percent: String(tier.percent),
+        platform_fee_amount: String(feeCents),
+        fee_tier: tier.name,
+        fee_model: '2026-10',
       },
     });
 
     return new Response(
       JSON.stringify({
+        ...breakdown,
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
-        platformFeePercent: feePercent,
-        platformFeeAmount: applicationFeeAmount / 100,
       }),
       { headers: { ...cors, 'Content-Type': 'application/json' } },
     );

@@ -1,6 +1,6 @@
 // app/marketplace/[id].tsx
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,8 @@ import {
   CATEGORY_META,
   CONDITION_LABELS,
   getListing,
+  getListingQuote,
+  type ListingPriceBreakdown,
 } from '../../lib/marketplaceStore';
 import { getSession, isGuest } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
@@ -22,6 +24,14 @@ export default function ListingDetail() {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [buying, setBuying] = useState(false);
   const [justBought, setJustBought] = useState(false);
+  const [quote, setQuote] = useState<ListingPriceBreakdown | null>(null);
+
+  // Priced, unsold listings: load the all-in price (item + service fee) up front.
+  useEffect(() => {
+    if (listing && listing.price > 0 && !listing.sold) {
+      getListingQuote(listing.id).then(setQuote);
+    }
+  }, [listing?.id]);
 
   if (!listing) {
     return (
@@ -54,8 +64,10 @@ export default function ListingDetail() {
     try {
       // 1. Create PaymentIntent via Edge Function (Stripe Connect destination
       //    charge: Sequins' service fee + the seller's payout, split automatically)
-      const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } =
-        await createListingPaymentIntent(listing.id);
+      //    The buyer pays item price + service fee; the seller gets the full item price.
+      const paid = await createListingPaymentIntent(listing.id);
+      const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } = paid;
+      setQuote(paid);
 
       // 2. Initialise Stripe payment sheet
       const { error: initError } = await initPaymentSheet({
@@ -91,7 +103,7 @@ export default function ListingDetail() {
 
       Alert.alert(
         '🎉 Purchase complete!',
-        `You bought "${listing.title}" for $${listing.price}. Reach out to ${listing.sellerName} to arrange delivery or pickup.`,
+        `You paid $${paid.total.toFixed(2)} for "${listing.title}" ($${paid.itemPrice.toFixed(2)} + $${paid.serviceFee.toFixed(2)} service fee). Reach out to ${listing.sellerName} to arrange delivery or pickup.`,
         [{ text: 'Back to Marketplace', onPress: () => router.back() }],
       );
     } catch (err) {
@@ -196,12 +208,32 @@ export default function ListingDetail() {
               </View>
             ) : listing.price > 0 && listing.sellerId !== getSession()?.user?.id ? (
               <>
+                {quote ? (
+                  <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Item</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>${quote.itemPrice.toFixed(2)}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Sequins service fee</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>${quote.serviceFee.toFixed(2)}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
+                      <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '800' }}>Total</Text>
+                      <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '800' }}>${quote.total.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center' }}>
+                    Plus a small Sequins service fee, shown before you pay.
+                  </Text>
+                )}
                 <PrimaryButton
-                  title={buying ? 'Opening payment…' : `Buy Now — $${listing.price}`}
+                  title={buying ? 'Opening payment…' : `Buy Now — $${(quote?.total ?? listing.price).toFixed(2)}`}
                   onPress={buying ? () => {} : handleBuyNow}
                 />
-                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
-                  Paid securely via Stripe. Sequins facilitates this sale between you and {listing.sellerName}.
+                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                  100% of the item price goes to {listing.sellerName}. The service fee keeps Sequins running, covers all card processing, and isn’t refundable. Secure checkout by Stripe.
                 </Text>
               </>
             ) : null}

@@ -289,20 +289,49 @@ export async function markSold(id: string): Promise<void> {
 
 // ── Stripe: buy a listing (marketplace sale, swap, or priced commission) ─────
 
+export type ListingPriceBreakdown = {
+  itemPrice: number;
+  serviceFee: number;
+  total: number;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+  tierName: string;
+};
+
+function toListingBreakdown(data: any): ListingPriceBreakdown {
+  return {
+    itemPrice: Number(data.itemPrice ?? 0),
+    serviceFee: Number(data.serviceFee ?? 0),
+    total: Number(data.total ?? 0),
+    platformFeePercent: Number(data.platformFeePercent ?? 0),
+    platformFeeAmount: Number(data.platformFeeAmount ?? 0),
+    tierName: data.tierName ?? '',
+  };
+}
+
+/** Item price + Sequins service fee = total, for showing before checkout. Null if unavailable. */
+export async function getListingQuote(listingId: string): Promise<ListingPriceBreakdown | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('create-listing-payment-intent', {
+      body: { listingId, quoteOnly: true },
+    });
+    if (error || !data || data.error) return null;
+    return toListingBreakdown(data);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Calls the Supabase Edge Function to create a Stripe PaymentIntent for a
- * marketplace listing purchase. The seller's cut is sent directly to their
- * Stripe Connect account; Sequins' service fee (7%→4% by seller volume) is
- * collected automatically as the destination charge's application fee.
+ * marketplace listing purchase. The buyer pays the item price plus Sequins'
+ * service fee; the seller receives 100% of the item price in their Stripe
+ * Connect account, and Sequins keeps the service fee (the destination
+ * charge's application fee).
  */
 export async function createListingPaymentIntent(
   listingId: string,
-): Promise<{
-  clientSecret: string;
-  paymentIntentId: string;
-  platformFeePercent: number;
-  platformFeeAmount: number;
-}> {
+): Promise<ListingPriceBreakdown & { clientSecret: string; paymentIntentId: string }> {
   const session = getSession();
   if (!session) throw new Error('Must be signed in to buy a listing.');
 
@@ -311,13 +340,13 @@ export async function createListingPaymentIntent(
   });
 
   if (error) throw new Error(error.message ?? 'Could not initialise payment.');
+  if (data?.error) throw new Error(data.error);
   if (!data?.clientSecret) throw new Error('Invalid response from payment service.');
 
   return {
+    ...toListingBreakdown(data),
     clientSecret: data.clientSecret,
     paymentIntentId: data.paymentIntentId,
-    platformFeePercent: data.platformFeePercent ?? 0,
-    platformFeeAmount: data.platformFeeAmount ?? 0,
   };
 }
 
@@ -373,6 +402,22 @@ export async function getSellerSoldCount(sellerId: string): Promise<number> {
     .select('id', { count: 'exact', head: true })
     .eq('seller_id', sellerId)
     .eq('sold', true);
+  return error ? 0 : (count ?? 0);
+}
+
+/** Paid items this seller has sold since the 1st of the month (UTC) -- drives
+ *  the shop service fee tier. Mirrors the server count in
+ *  create-listing-payment-intent. */
+export async function getSellerSoldCountThisMonth(sellerId: string): Promise<number> {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const { count, error } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', sellerId)
+    .eq('sold', true)
+    .in('payment_status', ['paid', 'refund_requested'])
+    .gte('purchased_at', monthStart);
   return error ? 0 : (count ?? 0);
 }
 

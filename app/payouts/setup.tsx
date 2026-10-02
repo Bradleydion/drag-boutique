@@ -16,9 +16,9 @@ import {
 } from '../../lib/payoutStore';
 import { getRole } from '../../lib/userStore';
 import { getSession } from '../../lib/authStore';
-import { getHostEventCount } from '../../lib/eventsStore';
-import { getSellerSoldCount } from '../../lib/marketplaceStore';
-import { feePercentForVolume, nextTier } from '../../lib/feeTiers';
+import { getHostTicketsSoldThisMonth } from '../../lib/eventsStore';
+import { getSellerSoldCountThisMonth } from '../../lib/marketplaceStore';
+import { feeLabel, nextTier, serviceFee, tierForVolume } from '../../lib/feeTiers';
 import { colors } from '../../src/theme/colors';
 
 export default function PayoutSetupScreen() {
@@ -36,8 +36,8 @@ export default function PayoutSetupScreen() {
       const volumePromise = !userId
         ? Promise.resolve(0)
         : role === 'host'
-        ? getHostEventCount(userId)
-        : getSellerSoldCount(userId);
+        ? getHostTicketsSoldThisMonth(userId)
+        : getSellerSoldCountThisMonth(userId);
 
       Promise.all([loadPayoutAccount(), volumePromise]).then(([, vol]) => {
         if (!cancelled) {
@@ -77,7 +77,7 @@ export default function PayoutSetupScreen() {
     : 'pending';
 
   const roleContext = role === 'host'
-    ? 'ticket sale payouts (after Sequins’ service fee)'
+    ? 'ticket sale payouts (100% of your ticket price)'
     : 'commission and tip payouts';
 
   return (
@@ -159,25 +159,28 @@ export default function PayoutSetupScreen() {
                 <Text style={{ color: colors.textPrimary, fontWeight: '900', fontSize: 16, marginBottom: 4 }}>
                   📊 Your Service Fee
                 </Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 16 }}>
-                  {role === 'host' ? 'Based on shows posted' : 'Based on items/commissions sold'}
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 16, lineHeight: 17 }}>
+                  Your {role === 'host' ? 'fans pay' : 'buyers pay'} this small fee at checkout. You keep 100% of your {role === 'host' ? 'ticket' : 'item'} price, and Sequins covers all card processing. The more you sell this month, the lower it gets. Free {role === 'host' ? 'shows' : 'items'} have no fee.
                 </Text>
 
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 12 }}>
-                  <Text style={{ color: colors.teal, fontSize: 36, fontWeight: '900' }}>
-                    {(feePercentForVolume(volume) * 100).toFixed(0)}%
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 6 }}>
-                    current fee — {volume} {role === 'host' ? 'show' : 'sale'}{volume === 1 ? '' : 's'} so far
+                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
+                  {tierForVolume(volume).name}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ color: colors.teal, fontSize: 32, fontWeight: '900' }}>
+                    {feeLabel(tierForVolume(volume).percent)}
                   </Text>
                 </View>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
+                  {volume} {role === 'host' ? 'ticket' : 'sale'}{volume === 1 ? '' : 's'} sold this month · on a $15 {role === 'host' ? 'ticket' : 'item'}, the fee is ${serviceFee(15, tierForVolume(volume).percent).toFixed(2)}
+                </Text>
 
                 {(() => {
                   const next = nextTier(volume);
                   if (!next) {
                     return (
                       <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-                        🎉 You've hit our lowest rate — 4% is as low as it goes.
+                        🎉 You're an Icon! This is our lowest rate.
                       </Text>
                     );
                   }
@@ -188,8 +191,8 @@ export default function PayoutSetupScreen() {
                         <View style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: colors.teal }} />
                       </View>
                       <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-                        {next.remaining} more {role === 'host' ? 'show' : 'sale'}{next.remaining === 1 ? '' : 's'} to drop to{' '}
-                        <Text style={{ color: colors.teal, fontWeight: '700' }}>{(next.percent * 100).toFixed(0)}%</Text>
+                        {next.remaining} more {role === 'host' ? 'ticket' : 'sale'}{next.remaining === 1 ? '' : 's'} this month to reach {next.name}:{' '}
+                        <Text style={{ color: colors.teal, fontWeight: '700' }}>{feeLabel(next.percent)}</Text>
                       </Text>
                     </>
                   );

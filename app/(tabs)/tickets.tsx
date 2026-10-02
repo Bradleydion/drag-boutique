@@ -5,6 +5,7 @@ import { Alert, Image, Modal, Platform, Pressable, ScrollView, StatusBar, Text, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { isGuest } from '@/lib/authStore';
+import { keptServiceFee } from '@/lib/feeTiers';
 import { getCachedTicketEvents, getTickets, loadTickets, requestTicketRefund, saveTicketEvents, type Ticket } from '@/lib/ticketStore';
 import { fetchEventById, type EventRecord } from '@/lib/eventsStore';
 import { colors } from '../../src/theme/colors';
@@ -41,6 +42,10 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
   const shortId = ticket.id.slice(0, 8).toUpperCase();
   const qrData  = `SEQ-TICKET:${ticket.id}`;
   const refundEligible = isRefundEligible(ticket, event);
+  const feeKept = keptServiceFee(Number(ticket.price), ticket.platform_fee_percent, ticket.platform_fee_amount);
+  const refundMessage =
+    `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.` +
+    (feeKept > 0 ? `\n\nThe $${feeKept.toFixed(2)} Sequins service fee isn\u2019t refundable, so you\u2019d get back $${Number(ticket.price).toFixed(2)}.` : '');
 
   async function submitRefund(reason?: string) {
     setRequesting(true);
@@ -56,7 +61,7 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
   }
 
   async function handleRequestRefund() {
-    const msg = `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.`;
+    const msg = refundMessage;
     if (Platform.OS === 'ios') {
       // Let the fan say why, so the host isn't approving blind.
       Alert.prompt(
@@ -72,7 +77,7 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
     }
     Alert.alert(
       'Request a refund?',
-      `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.`,
+      refundMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -240,7 +245,7 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
           )}
           {ticket.payment_status === 'refunded' && (
             <View style={{ marginTop: 10, backgroundColor: colors.textMuted + '18', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: colors.textMuted }}>
-              <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>↩️ Refunded</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>↩️ Refunded{feeKept > 0 ? ` $${Number(ticket.price).toFixed(2)} · $${feeKept.toFixed(2)} service fee not refundable` : ''}</Text>
             </View>
           )}
           {refundEligible && (

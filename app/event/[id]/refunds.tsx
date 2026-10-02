@@ -44,7 +44,7 @@ export default function EventRefundsScreen() {
   async function handleApprove(ticket: Ticket) {
     Alert.alert(
       'Approve refund?',
-      `This refunds $${Number(ticket.price).toFixed(2)} to the buyer through Stripe and reverses your payout for this ticket.`,
+      `This refunds the $${Number(ticket.price).toFixed(2)} ticket price to the buyer through Stripe and takes that amount back from your payout. Sequins keeps its service fee, which the buyer paid separately.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

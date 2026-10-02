@@ -14,7 +14,7 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchEventById, rollToNextOccurrence, type EventRecord } from '../../../lib/eventsStore';
 import { isGuest } from '../../../lib/authStore';
-import { buyTicket, createPaymentIntent, hasTicket, loadTickets } from '../../../lib/ticketStore';
+import { buyTicket, createPaymentIntent, getTicketQuote, hasTicket, loadTickets, type TicketPriceBreakdown } from '../../../lib/ticketStore';
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { colors } from '../../../src/theme/colors';
@@ -37,6 +37,7 @@ export default function EventDetail() {
   const [loading,    setLoading]    = useState(true);
   const [ticketed,   setTicketed]   = useState(false);
   const [buying,     setBuying]     = useState(false);
+  const [quote,      setQuote]      = useState<TicketPriceBreakdown | null>(null);
   const [performers, setPerformers] = useState<
     { id: string; stageName: string; photoUrl?: string }[]
   >([]);
@@ -48,6 +49,11 @@ export default function EventDetail() {
       // Recurring shows display their next upcoming date (matches Discover).
       setEvent(ev ? (rollToNextOccurrence(ev) ?? ev) : null);
       setTicketed(hasTicket(id));
+
+      // Paid events: load the all-in price (ticket + service fee) up front.
+      if ((ev?.ticketing?.price ?? 0) > 0) {
+        getTicketQuote(id).then(setQuote);
+      }
 
       if (ev?.performerIds?.length) {
         const profiles = await Promise.all(
@@ -95,8 +101,10 @@ export default function EventDetail() {
 
         // 1. Create PaymentIntent via Edge Function (Stripe Connect destination
         //    charge: Sequins' service fee + the host's payout, split automatically)
-        const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } =
-          await createPaymentIntent(price, event.id, event.title);
+        //    The fan pays ticket price + service fee; the host gets the full ticket price.
+        const paid = await createPaymentIntent(event.id, event.title);
+        const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } = paid;
+        setQuote(paid);
 
         // 2. Initialise Stripe payment sheet
         const { error: initError } = await initPaymentSheet({
@@ -130,12 +138,12 @@ export default function EventDetail() {
         }
 
         // 4. Payment succeeded — record the ticket
-        await buyTicket(event.id, price, paymentIntentId, platformFeePercent, platformFeeAmount);
+        await buyTicket(event.id, paid.ticketPrice, paymentIntentId, platformFeePercent, platformFeeAmount);
         setTicketed(true);
 
         Alert.alert(
           '🎉 Ticket Confirmed!',
-          `Your $${price.toFixed(2)} ticket is confirmed. See you at the show!`,
+          `You paid $${paid.total.toFixed(2)} ($${paid.ticketPrice.toFixed(2)} ticket + $${paid.serviceFee.toFixed(2)} service fee). See you at the show!`,
           [
             { text: 'View Tickets', onPress: () => router.push('/(tabs)/tickets') },
             { text: 'Stay Here', style: 'cancel' },
@@ -314,7 +322,7 @@ export default function EventDetail() {
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 16 }}>
-                {isFree ? 'Free Event' : `$${price.toFixed(2)} / ticket`}
+                {isFree ? 'Free Event' : `$${(quote?.total ?? price).toFixed(2)} / ticket`}
               </Text>
               {ticketed && (
                 <View style={{
@@ -327,6 +335,29 @@ export default function EventDetail() {
               )}
             </View>
 
+            {!isFree && !ticketed && (
+              <View style={{ marginTop: -4, marginBottom: 14 }}>
+                {quote ? (
+                  <>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Ticket</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>${quote.ticketPrice.toFixed(2)}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Sequins service fee</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>${quote.serviceFee.toFixed(2)}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
+                      <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '800' }}>Total</Text>
+                      <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '800' }}>${quote.total.toFixed(2)}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>Plus a small Sequins service fee, shown before you pay.</Text>
+                )}
+              </View>
+            )}
+
             {ticketed ? (
               <PrimaryButton title="View My Ticket" onPress={() => router.push('/(tabs)/tickets')} />
             ) : (
@@ -336,7 +367,7 @@ export default function EventDetail() {
                     ? (isFree ? 'Reserving…' : 'Opening payment…')
                     : isFree
                     ? 'Reserve My Spot'
-                    : `Buy Ticket  ·  $${price.toFixed(2)}`
+                    : `Buy Ticket  ·  $${(quote?.total ?? price).toFixed(2)}`
                 }
                 onPress={handleBuyTicket}
               />
@@ -344,7 +375,7 @@ export default function EventDetail() {
 
             {!isFree && !ticketed && (
               <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 10, lineHeight: 18 }}>
-                Secure checkout powered by Stripe. Your card is never stored on our servers.
+                100% of the ticket price goes to the host. The service fee keeps Sequins running, covers all card processing, and isn’t refundable. Secure checkout by Stripe.
               </Text>
             )}
 

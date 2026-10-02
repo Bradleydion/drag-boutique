@@ -209,9 +209,45 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // The Sequins service fee is non-refundable (shown at checkout and in the
+    // Terms). Refund the ticket/item price only, and pull exactly that amount
+    // back from the host's or seller's payout account. Purchases made before
+    // the Oct 2026 fee model stored the full charge as `price`, so they still
+    // refund in full, as before.
+    const pi = await stripe.paymentIntents.retrieve(item.stripe_payment_intent_id, {
+      expand: ['latest_charge'],
+    });
+    const charge = pi.latest_charge as Stripe.Charge | null;
+    const priceCents = Math.round(Number(item.price ?? 0) * 100);
+    const refundableCents = charge ? charge.amount - charge.amount_refunded : priceCents;
+    const refundCents = Math.min(priceCents, refundableCents);
+    const feeKept = pi.metadata?.fee_model === '2026-10';
+    const keptFeeCents = feeKept ? Number(pi.metadata?.platform_fee_amount ?? 0) : 0;
+
+    if (refundCents <= 0) {
+      return new Response(JSON.stringify({ error: 'Nothing left to refund on this purchase.' }), {
+        status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Take the money back from the connected account first. If that fails
+    // (for example, their balance is too low), stop before refunding the buyer.
+    const transferId = typeof charge?.transfer === 'string' ? charge.transfer : charge?.transfer?.id;
+    if (transferId) {
+      const transfer = await stripe.transfers.retrieve(transferId);
+      const reverseCents = Math.min(refundCents, transfer.amount - transfer.amount_reversed);
+      if (reverseCents > 0) {
+        await stripe.transfers.createReversal(transferId, {
+          amount: reverseCents,
+          metadata: { item_type: itemType, item_id: itemId },
+        });
+      }
+    }
+
     const refund = await stripe.refunds.create({
       payment_intent: item.stripe_payment_intent_id,
-      reverse_transfer: true, // pulls the funds back from the connected account too
+      amount: refundCents,
+      metadata: { item_type: itemType, item_id: itemId, service_fee_kept_cents: String(keptFeeCents) },
     });
 
     const { error: updateError } = await supabaseAdmin
@@ -223,9 +259,9 @@ Deno.serve(async (req: Request) => {
       .eq('id', itemId);
 
     if (updateError) throw updateError;
-    await notify(buyerId, 'Refund approved', `Your ${money(item.price)} refund for ${itemTitle} is on its way. It usually lands in 5–10 business days.`, itemType === 'ticket' ? '/(tabs)/tickets' : '/(tabs)/profile');
+    await notify(buyerId, 'Refund approved', `Your ${money(refundCents / 100)} refund for ${itemTitle} is on its way. It usually lands in 5–10 business days.${keptFeeCents > 0 ? ` The ${money(keptFeeCents / 100)} Sequins service fee isn’t refundable.` : ''}`, itemType === 'ticket' ? '/(tabs)/tickets' : '/(tabs)/profile');
 
-    return new Response(JSON.stringify({ status: 'refunded', refundId: refund.id }), {
+    return new Response(JSON.stringify({ status: 'refunded', refundId: refund.id, refundAmount: refundCents / 100, serviceFeeKept: keptFeeCents / 100 }), {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (err) {

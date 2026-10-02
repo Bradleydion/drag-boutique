@@ -481,3 +481,20 @@ export async function markEventPromoted(
 
   return record;
 }
+
+/** Paid tickets sold across all of this host's events since the 1st of the
+ *  month (UTC) -- drives the ticket service fee tier. Mirrors the server
+ *  count in create-payment-intent. Hosts can read their own events' tickets. */
+export async function getHostTicketsSoldThisMonth(hostId: string): Promise<number> {
+  const { data: events, error: evErr } = await supabase.from('events').select('id').eq('host_id', hostId);
+  if (evErr || !events?.length) return 0;
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const { count, error } = await supabase
+    .from('tickets')
+    .select('id', { count: 'exact', head: true })
+    .in('event_id', events.map((e: { id: string }) => String(e.id)))
+    .in('payment_status', ['paid', 'refund_requested'])
+    .gte('purchased_at', monthStart);
+  return error ? 0 : (count ?? 0);
+}

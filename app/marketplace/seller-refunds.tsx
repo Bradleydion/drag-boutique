@@ -35,7 +35,7 @@ export default function SellerRefundsScreen() {
   async function handleApprove(listing: Listing) {
     Alert.alert(
       'Approve refund?',
-      `This refunds $${listing.price} to the buyer through Stripe and reverses your payout for this sale.`,
+      `This refunds the $${Number(listing.price).toFixed(2)} item price to the buyer through Stripe and takes that amount back from your payout. Sequins keeps its service fee, which the buyer paid separately.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

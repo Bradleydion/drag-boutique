@@ -1,6 +1,6 @@
 # Sequins Terms of Service
 
-**Last Updated: September 16, 2026**
+**Last Updated: October 2, 2026**
 
 These Terms of Service ("Terms") govern your access to and use of Sequins (the "Service"), a mobile app operated by The Bradley Project LLC ("Sequins," "we," "us," or "our") that connects drag performers, hosts/venues, and fans for event discovery, booking, and ticketing. By creating an account or using Sequins, you agree to these Terms. If you do not agree, do not use the Service.
 
@@ -54,11 +54,14 @@ All payments on Sequins — ticket purchases, marketplace and commission sales, 
 
 ### Service fee
 
-Sequins charges a service fee on **ticket sales** and **marketplace/commission sales** (items or custom work sold through a performer's marketplace listings):
+Sequins charges a service fee on **ticket sales** and **marketplace/commission sales** (items or custom work sold through a performer's marketplace listings). The buyer pays the service fee at checkout, on top of the ticket or item price:
 
-- The fee starts at **7%** of the sale price.
-- The fee scales down the more a host or seller uses Sequins — measured by shows posted (for ticket sales) or items/commissions sold (for marketplace sales) — to a floor of **4%**.
-- The exact volume thresholds for each tier are set by Sequins and may be updated from time to time; current thresholds, your tier, and your progress toward the next tier are shown in your host/seller dashboard in the app.
+- The fee is a percentage of the ticket or item price **plus $0.50**, with a **minimum of $0.99** per ticket or item. Free tickets and free items have no service fee.
+- The percentage starts at **7%** and goes down as a host or seller sells more in a calendar month — measured by paid tickets sold (for ticket sales) or paid items/commissions sold (for marketplace sales) — to a floor of **4%**.
+- The host or seller receives **100% of their ticket or item price**. Sequins pays the card processing fees out of the service fee.
+- The full price, including the service fee, is shown to the buyer before they pay.
+- **The service fee is non-refundable**, except where the law requires otherwise. If a ticket or item is refunded, the buyer gets back the ticket or item price; the service fee is not returned.
+- The exact tiers may be updated from time to time; your current tier and your progress toward the next one are shown in your host/seller dashboard in the app.
 
 **Tips are never subject to this fee.** 100% of any tip goes to the performer.
 
@@ -71,6 +74,7 @@ Sequins facilitates the transaction between the buyer and the seller (host or pe
 - When creating a ticketed event or a marketplace/commission listing, a host or performer can set a **refund window** (e.g., "refunds accepted up to 7 days before the event"). Buyers can request a refund through the app up until that window closes.
 - Alternatively, a host or performer can mark a listing **"All Sales Are Final,"** in which case no refunds are offered through the app for that listing, and this is disclosed to the buyer before purchase. If no policy is set, the listing defaults to being refundable any time before the event or before the seller fulfills the order.
 - If an event is cancelled by the host, Sequins will make a full refund request available to affected ticket holders regardless of the listing's stated refund window.
+- A refund returns the ticket or item price to the buyer, and that amount is taken back from the host's or seller's payout. The Sequins service fee is not refunded (see **Service fee** above).
 - Refund requests are reviewed and approved or denied by the host or seller in the app; Sequins does not independently arbitrate refund disputes beyond facilitating the request and the Stripe refund itself. The underlying obligation to deliver the event, item, or commission is between the buyer and the seller.
 - **Booking requests between hosts and performers** are agreements between those users. Sequins does not guarantee that a booked performer will appear, that an event will occur as listed, or the quality or safety of any event. Any dispute about a booking, cancellation, or no-show is between the parties involved.
 

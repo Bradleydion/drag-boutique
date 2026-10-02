@@ -7,6 +7,7 @@ import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { keptServiceFee } from '../../lib/feeTiers';
 import { loadMyPurchases, requestListingRefund, type Listing } from '../../lib/marketplaceStore';
 import { colors } from '../../src/theme/colors';
 
@@ -36,7 +37,10 @@ export default function MyPurchasesScreen() {
   async function handleRequestRefund(listing: Listing) {
     Alert.alert(
       'Request a refund?',
-      `This asks ${listing.sellerName} to refund your $${listing.price} purchase. They'll need to approve it.`,
+      `This asks ${listing.sellerName} to refund your $${Number(listing.price).toFixed(2)} purchase. They'll need to approve it.` +
+        (keptServiceFee(listing.price, listing.platformFeePercent, listing.platformFeeAmount) > 0
+          ? `\n\nThe $${keptServiceFee(listing.price, listing.platformFeePercent, listing.platformFeeAmount).toFixed(2)} Sequins service fee isn't refundable, so you'd get back $${Number(listing.price).toFixed(2)}.`
+          : ''),
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -121,7 +125,9 @@ export default function MyPurchasesScreen() {
                   )}
                   {listing.paymentStatus === 'refunded' && (
                     <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginTop: 6 }}>
-                      ↩️ Refunded
+                      ↩️ Refunded{keptServiceFee(listing.price, listing.platformFeePercent, listing.platformFeeAmount) > 0
+                        ? ` $${Number(listing.price).toFixed(2)} · $${keptServiceFee(listing.price, listing.platformFeePercent, listing.platformFeeAmount).toFixed(2)} service fee not refundable`
+                        : ''}
                     </Text>
                   )}
                   {isRefundEligible(listing) && (
