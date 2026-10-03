@@ -92,12 +92,15 @@ Deno.serve(async (req: Request) => {
     // The ticket price always comes from the database, never from the app.
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, host_id, ticket_price')
+      .select('id, host_id, ticket_price, cancelled_at')
       .eq('id', eventId)
       .maybeSingle();
 
     if (eventError || !event) {
       return json({ error: 'Event not found.' }, 404);
+    }
+    if (event.cancelled_at) {
+      return json({ error: 'This show has been cancelled.' }, 400);
     }
 
     const priceCents = Math.round(Number(event.ticket_price ?? 0) * 100);

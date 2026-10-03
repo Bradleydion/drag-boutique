@@ -34,6 +34,7 @@ export default function EventLayout() {
       <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
       <Stack.Screen name="gig"       options={{ title: 'My Gig' }} />
       <Stack.Screen name="invoice"   options={{ title: 'Invoice' }} />
+      <Stack.Screen name="cancel"    options={{ title: 'Cancel Show' }} />
     </Stack>
   );
 }

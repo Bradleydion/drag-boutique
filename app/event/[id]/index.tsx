@@ -51,7 +51,7 @@ export default function EventDetail() {
       setTicketed(hasTicket(id));
 
       // Paid events: load the all-in price (ticket + service fee) up front.
-      if ((ev?.ticketing?.price ?? 0) > 0) {
+      if ((ev?.ticketing?.price ?? 0) > 0 && !ev?.cancelledAt) {
         getTicketQuote(id).then(setQuote);
       }
 
@@ -312,6 +312,26 @@ export default function EventDetail() {
           )}
 
           {/* Ticket card */}
+          {event.cancelledAt ? (
+            <View style={{
+              marginTop: 28,
+              backgroundColor: colors.danger + '14',
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: colors.danger + '55',
+            }}>
+              <Text style={{ color: colors.danger, fontWeight: '900', fontSize: 16 }}>This show has been cancelled</Text>
+              {!!event.cancelReason && (
+                <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8, lineHeight: 20 }}>“{event.cancelReason}”</Text>
+              )}
+              <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 8, lineHeight: 19 }}>
+                {ticketed
+                  ? 'If you paid for a ticket, you’ve been refunded in full, service fee included.'
+                  : 'Tickets are no longer available.'}
+              </Text>
+            </View>
+          ) : (
           <View style={{
             marginTop: 28,
             backgroundColor: colors.surface,
@@ -375,7 +395,7 @@ export default function EventDetail() {
 
             {!isFree && !ticketed && (
               <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 10, lineHeight: 18 }}>
-                100% of the ticket price goes to the host. The service fee keeps Sequins running, covers all card processing, and isn’t refundable. Secure checkout by Stripe.
+                100% of the ticket price goes to the host. The service fee keeps Sequins running and covers all card processing. It isn’t refundable unless the host cancels the show. Secure checkout by Stripe.
               </Text>
             )}
 
@@ -387,6 +407,7 @@ export default function EventDetail() {
               </Text>
             )}
           </View>
+          )}
 
         </View>
       </ScrollView>

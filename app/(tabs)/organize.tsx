@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getEffectiveRole } from '../../lib/userStore';
 import TalentBookingsScreen from '../../components/TalentBookingsScreen';
-import { loadHostEvents, getHostEvents, deleteEvent, EventRecord } from '../../lib/eventsStore';
+import { loadHostEvents, getHostEvents, deleteEvent, getActiveTicketCount, EventRecord } from '../../lib/eventsStore';
 import { supabase } from '../../lib/supabase';
 import { canCreateNewEvent } from '../../lib/subscriptionStore';
 import { colors } from '../../src/theme/colors';
@@ -53,7 +53,8 @@ async function goToCreateEvent() {
 // ─── Event Card ───────────────────────────────────────────────────────────────
 
 function EventCard({ event, onDelete, pendingRefunds = 0 }: { event: EventRecord; onDelete: () => void; pendingRefunds?: number; }) {
-  const upcoming = isUpcoming(event);
+  const cancelled = !!event.cancelledAt;
+  const upcoming = isUpcoming(event) && !cancelled;
   const price = event.ticketing?.price;
 
   return (
@@ -68,14 +69,14 @@ function EventCard({ event, onDelete, pendingRefunds = 0 }: { event: EventRecord
       {/* Status badge */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
         <View style={{
-          backgroundColor: upcoming ? colors.teal + '22' : colors.border,
+          backgroundColor: cancelled ? colors.danger + '22' : upcoming ? colors.teal + '22' : colors.border,
           borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
         }}>
           <Text style={{
-            color: upcoming ? colors.teal : colors.textMuted,
+            color: cancelled ? colors.danger : upcoming ? colors.teal : colors.textMuted,
             fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6,
           }}>
-            {upcoming ? 'Upcoming' : 'Past'}
+            {cancelled ? 'Cancelled' : upcoming ? 'Upcoming' : 'Past'}
           </Text>
         </View>
         {typeof price === 'number' && (
@@ -194,6 +195,23 @@ function EventCard({ event, onDelete, pendingRefunds = 0 }: { event: EventRecord
         >
           <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }} numberOfLines={1}>View</Text>
         </Pressable>
+        {upcoming && (
+          <Pressable
+            onPress={() => router.push(`/event/${event.id}/cancel` as any)}
+            style={{
+              backgroundColor: colors.danger + '14',
+              borderRadius: 10,
+              paddingVertical: 10,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: colors.danger + '55',
+              flexGrow: 1, flexBasis: '30%',
+            }}
+            accessibilityLabel="Cancel show"
+          >
+            <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }} numberOfLines={1}>🚫 Cancel show</Text>
+          </Pressable>
+        )}
         <Pressable
           onPress={onDelete}
           style={{
@@ -245,12 +263,40 @@ export default function OrganizeTab() {
   );
 
   async function handleDelete(event: EventRecord) {
-    try {
-      await deleteEvent(event.id);
-      setEvents(getHostEvents());
-    } catch {
-      // silently ignore for now
+    // A show people hold tickets to can't just be deleted: their money (or
+    // their spot) would vanish. Upcoming shows go through Cancel Show, which
+    // refunds everyone; past shows stay for the record.
+    const holders = event.cancelledAt ? 0 : await getActiveTicketCount(event.id);
+    if (holders > 0) {
+      if (isUpcoming(event)) {
+        Alert.alert(
+          'People have tickets to this show',
+          `${holders} ${holders === 1 ? 'person has' : 'people have'} a ticket. Cancel the show instead so everyone is refunded and notified.`,
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Cancel show', style: 'destructive', onPress: () => router.push(`/event/${event.id}/cancel` as any) },
+          ],
+        );
+      } else {
+        Alert.alert('Can’t delete this show', 'People bought tickets to it, so it stays in your history.');
+      }
+      return;
     }
+    Alert.alert('Delete this event?', `“${event.title}” will be removed. This can't be undone.`, [
+      { text: 'Keep it', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteEvent(event.id);
+            setEvents(getHostEvents());
+          } catch {
+            Alert.alert('Error', 'Could not delete this event. Please try again.');
+          }
+        },
+      },
+    ]);
   }
 
   // Talent: this tab is "My Bookings" instead of "Create" (Week 2 role-aware

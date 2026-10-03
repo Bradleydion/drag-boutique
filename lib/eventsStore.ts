@@ -43,6 +43,9 @@ export type EventRecord = {
   // Refund policy — set by the host per event
   refundWindowDays?: number | null; // null/undefined = no explicit limit, refundable any time before the event
   allSalesFinal?: boolean;          // true = no refunds offered through the app for this event
+  // Cancellation — set only by the cancel-event Edge Function
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
 };
 
 // ─── Local cache ──────────────────────────────────────────────────────────────
@@ -85,6 +88,8 @@ function rowToEvent(row: Record<string, any>): EventRecord {
     promotedUntil:      row.promoted_until,
     refundWindowDays:   row.refund_window_days ?? null,
     allSalesFinal:      row.all_sales_final ?? false,
+    cancelledAt:        row.cancelled_at ?? null,
+    cancelReason:       row.cancel_reason ?? null,
   };
 }
 
@@ -176,6 +181,7 @@ export async function loadEvents(): Promise<EventRecord[]> {
   }
   return (data ?? [])
     .map(rowToEvent)
+    .filter(e => !e.cancelledAt) // cancelled shows don't appear in Discover
     .map(rollToNextOccurrence)
     .filter((e): e is EventRecord => e !== null);
 }
@@ -243,7 +249,7 @@ export async function loadPerformerEvents(performerId: string): Promise<EventRec
     console.warn('[eventsStore] loadPerformerEvents error:', error.message);
     return [];
   }
-  return (data ?? []).map(rowToEvent);
+  return (data ?? []).map(rowToEvent).filter(e => !e.cancelledAt);
 }
 
 /** Load all events belonging to the current host into the local cache. */
@@ -496,5 +502,62 @@ export async function getHostTicketsSoldThisMonth(hostId: string): Promise<numbe
     .in('event_id', events.map((e: { id: string }) => String(e.id)))
     .in('payment_status', ['paid', 'refund_requested'])
     .gte('purchased_at', monthStart);
+  return error ? 0 : (count ?? 0);
+}
+
+// ─── Cancelling a show ────────────────────────────────────────────────────────
+
+export type CancelQuote = {
+  eventTitle: string;
+  alreadyCancelled: boolean;
+  isFreeShow: boolean;
+  ticketHolders: number;
+  paidTickets: number;
+  freeTickets: number;
+  refundToFans: number;        // everything fans paid, service fees included
+  ticketSalesReturned: number; // comes back out of the host's payouts
+  serviceFeesWaived: number;   // Sequins gives its fees back to fans
+  hostStripeFees: number;      // card processing fees the host covers (estimate)
+  hostTotalCost: number;       // ticketSalesReturned + hostStripeFees
+};
+
+export type CancelResult = {
+  cancelled: boolean;
+  refundedCount: number;
+  refundedTotal: number;
+  freeHoldersNotified: number;
+  failedCount: number;
+  hostCharge: { amount: number; status: 'collected' | 'owed' | string } | null;
+};
+
+/** What cancelling this show would cost, without changing anything. */
+export async function getCancelQuote(eventId: string): Promise<CancelQuote> {
+  const { data, error } = await supabase.functions.invoke('cancel-event', {
+    body: { eventId, action: 'quote' },
+  });
+  if (error) throw new Error(error.message ?? 'Could not load the cancellation details.');
+  if (data?.error) throw new Error(data.error);
+  return data as CancelQuote;
+}
+
+/** Cancel the show: refund every fan in full and charge the host the card processing fees. */
+export async function cancelEvent(eventId: string, reason?: string): Promise<CancelResult> {
+  const { data, error } = await supabase.functions.invoke('cancel-event', {
+    body: { eventId, action: 'confirm', reason },
+  });
+  if (error) throw new Error(error.message ?? 'Could not cancel the show.');
+  if (data?.error) throw new Error(data.error);
+  const idx = _hostEvents.findIndex(e => e.id === eventId);
+  if (idx >= 0) _hostEvents[idx] = { ..._hostEvents[idx], cancelledAt: new Date().toISOString(), cancelReason: reason ?? null };
+  return data as CancelResult;
+}
+
+/** How many people hold a ticket (free or paid, not refunded) for this event. Host-only (RLS). */
+export async function getActiveTicketCount(eventId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('tickets')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .in('payment_status', ['paid', 'refund_requested', 'free']);
   return error ? 0 : (count ?? 0);
 }

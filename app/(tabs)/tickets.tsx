@@ -14,6 +14,7 @@ import { colors } from '../../src/theme/colors';
 function isRefundEligible(ticket: Ticket, event: EventRecord | null): boolean {
   if (ticket.payment_status !== 'paid') return false;
   if (!event) return false;
+  if (event.cancelledAt) return false; // cancelled shows are refunded automatically
   if (event.allSalesFinal) return false;
   if (event.refundWindowDays == null) return true; // no explicit limit -> refundable any time before the event
   if (!event.datetimeStart) return true;
@@ -42,6 +43,7 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
   const shortId = ticket.id.slice(0, 8).toUpperCase();
   const qrData  = `SEQ-TICKET:${ticket.id}`;
   const refundEligible = isRefundEligible(ticket, event);
+  const refundedForCancel = ticket.payment_status === 'refunded' && ticket.refund_reason === 'Show cancelled by host';
   const feeKept = keptServiceFee(Number(ticket.price), ticket.platform_fee_percent, ticket.platform_fee_amount);
   const refundMessage =
     `This asks ${event?.hostName ?? 'the host'} to refund your $${Number(ticket.price).toFixed(2)} ticket. They\u2019ll need to approve it.` +
@@ -243,7 +245,16 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
               <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '700' }}>⏳ Refund requested — awaiting host approval</Text>
             </View>
           )}
-          {ticket.payment_status === 'refunded' && (
+          {event?.cancelledAt && (
+            <View style={{ marginTop: 10, backgroundColor: colors.danger + '14', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: colors.danger + '55' }}>
+              <Text style={{ color: colors.danger, fontSize: 12, fontWeight: '700' }}>
+                🚫 Show cancelled{refundedForCancel
+                  ? ` · refunded in full ($${(Number(ticket.price) + feeKept).toFixed(2)})`
+                  : ticket.payment_status === 'paid' || ticket.payment_status === 'refund_requested' ? ' · your full refund is on its way' : ''}
+              </Text>
+            </View>
+          )}
+          {ticket.payment_status === 'refunded' && !refundedForCancel && (
             <View style={{ marginTop: 10, backgroundColor: colors.textMuted + '18', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: colors.textMuted }}>
               <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>↩️ Refunded{feeKept > 0 ? ` $${Number(ticket.price).toFixed(2)} · $${feeKept.toFixed(2)} service fee not refundable` : ''}</Text>
             </View>
