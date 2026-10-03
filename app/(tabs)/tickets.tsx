@@ -7,7 +7,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { isGuest } from '@/lib/authStore';
 import { keptServiceFee } from '@/lib/feeTiers';
 import { getCachedTicketEvents, getTickets, loadTickets, requestTicketRefund, saveTicketEvents, type Ticket } from '@/lib/ticketStore';
-import { fetchEventById, type EventRecord } from '@/lib/eventsStore';
+import { fetchEventById, isOccurrenceCancelled, type EventRecord } from '@/lib/eventsStore';
 import { colors } from '../../src/theme/colors';
 
 /** Whether a paid ticket is still within its event's refund window (or has no limit set). */
@@ -15,10 +15,12 @@ function isRefundEligible(ticket: Ticket, event: EventRecord | null): boolean {
   if (ticket.payment_status !== 'paid') return false;
   if (!event) return false;
   if (event.cancelledAt) return false; // cancelled shows are refunded automatically
+  if (isOccurrenceCancelled(event, ticket.occurrence_start)) return false;
   if (event.allSalesFinal) return false;
   if (event.refundWindowDays == null) return true; // no explicit limit -> refundable any time before the event
-  if (!event.datetimeStart) return true;
-  const deadline = new Date(event.datetimeStart);
+  const start = ticket.occurrence_start ?? event.datetimeStart; // the ticket's own date for recurring shows
+  if (!start) return true;
+  const deadline = new Date(start);
   deadline.setDate(deadline.getDate() - event.refundWindowDays);
   return new Date() <= deadline;
 }
@@ -28,7 +30,8 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
   const [requesting, setRequesting] = useState(false);
 
   const title     = event?.title      ?? 'Loading…';
-  const dateStart = event?.datetimeStart;
+  const dateStart = ticket.occurrence_start ?? event?.datetimeStart; // the ticket's own date for recurring shows
+  const showCancelled = !!event?.cancelledAt || (!!event && isOccurrenceCancelled(event, ticket.occurrence_start));
   const venueName = event?.venue?.name;
   const venueCity = event?.venue?.city;
   const imageUrl  = event?.imageUrl;
@@ -245,7 +248,7 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
               <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '700' }}>⏳ Refund requested — awaiting host approval</Text>
             </View>
           )}
-          {event?.cancelledAt && (
+          {(showCancelled || refundedForCancel) && (
             <View style={{ marginTop: 10, backgroundColor: colors.danger + '14', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: colors.danger + '55' }}>
               <Text style={{ color: colors.danger, fontSize: 12, fontWeight: '700' }}>
                 🚫 Show cancelled{refundedForCancel

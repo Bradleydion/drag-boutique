@@ -22,6 +22,7 @@ export type Ticket = {
   id: string;
   user_id: string;
   event_id: string;
+  occurrence_start?: string | null; // which date of the show (recurring shows)
   price: number;
   purchased_at: string;
   checked_in_at?: string | null;
@@ -99,8 +100,19 @@ function persistTickets() {
 // ─── Reads ────────────────────────────────────────────────────────────────────
 
 export function getTickets(): Ticket[] { return _tickets; }
-export function hasTicket(eventId: string): boolean {
-  return _tickets.some(t => t.event_id === eventId);
+const sameMoment = (a: string, b: string) => Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
+
+/** Does the user hold a ticket to this show (and, if given, this date of it)?
+ *  Older tickets with no date count for any date. */
+export function findTicket(eventId: string, occurrenceStart?: string | null): Ticket | undefined {
+  return _tickets.find(t =>
+    t.event_id === eventId &&
+    (!occurrenceStart || !t.occurrence_start || sameMoment(t.occurrence_start, occurrenceStart)),
+  );
+}
+
+export function hasTicket(eventId: string, occurrenceStart?: string | null): boolean {
+  return !!findTicket(eventId, occurrenceStart);
 }
 export function ticketsLoaded(): boolean { return _loaded; }
 
@@ -131,10 +143,10 @@ function toBreakdown(data: any): TicketPriceBreakdown {
  * service fee = total. Used to show the all-in price on the event page
  * before checkout. Returns null if the quote can't be loaded.
  */
-export async function getTicketQuote(eventId: string): Promise<TicketPriceBreakdown | null> {
+export async function getTicketQuote(eventId: string, occurrenceStart?: string): Promise<TicketPriceBreakdown | null> {
   try {
     const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-      body: { eventId, quoteOnly: true },
+      body: { eventId, quoteOnly: true, occurrenceStart },
     });
     if (error || !data || data.error) return null;
     return toBreakdown(data);
@@ -154,12 +166,13 @@ export async function getTicketQuote(eventId: string): Promise<TicketPriceBreakd
 export async function createPaymentIntent(
   eventId: string,
   eventTitle: string,
+  occurrenceStart?: string,
 ): Promise<TicketPriceBreakdown & { clientSecret: string; paymentIntentId: string }> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to purchase tickets.');
 
   const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-    body: { eventId, eventTitle },
+    body: { eventId, eventTitle, occurrenceStart },
   });
 
   if (error) throw new Error(error.message ?? 'Could not initialise payment.');
@@ -187,11 +200,12 @@ export async function buyTicket(
   paymentIntentId?: string,
   platformFeePercent?: number,
   platformFeeAmount?: number,
+  occurrenceStart?: string,
 ): Promise<Ticket> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to buy tickets.');
 
-  const existing = _tickets.find(t => t.event_id === eventId);
+  const existing = findTicket(eventId, occurrenceStart);
   if (existing) return existing;
 
   const payment_status: PaymentStatus = price === 0 ? 'free' : 'paid';
@@ -206,6 +220,7 @@ export async function buyTicket(
       stripe_payment_intent_id: paymentIntentId ?? null,
       platform_fee_percent: platformFeePercent ?? null,
       platform_fee_amount: platformFeeAmount ?? null,
+      occurrence_start: occurrenceStart ?? null,
     })
     .select()
     .single();
@@ -214,7 +229,7 @@ export async function buyTicket(
     // Handle duplicate (race condition)
     if (error.code === '23505') {
       await loadTickets();
-      const found = _tickets.find(t => t.event_id === eventId);
+      const found = findTicket(eventId, occurrenceStart);
       if (found) return found;
     }
     throw error;

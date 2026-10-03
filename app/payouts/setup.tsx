@@ -16,7 +16,7 @@ import {
 } from '../../lib/payoutStore';
 import { getRole } from '../../lib/userStore';
 import { getSession } from '../../lib/authStore';
-import { getHostTicketsSoldThisMonth } from '../../lib/eventsStore';
+import { getHostBalanceOwed, getHostTicketsSoldThisMonth } from '../../lib/eventsStore';
 import { getSellerSoldCountThisMonth } from '../../lib/marketplaceStore';
 import { feeLabel, nextTier, serviceFee, tierForVolume } from '../../lib/feeTiers';
 import { colors } from '../../src/theme/colors';
@@ -26,6 +26,7 @@ export default function PayoutSetupScreen() {
   const [loading, setLoading] = useState(!payoutAccountLoaded());
   const [starting, setStarting] = useState(false);
   const [volume, setVolume] = useState<number | null>(null);
+  const [owed, setOwed] = useState(0);
   const role = getRole();
 
   useFocusEffect(
@@ -39,6 +40,7 @@ export default function PayoutSetupScreen() {
         ? getHostTicketsSoldThisMonth(userId)
         : getSellerSoldCountThisMonth(userId);
 
+      if (userId && role === 'host') getHostBalanceOwed(userId).then(v => { if (!cancelled) setOwed(v); });
       Promise.all([loadPayoutAccount(), volumePromise]).then(([, vol]) => {
         if (!cancelled) {
           setAccount(getPayoutAccount());
@@ -143,6 +145,17 @@ export default function PayoutSetupScreen() {
             <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 16, lineHeight: 18 }}>
               Payouts and identity verification are handled entirely by Stripe. Sequins never sees or stores your bank account number.
             </Text>
+
+            {/* ── Balance owed from cancelled shows ───────────────────────── */}
+            {owed > 0 && (
+              <View style={{ backgroundColor: colors.warning + '14', borderRadius: 18, padding: 20, borderWidth: 1, borderColor: colors.warning + '66', marginTop: 24 }}>
+                <Text style={{ color: colors.textPrimary, fontWeight: '900', fontSize: 16 }}>Balance from a cancelled show</Text>
+                <Text style={{ color: colors.warning, fontSize: 30, fontWeight: '900', marginTop: 6 }}>${owed.toFixed(2)}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 6, lineHeight: 19 }}>
+                  These are the card processing fees from a show you cancelled. They'll come out of your next ticket sales automatically. Your fans' prices don't change.
+                </Text>
+              </View>
+            )}
 
             {/* ── Fee tier dashboard ─────────────────────────────────────── */}
             {volume != null && (role === 'host' || role === 'artist') && (

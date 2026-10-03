@@ -46,13 +46,15 @@ export default function EventDetail() {
     if (!id) return;
     (async () => {
       const [ev] = await Promise.all([fetchEventById(id), loadTickets()]);
-      // Recurring shows display their next upcoming date (matches Discover).
-      setEvent(ev ? (rollToNextOccurrence(ev) ?? ev) : null);
-      setTicketed(hasTicket(id));
+      // Recurring shows display their next upcoming date (matches Discover),
+      // skipping any date the host cancelled.
+      const shown = ev ? (rollToNextOccurrence(ev) ?? ev) : null;
+      setEvent(shown);
+      setTicketed(hasTicket(id, shown?.datetimeStart));
 
       // Paid events: load the all-in price (ticket + service fee) up front.
       if ((ev?.ticketing?.price ?? 0) > 0 && !ev?.cancelledAt) {
-        getTicketQuote(id).then(setQuote);
+        getTicketQuote(id, shown?.datetimeStart).then(setQuote);
       }
 
       if (ev?.performerIds?.length) {
@@ -86,7 +88,7 @@ export default function EventDetail() {
     try {
       if (price === 0) {
         // ── Free ticket: skip Stripe entirely ───────────────────────────────
-        await buyTicket(event.id, 0);
+        await buyTicket(event.id, 0, undefined, undefined, undefined, event.datetimeStart);
         setTicketed(true);
         Alert.alert(
           '🎉 You\'re in!',
@@ -102,7 +104,7 @@ export default function EventDetail() {
         // 1. Create PaymentIntent via Edge Function (Stripe Connect destination
         //    charge: Sequins' service fee + the host's payout, split automatically)
         //    The fan pays ticket price + service fee; the host gets the full ticket price.
-        const paid = await createPaymentIntent(event.id, event.title);
+        const paid = await createPaymentIntent(event.id, event.title, event.datetimeStart);
         const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } = paid;
         setQuote(paid);
 
@@ -138,7 +140,7 @@ export default function EventDetail() {
         }
 
         // 4. Payment succeeded — record the ticket
-        await buyTicket(event.id, paid.ticketPrice, paymentIntentId, platformFeePercent, platformFeeAmount);
+        await buyTicket(event.id, paid.ticketPrice, paymentIntentId, platformFeePercent, platformFeeAmount, event.datetimeStart);
         setTicketed(true);
 
         Alert.alert(

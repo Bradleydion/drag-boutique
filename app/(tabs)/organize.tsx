@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getEffectiveRole } from '../../lib/userStore';
 import TalentBookingsScreen from '../../components/TalentBookingsScreen';
-import { loadHostEvents, getHostEvents, deleteEvent, getActiveTicketCount, EventRecord } from '../../lib/eventsStore';
+import { loadHostEvents, getHostEvents, deleteEvent, getActiveTicketCount, rollToNextOccurrence, EventRecord } from '../../lib/eventsStore';
 import { supabase } from '../../lib/supabase';
 import { canCreateNewEvent } from '../../lib/subscriptionStore';
 import { colors } from '../../src/theme/colors';
@@ -31,6 +31,7 @@ function formatDate(iso?: string) {
 
 function isUpcoming(e: EventRecord) {
   if (!e.datetimeStart) return true;
+  if (e.isRecurring) return rollToNextOccurrence(e) !== null; // series still has dates ahead
   return new Date(e.datetimeStart) >= new Date();
 }
 

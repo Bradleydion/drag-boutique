@@ -1,4 +1,4 @@
--- Host-cancelled shows (Oct 2026).
+-- Host-cancelled shows (Oct 2026). Applied to production 2026-10-02.
 -- Cancelling goes through the cancel-event Edge Function, which refunds every
 -- fan in full and charges the host the Stripe processing fees on those sales.
 
@@ -22,8 +22,7 @@ begin
 end;
 $$;
 
-drop trigger if exists events_guard_cancelled_at on public.events;
-create trigger events_guard_cancelled_at
+create or replace trigger events_guard_cancelled_at
   before update on public.events
   for each row execute function public.events_guard_cancelled_at();
 
@@ -45,8 +44,7 @@ begin
 end;
 $$;
 
-drop trigger if exists tickets_block_cancelled_event on public.tickets;
-create trigger tickets_block_cancelled_event
+create or replace trigger tickets_block_cancelled_event
   before insert on public.tickets
   for each row execute function public.tickets_block_cancelled_event();
 
@@ -68,7 +66,11 @@ create table if not exists public.host_charges (
 
 alter table public.host_charges enable row level security;
 
-drop policy if exists "hosts read own charges" on public.host_charges;
-create policy "hosts read own charges" on public.host_charges
-  for select using ((auth.uid())::text = host_id);
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'host_charges' and policyname = 'hosts read own charges') then
+    create policy "hosts read own charges" on public.host_charges
+      for select using ((auth.uid())::text = host_id);
+  end if;
+end $$;
 -- No insert/update policies: only the server writes these rows.

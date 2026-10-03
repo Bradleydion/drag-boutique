@@ -8,7 +8,7 @@
 
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { AccessRestricted } from '../../../components/AccessRestricted';
@@ -17,7 +17,9 @@ import {
   cancelEvent,
   fetchEventById,
   getCancelQuote,
+  upcomingOccurrences,
   type CancelQuote,
+  type CancelTarget,
   type CancelResult,
   type EventRecord,
 } from '../../../lib/eventsStore';
@@ -51,21 +53,44 @@ export default function CancelShowScreen() {
   const [reason, setReason] = useState('');
   const [working, setWorking] = useState(false);
   const [result, setResult] = useState<CancelResult | null>(null);
+  // Recurring shows: cancel one date ('date') or the whole series ('series').
+  const [occurrences, setOccurrences] = useState<string[]>([]);
+  const [mode, setMode] = useState<'date' | 'series'>('series');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  const target: CancelTarget = mode === 'date' && selectedDate
+    ? { occurrenceStart: selectedDate, includeUndated: selectedDate === occurrences[0] }
+    : {};
+
+  // Load the show once.
   useEffect(() => {
     if (!id) return;
     (async () => {
-      try {
-        const [ev, q] = await Promise.all([fetchEventById(id), getCancelQuote(id)]);
-        setEvent(ev);
-        setQuote(q);
-      } catch (e) {
-        setLoadError(e instanceof Error ? e.message : 'Could not load this show.');
-      } finally {
-        setLoading(false);
+      const ev = await fetchEventById(id);
+      setEvent(ev);
+      if (ev?.isRecurring) {
+        const dates = upcomingOccurrences(ev, 8);
+        setOccurrences(dates);
+        if (dates.length) { setMode('date'); setSelectedDate(dates[0]); }
       }
+      if (!ev) { setLoadError('Show not found.'); setLoading(false); }
     })();
   }, [id]);
+
+  // (Re)load the cost breakdown whenever the choice changes.
+  useEffect(() => {
+    if (!id || !event) return;
+    let stale = false;
+    setLoading(true);
+    getCancelQuote(id, target)
+      .then(q => { if (!stale) { setQuote(q); setLoadError(null); } })
+      .catch(e => { if (!stale) setLoadError(e instanceof Error ? e.message : 'Could not load this show.'); })
+      .finally(() => { if (!stale) setLoading(false); });
+    return () => { stale = true; };
+  }, [id, event, mode, selectedDate]);
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   const isHost = event?.hostId === getSession()?.user?.id;
   if (!loading && event && !isHost) {
@@ -74,10 +99,11 @@ export default function CancelShowScreen() {
 
   function confirm() {
     if (!quote || !id) return;
+    const what = quote.singleDate && quote.dateLabel ? `the ${quote.dateLabel} show` : 'this show';
     const body = quote.isFreeShow
-      ? `${quote.ticketHolders} ${quote.ticketHolders === 1 ? 'person' : 'people'} will be told the show is cancelled. This can't be undone.`
+      ? `${what[0].toUpperCase()}${what.slice(1)} will be cancelled and ${quote.ticketHolders} ${quote.ticketHolders === 1 ? 'person' : 'people'} will be told. This can't be undone.`
       : `${quote.paidTickets} ${quote.paidTickets === 1 ? 'fan' : 'fans'} will be refunded ${$(quote.refundToFans)} in total, and you'll be charged about ${$(quote.hostStripeFees)} in card processing fees. This can't be undone.`;
-    Alert.alert('Cancel this show?', body, [
+    Alert.alert(quote.singleDate ? 'Cancel this date?' : 'Cancel this show?', body, [
       { text: 'Keep the show', style: 'cancel' },
       {
         text: 'Cancel show',
@@ -85,7 +111,7 @@ export default function CancelShowScreen() {
         onPress: async () => {
           setWorking(true);
           try {
-            setResult(await cancelEvent(id, reason.trim() || undefined));
+            setResult(await cancelEvent(id, reason.trim() || undefined, target));
           } catch (e) {
             Alert.alert('Something went wrong', e instanceof Error ? e.message : 'Could not cancel the show. Please try again.');
           } finally {
@@ -100,15 +126,17 @@ export default function CancelShowScreen() {
     <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen options={{ title: 'Cancel Show' }} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
-        {loading ? (
+        {loading && !quote ? (
           <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
         ) : loadError || !quote ? (
           <Text style={{ color: colors.danger, marginTop: 20 }}>{loadError ?? 'Could not load this show.'}</Text>
         ) : result ? (
           // ── Done ──────────────────────────────────────────────────────────
           <>
-            <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '900' }}>Show cancelled</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 6, lineHeight: 20 }}>{quote.eventTitle}</Text>
+            <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '900' }}>{quote.singleDate ? 'Date cancelled' : 'Show cancelled'}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 6, lineHeight: 20 }}>
+              {quote.eventTitle}{quote.singleDate && quote.dateLabel ? ` · ${quote.dateLabel}` : ''}
+            </Text>
             <Card>
               {result.refundedCount > 0 && (
                 <Row label={`${result.refundedCount} ${result.refundedCount === 1 ? 'fan' : 'fans'} refunded in full`} value={$(result.refundedTotal)} />
@@ -131,7 +159,7 @@ export default function CancelShowScreen() {
             </Card>
             {result.hostCharge?.status === 'owed' && (
               <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 12, lineHeight: 19 }}>
-                We couldn't take this from your Stripe balance right now, so it's been noted on your account. We'll be in touch about settling it.
+                Your Stripe balance didn't have enough to cover this right now, so it will come out of your next ticket sales until it's paid. You can see what's left on your Payouts screen.
               </Text>
             )}
             {result.failedCount > 0 && (
@@ -150,9 +178,56 @@ export default function CancelShowScreen() {
           <>
             <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '900' }}>Cancel “{quote.eventTitle}”?</Text>
 
+            {event?.isRecurring && occurrences.length > 0 && (
+              <Card>
+                <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginBottom: 10 }}>What are you cancelling?</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: mode === 'date' ? 12 : 0 }}>
+                  {(['date', 'series'] as const).map(m => (
+                    <Pressable
+                      key={m}
+                      onPress={() => { setMode(m); if (m === 'date' && !selectedDate) setSelectedDate(occurrences[0]); }}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+                        backgroundColor: mode === m ? colors.teal + '22' : colors.background,
+                        borderWidth: 1, borderColor: mode === m ? colors.teal : colors.border,
+                      }}
+                    >
+                      <Text style={{ color: mode === m ? colors.teal : colors.textSecondary, fontWeight: '700' }}>
+                        {m === 'date' ? 'Just one night' : 'The whole series'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {mode === 'date' && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {occurrences.map(d => (
+                      <Pressable
+                        key={d}
+                        onPress={() => setSelectedDate(d)}
+                        style={{
+                          paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999,
+                          backgroundColor: selectedDate === d ? colors.coral : colors.background,
+                          borderWidth: 1, borderColor: selectedDate === d ? colors.coral : colors.border,
+                        }}
+                      >
+                        <Text style={{ color: selectedDate === d ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '700' }}>{fmtDate(d)}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 10, lineHeight: 17 }}>
+                  {mode === 'date'
+                    ? 'Only that night is cancelled. The rest of the series stays on sale.'
+                    : 'Every upcoming date is cancelled and the show comes off Sequins.'}
+                </Text>
+              </Card>
+            )}
+
             {quote.isFreeShow ? (
               <Card>
-                <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '800' }}>This is a free show, so no money changes hands.</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '800' }}>
+                  {(event?.ticketing?.price ?? 0) > 0 ? 'No paid tickets yet, so no money changes hands.' : 'This is a free show, so no money changes hands.'}
+                </Text>
                 <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8, lineHeight: 20 }}>
                   {quote.ticketHolders > 0
                     ? `We'll let the ${quote.ticketHolders} ${quote.ticketHolders === 1 ? 'person' : 'people'} who reserved a spot know it's cancelled.`
@@ -203,7 +278,7 @@ export default function CancelShowScreen() {
 
             <View style={{ marginTop: 24, gap: 12 }}>
               <PrimaryButton
-                title={working ? 'Cancelling…' : quote.isFreeShow ? 'Cancel show' : `Cancel show and refund ${quote.paidTickets} ${quote.paidTickets === 1 ? 'fan' : 'fans'}`}
+                title={working ? 'Cancelling…' : `${quote.singleDate ? 'Cancel this date' : 'Cancel show'}${quote.isFreeShow || quote.paidTickets === 0 ? '' : ` and refund ${quote.paidTickets} ${quote.paidTickets === 1 ? 'fan' : 'fans'}`}`}
                 variant="danger"
                 onPress={working ? () => {} : confirm}
               />

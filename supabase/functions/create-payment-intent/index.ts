@@ -66,6 +66,55 @@ async function hostTicketsThisMonth(hostId: string): Promise<number> {
   return count ?? 0;
 }
 
+// ── Balance a host owes Sequins (from cancelled shows) ───────────────────────
+// If taking it from their Stripe balance didn't work, it comes out of their
+// next ticket sales: up to the full ticket price per sale is kept by Sequins
+// until the balance is paid. The fan's price never changes.
+
+/** Settle pending collections (payment finished or abandoned), then return what's still owed, in cents. */
+async function hostOutstandingCents(hostId: string): Promise<number> {
+  const { data: pending } = await supabaseAdmin
+    .from('host_charge_collections')
+    .select('id, payment_intent_id, created_at')
+    .eq('host_id', hostId)
+    .eq('status', 'pending');
+  for (const c of pending ?? []) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(c.payment_intent_id);
+      let status: string | null = null;
+      if (pi.status === 'succeeded') status = 'collected';
+      else if (pi.status === 'canceled') status = 'released';
+      else if (Date.now() - new Date(c.created_at).getTime() > 60 * 60 * 1000) status = 'released'; // abandoned checkout
+      if (status) await supabaseAdmin.from('host_charge_collections').update({ status }).eq('id', c.id);
+    } catch (e) {
+      console.warn('collection reconcile failed', c.payment_intent_id, e);
+    }
+  }
+
+  const [{ data: charges }, { data: collections }] = await Promise.all([
+    supabaseAdmin.from('host_charges').select('id, amount').eq('host_id', hostId).eq('status', 'owed'),
+    supabaseAdmin.from('host_charge_collections').select('amount, status').eq('host_id', hostId).in('status', ['pending', 'collected']),
+  ]);
+  const owedCents = (charges ?? []).reduce((sum: number, c: { amount: number }) => sum + Math.round(Number(c.amount) * 100), 0);
+  if (owedCents === 0) return 0;
+  const collectedCents = (collections ?? [])
+    .filter((c: { status: string }) => c.status === 'collected')
+    .reduce((sum: number, c: { amount: number }) => sum + Math.round(Number(c.amount) * 100), 0);
+  const pendingCents = (collections ?? [])
+    .filter((c: { status: string }) => c.status === 'pending')
+    .reduce((sum: number, c: { amount: number }) => sum + Math.round(Number(c.amount) * 100), 0);
+
+  if (collectedCents >= owedCents) {
+    // Paid off: close out the charges.
+    await supabaseAdmin.from('host_charges').update({ status: 'collected' }).eq('host_id', hostId).eq('status', 'owed');
+    return 0;
+  }
+  return Math.max(0, owedCents - collectedCents - pendingCents);
+}
+
+const sameMoment = (a: string | Date, b: string | Date) =>
+  Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors });
@@ -74,7 +123,8 @@ Deno.serve(async (req: Request) => {
   try {
     // quoteOnly: return the price breakdown without creating a payment, so the
     // event page can show the all-in total up front.
-    const { eventId, eventTitle, quoteOnly } = await req.json();
+    // occurrenceStart: which date of the show this ticket is for (recurring shows).
+    const { eventId, eventTitle, quoteOnly, occurrenceStart } = await req.json();
 
     if (!eventId || typeof eventId !== 'string') {
       return json({ error: 'eventId is required' }, 400);
@@ -92,7 +142,7 @@ Deno.serve(async (req: Request) => {
     // The ticket price always comes from the database, never from the app.
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, host_id, ticket_price, cancelled_at')
+      .select('id, host_id, ticket_price, cancelled_at, cancelled_occurrences')
       .eq('id', eventId)
       .maybeSingle();
 
@@ -101,6 +151,9 @@ Deno.serve(async (req: Request) => {
     }
     if (event.cancelled_at) {
       return json({ error: 'This show has been cancelled.' }, 400);
+    }
+    if (occurrenceStart && (event.cancelled_occurrences ?? []).some((c: string) => sameMoment(c, occurrenceStart))) {
+      return json({ error: 'This date of the show has been cancelled.' }, 400);
     }
 
     const priceCents = Math.round(Number(event.ticket_price ?? 0) * 100);
@@ -136,13 +189,18 @@ Deno.serve(async (req: Request) => {
       }, 400);
     }
 
+    // If the host owes Sequins from a cancelled show, keep up to this
+    // ticket's price toward that balance.
+    const owedCollectCents = Math.min(await hostOutstandingCents(event.host_id), priceCents);
+
     // Destination charge: the fan pays ticket + fee, the host's account gets
-    // the ticket price, and Sequins keeps the service fee.
+    // the ticket price (minus any balance being collected), and Sequins keeps
+    // the service fee.
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: feeCents,
+      application_fee_amount: feeCents + owedCollectCents,
       transfer_data: {
         destination: payoutAccount.stripe_account_id,
       },
@@ -156,8 +214,19 @@ Deno.serve(async (req: Request) => {
         platform_fee_amount: String(feeCents),
         fee_tier: tier.name,
         fee_model: '2026-10',
+        occurrence_start: occurrenceStart ?? '',
+        owed_collected_cents: String(owedCollectCents),
       },
     });
+
+    if (owedCollectCents > 0) {
+      await supabaseAdmin.from('host_charge_collections').insert({
+        host_id: event.host_id,
+        payment_intent_id: paymentIntent.id,
+        amount: owedCollectCents / 100,
+        status: 'pending',
+      });
+    }
 
     return json({
       ...breakdown,

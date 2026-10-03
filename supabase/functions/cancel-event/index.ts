@@ -2,7 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@16';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-// Host cancels a show.
+// Host cancels a show, or one date of a recurring show.
 //   action 'quote'   → what cancelling would cost, without changing anything
 //   action 'confirm' → cancel the show, refund every fan in full (ticket price
 //                      AND service fee), and charge the host the Stripe card
@@ -11,6 +11,10 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Free shows: the show is marked cancelled and ticket holders are told. No
 // money moves.
 // Safe to run 'confirm' again: tickets already refunded are skipped.
+// One date of a recurring show: pass occurrenceStart (the date's start time).
+// Tickets bought before tickets carried a date have no occurrence_start; the
+// app sends includeUndated=true when the date being cancelled is the next one,
+// so those tickets are refunded with it.
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2024-06-20',
@@ -36,8 +40,12 @@ const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const estimateStripeFeeCents = (amountCents: number) =>
   amountCents > 0 ? Math.round(amountCents * 0.029) + 30 : 0;
 
+const sameMoment = (a: string | Date, b: string | Date) =>
+  Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
+
 type TicketRow = {
   id: string;
+  occurrence_start: string | null;
   user_id: string;
   price: number | null;
   payment_status: string;
@@ -76,8 +84,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { eventId, action, reason } = await req.json() as {
+    const { eventId, action, reason, occurrenceStart, includeUndated } = await req.json() as {
       eventId?: string; action?: 'quote' | 'confirm'; reason?: string;
+      occurrenceStart?: string; includeUndated?: boolean;
     };
     if (!eventId || (action !== 'quote' && action !== 'confirm')) {
       return json({ error: 'eventId and action (quote or confirm) are required.' }, 400);
@@ -90,7 +99,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: event } = await supabaseAdmin
       .from('events')
-      .select('id, host_id, title, ticket_price, cancelled_at')
+      .select('id, host_id, title, ticket_price, cancelled_at, cancelled_occurrences, is_recurring, timezone')
       .eq('id', eventId)
       .maybeSingle();
     if (!event) return json({ error: 'Event not found.' }, 404);
@@ -98,12 +107,27 @@ Deno.serve(async (req: Request) => {
 
     const { data: rows, error: ticketsError } = await supabaseAdmin
       .from('tickets')
-      .select('id, user_id, price, payment_status, stripe_payment_intent_id, platform_fee_percent, platform_fee_amount')
+      .select('id, user_id, occurrence_start, price, payment_status, stripe_payment_intent_id, platform_fee_percent, platform_fee_amount')
       .eq('event_id', String(eventId))
       .in('payment_status', ['paid', 'refund_requested', 'free']);
     if (ticketsError) throw ticketsError;
 
-    const tickets = (rows ?? []) as TicketRow[];
+    const singleDate = !!occurrenceStart;
+    const tickets = ((rows ?? []) as TicketRow[]).filter(t =>
+      !singleDate
+        ? true
+        : t.occurrence_start
+          ? sameMoment(t.occurrence_start, occurrenceStart!)
+          : !!includeUndated,
+    );
+    const dateLabel = singleDate
+      ? new Date(occurrenceStart!).toLocaleString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+          timeZone: event.timezone || 'America/Los_Angeles',
+        })
+      : null;
+    const dateAlreadyCancelled = singleDate &&
+      (event.cancelled_occurrences ?? []).some((c: string) => sameMoment(c, occurrenceStart!));
     const paid = tickets.filter(t => t.payment_status !== 'free' && t.stripe_payment_intent_id && Number(t.price ?? 0) > 0);
     const free = tickets.filter(t => !paid.includes(t));
 
@@ -118,7 +142,9 @@ Deno.serve(async (req: Request) => {
     }
     const quote = {
       eventTitle: event.title,
-      alreadyCancelled: !!event.cancelled_at,
+      alreadyCancelled: singleDate ? dateAlreadyCancelled || !!event.cancelled_at : !!event.cancelled_at,
+      singleDate,
+      dateLabel,
       isFreeShow: paid.length === 0,
       ticketHolders: tickets.length,
       paidTickets: paid.length,
@@ -132,7 +158,15 @@ Deno.serve(async (req: Request) => {
     if (action === 'quote') return json(quote);
 
     // ── Confirm ──────────────────────────────────────────────────────────────
-    if (!event.cancelled_at) {
+    if (singleDate) {
+      if (!dateAlreadyCancelled) {
+        const { error: cancelError } = await supabaseAdmin
+          .from('events')
+          .update({ cancelled_occurrences: [...(event.cancelled_occurrences ?? []), new Date(occurrenceStart!).toISOString()] })
+          .eq('id', eventId);
+        if (cancelError) throw cancelError;
+      }
+    } else if (!event.cancelled_at) {
       const { error: cancelError } = await supabaseAdmin
         .from('events')
         .update({ cancelled_at: new Date().toISOString(), cancel_reason: reason?.trim() || null })
@@ -140,10 +174,10 @@ Deno.serve(async (req: Request) => {
       if (cancelError) throw cancelError;
     }
 
-    const showName = event.title ?? 'your show';
+    const showName = dateLabel ? `${event.title ?? 'Your show'} on ${dateLabel}` : (event.title ?? 'your show');
     const reasonLine = reason?.trim() ? ` The host said: "${reason.trim().slice(0, 140)}"` : '';
 
-    let refundedCount = 0, refundedCents = 0, actualStripeFeeCents = 0, unrecoveredCents = 0;
+    let refundedCount = 0, refundedCents = 0, actualStripeFeeCents = 0, unrecoveredCents = 0, collectedAgainCents = 0;
     const failed: { ticketId: string; error: string }[] = [];
 
     for (const t of paid) {
@@ -196,6 +230,11 @@ Deno.serve(async (req: Request) => {
           .update({ payment_status: 'refunded', stripe_refund_id: refund.id, refund_reason: 'Show cancelled by host' })
           .eq('id', t.id);
 
+        // Part of this sale had gone toward a balance the host owed; the fan
+        // got it back, so it's owed again.
+        const collectedFromSale = Number(pi.metadata?.owed_collected_cents ?? 0);
+        if (collectedFromSale > 0) collectedAgainCents += collectedFromSale;
+
         await notify(
           t.user_id,
           'Show cancelled',
@@ -214,7 +253,7 @@ Deno.serve(async (req: Request) => {
 
     // Charge the host the Stripe fees (plus any ticket money that couldn't be
     // pulled back from their payout).
-    const owedCents = actualStripeFeeCents + unrecoveredCents;
+    const owedCents = actualStripeFeeCents + unrecoveredCents + collectedAgainCents;
     let hostCharge: { amount: number; status: string } | null = null;
     if (owedCents > 0) {
       const { data: chargeRow } = await supabaseAdmin
@@ -224,7 +263,7 @@ Deno.serve(async (req: Request) => {
           event_id: eventId,
           amount: owedCents / 100,
           stripe_fees: actualStripeFeeCents / 100,
-          unrecovered_sales: unrecoveredCents / 100,
+          unrecovered_sales: (unrecoveredCents + collectedAgainCents) / 100,
           tickets_refunded: refundedCount,
           status: 'pending',
         })
@@ -241,18 +280,17 @@ Deno.serve(async (req: Request) => {
           .eq('user_id', event.host_id)
           .maybeSingle();
         if (!payout?.stripe_account_id) throw new Error('Host has no payout account.');
-        const platform = await stripe.accounts.retrieve();
-        // Account debit: move the amount from the host's Stripe balance to Sequins.
-        const debit = await stripe.transfers.create(
-          {
-            amount: owedCents,
-            currency: 'usd',
-            destination: platform.id,
-            description: `Card processing fees for cancelled show: ${showName}`,
-            metadata: { reason: 'show_cancelled', event_id: String(eventId) },
-          },
-          { stripeAccount: payout.stripe_account_id },
-        );
+        // Account debit (docs.stripe.com/connect/account-debits): a charge with
+        // the host's connected account as the source moves money from their
+        // Stripe balance to Sequins. Stripe refuses it if it would take their
+        // balance below zero; then the amount is collected from future sales.
+        const debit = await stripe.charges.create({
+          amount: owedCents,
+          currency: 'usd',
+          source: payout.stripe_account_id,
+          description: `Card processing fees for cancelled show: ${showName}`,
+          metadata: { reason: 'show_cancelled', event_id: String(eventId) },
+        });
         status = 'collected';
         transferIdOut = debit.id;
       } catch (e) {

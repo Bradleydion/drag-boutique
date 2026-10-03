@@ -250,6 +250,18 @@ Deno.serve(async (req: Request) => {
       metadata: { item_type: itemType, item_id: itemId, service_fee_kept_cents: String(keptFeeCents) },
     });
 
+    // Part of this sale went toward a balance the host owed. Since the fan got
+    // that money back, the balance is owed again.
+    const collectedFromSale = Number(pi.metadata?.owed_collected_cents ?? 0);
+    if (collectedFromSale > 0) {
+      await supabaseAdmin.from('host_charges').insert({
+        host_id: sellerId,
+        reason: 'collected_sale_refunded',
+        amount: collectedFromSale / 100,
+        status: 'owed',
+      });
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from(table)
       .update({

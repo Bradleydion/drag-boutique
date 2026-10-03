@@ -46,6 +46,7 @@ export type EventRecord = {
   // Cancellation — set only by the cancel-event Edge Function
   cancelledAt?: string | null;
   cancelReason?: string | null;
+  cancelledOccurrences?: string[];  // single cancelled dates of a recurring show (start times)
 };
 
 // ─── Local cache ──────────────────────────────────────────────────────────────
@@ -90,6 +91,7 @@ function rowToEvent(row: Record<string, any>): EventRecord {
     allSalesFinal:      row.all_sales_final ?? false,
     cancelledAt:        row.cancelled_at ?? null,
     cancelReason:       row.cancel_reason ?? null,
+    cancelledOccurrences: row.cancelled_occurrences ?? [],
   };
 }
 
@@ -215,16 +217,27 @@ function stepOccurrence(d: Date, freq: string, original: Date): Date {
   }
 }
 
-/** Exported for Discover and other listings; returns null once a series has ended. */
+const sameMoment = (a: string | Date, b: string | Date) =>
+  Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
+
+/** True if this date of a recurring show was cancelled on its own. */
+export function isOccurrenceCancelled(e: EventRecord, startIso?: string | null): boolean {
+  if (!startIso) return false;
+  return (e.cancelledOccurrences ?? []).some(c => sameMoment(c, startIso));
+}
+
+/** Exported for Discover and other listings; returns null once a series has ended.
+ *  Skips dates the host cancelled on their own. */
 export function rollToNextOccurrence(e: EventRecord): EventRecord | null {
   if (!e.isRecurring || !e.datetimeStart) return e;
   const original = new Date(e.datetimeStart);
   const now = Date.now();
-  if (original.getTime() >= now) return e;
+  const cancelled = (d: Date) => isOccurrenceCancelled(e, d.toISOString());
+  if (original.getTime() >= now && !cancelled(original)) return e;
 
   const duration = e.datetimeEnd ? new Date(e.datetimeEnd).getTime() - original.getTime() : 0;
   let next = original;
-  for (let i = 0; i < 1000 && next.getTime() < now; i++) {
+  for (let i = 0; i < 1000 && (next.getTime() < now || cancelled(next)); i++) {
     next = stepOccurrence(next, e.recurringFrequency ?? 'weekly', original);
   }
   if (e.recurringEndDate && next.toISOString().slice(0, 10) > e.recurringEndDate) return null;
@@ -234,6 +247,21 @@ export function rollToNextOccurrence(e: EventRecord): EventRecord | null {
     datetimeStart: next.toISOString(),
     datetimeEnd: duration > 0 ? new Date(next.getTime() + duration).toISOString() : e.datetimeEnd,
   };
+}
+
+/** The next `count` upcoming start times of a recurring show (cancelled dates left out). */
+export function upcomingOccurrences(e: EventRecord, count = 8): string[] {
+  if (!e.datetimeStart) return [];
+  if (!e.isRecurring) return new Date(e.datetimeStart).getTime() >= Date.now() ? [e.datetimeStart] : [];
+  const original = new Date(e.datetimeStart);
+  const out: string[] = [];
+  let next = original;
+  for (let i = 0; i < 2000 && out.length < count; i++) {
+    if (e.recurringEndDate && next.toISOString().slice(0, 10) > e.recurringEndDate) break;
+    if (next.getTime() >= Date.now() && !isOccurrenceCancelled(e, next.toISOString())) out.push(next.toISOString());
+    next = stepOccurrence(next, e.recurringFrequency ?? 'weekly', original);
+  }
+  return out;
 }
 
 /** Load upcoming events where this performer is tagged. */
@@ -514,6 +542,8 @@ export type CancelQuote = {
   ticketHolders: number;
   paidTickets: number;
   freeTickets: number;
+  singleDate?: boolean;
+  dateLabel?: string | null;
   refundToFans: number;        // everything fans paid, service fees included
   ticketSalesReturned: number; // comes back out of the host's payouts
   serviceFeesWaived: number;   // Sequins gives its fees back to fans
@@ -531,9 +561,11 @@ export type CancelResult = {
 };
 
 /** What cancelling this show would cost, without changing anything. */
-export async function getCancelQuote(eventId: string): Promise<CancelQuote> {
+export type CancelTarget = { occurrenceStart?: string; includeUndated?: boolean };
+
+export async function getCancelQuote(eventId: string, target: CancelTarget = {}): Promise<CancelQuote> {
   const { data, error } = await supabase.functions.invoke('cancel-event', {
-    body: { eventId, action: 'quote' },
+    body: { eventId, action: 'quote', ...target },
   });
   if (error) throw new Error(error.message ?? 'Could not load the cancellation details.');
   if (data?.error) throw new Error(data.error);
@@ -541,14 +573,19 @@ export async function getCancelQuote(eventId: string): Promise<CancelQuote> {
 }
 
 /** Cancel the show: refund every fan in full and charge the host the card processing fees. */
-export async function cancelEvent(eventId: string, reason?: string): Promise<CancelResult> {
+export async function cancelEvent(eventId: string, reason?: string, target: CancelTarget = {}): Promise<CancelResult> {
   const { data, error } = await supabase.functions.invoke('cancel-event', {
-    body: { eventId, action: 'confirm', reason },
+    body: { eventId, action: 'confirm', reason, ...target },
   });
   if (error) throw new Error(error.message ?? 'Could not cancel the show.');
   if (data?.error) throw new Error(data.error);
   const idx = _hostEvents.findIndex(e => e.id === eventId);
-  if (idx >= 0) _hostEvents[idx] = { ..._hostEvents[idx], cancelledAt: new Date().toISOString(), cancelReason: reason ?? null };
+  if (idx >= 0) {
+    const ev = _hostEvents[idx];
+    _hostEvents[idx] = target.occurrenceStart
+      ? { ...ev, cancelledOccurrences: [...(ev.cancelledOccurrences ?? []), target.occurrenceStart] }
+      : { ...ev, cancelledAt: new Date().toISOString(), cancelReason: reason ?? null };
+  }
   return data as CancelResult;
 }
 
@@ -560,4 +597,16 @@ export async function getActiveTicketCount(eventId: string): Promise<number> {
     .eq('event_id', eventId)
     .in('payment_status', ['paid', 'refund_requested', 'free']);
   return error ? 0 : (count ?? 0);
+}
+
+/** What this host still owes Sequins from cancelled shows (dollars). It comes
+ *  out of their next ticket sales automatically. Reads their own rows (RLS). */
+export async function getHostBalanceOwed(hostId: string): Promise<number> {
+  const [{ data: charges }, { data: collections }] = await Promise.all([
+    supabase.from('host_charges').select('amount').eq('host_id', hostId).eq('status', 'owed'),
+    supabase.from('host_charge_collections').select('amount').eq('host_id', hostId).eq('status', 'collected'),
+  ]);
+  const owed = (charges ?? []).reduce((s: number, c: { amount: number }) => s + Number(c.amount), 0);
+  const paid = (collections ?? []).reduce((s: number, c: { amount: number }) => s + Number(c.amount), 0);
+  return Math.max(0, Math.round((owed - paid) * 100) / 100);
 }
