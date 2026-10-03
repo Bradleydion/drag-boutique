@@ -112,7 +112,7 @@ Deno.serve(async (req: Request) => {
       sellerId = event.host_id;
       policyWindowDays = event.refund_window_days;
       policyAllSalesFinal = !!event.all_sales_final;
-      eventStart = event.datetime_start;
+      eventStart = item.occurrence_start ?? event.datetime_start; // the ticket's own date for recurring shows
       itemTitle = event.title ?? itemTitle;
     } else {
       sellerId = item.seller_id;
