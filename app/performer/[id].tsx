@@ -15,6 +15,7 @@ import {
   unfollowPerformer,
 } from '@/lib/followStore';
 import { createTipIntent } from '@/lib/tipStore';
+import { goBack } from '@/lib/nav';
 import { useStripe } from '@stripe/stripe-react-native';
 import * as Linking from 'expo-linking';
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
@@ -44,6 +45,15 @@ function formatShowDate(iso?: string) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+
+// The native back button did nothing on this screen for testers (iOS 26,
+// build 5). Same fix as event/[id]: an explicit button that always goes
+// somewhere, falling back to Discover when there's no history.
+const headerBack = () => (
+  <Pressable onPress={() => goBack('/(tabs)/discover')} hitSlop={12} style={{ paddingRight: 8 }}>
+    <Ionicons name="chevron-back" size={26} color={colors.teal} />
+  </Pressable>
+);
 
 export default function PerformerProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -117,7 +127,7 @@ export default function PerformerProfile() {
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
-        <Stack.Screen options={{ title: 'Artist', headerBackTitle: 'Back', headerStyle: { backgroundColor: colors.navy }, headerTintColor: colors.teal, headerTitleStyle: { color: colors.textPrimary } }} />
+        <Stack.Screen options={{ title: 'Artist', headerBackTitle: 'Back', headerLeft: headerBack, headerStyle: { backgroundColor: colors.navy }, headerTintColor: colors.teal, headerTitleStyle: { color: colors.textPrimary } }} />
         <ActivityIndicator color={colors.teal} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
@@ -126,7 +136,7 @@ export default function PerformerProfile() {
   if (!performer) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
-        <Stack.Screen options={{ title: 'Artist', headerBackTitle: 'Back', headerStyle: { backgroundColor: colors.navy }, headerTintColor: colors.teal, headerTitleStyle: { color: colors.textPrimary } }} />
+        <Stack.Screen options={{ title: 'Artist', headerBackTitle: 'Back', headerLeft: headerBack, headerStyle: { backgroundColor: colors.navy }, headerTintColor: colors.teal, headerTitleStyle: { color: colors.textPrimary } }} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: '700' }}>Artist not found.</Text>
           <View style={{ height: 16 }} />
@@ -196,7 +206,7 @@ export default function PerformerProfile() {
       <Stack.Screen
         options={{
           title: p.stageName,
-          headerBackTitle: 'Back',
+          headerBackTitle: 'Back', headerLeft: headerBack,
           headerStyle: { backgroundColor: colors.navy },
           headerTintColor: colors.teal,
           headerTitleStyle: { color: colors.textPrimary },
