@@ -312,7 +312,7 @@ export default function CreateArtistProfile() {
           <TextInput
             value={instagramUrl}
             onChangeText={setInstagramUrl}
-            placeholder="https://instagram.com/yourhandle"
+            placeholder="@yourhandle or profile link"
             placeholderTextColor={C.textMuted}
             autoCapitalize="none"
             keyboardType="url"
@@ -324,7 +324,7 @@ export default function CreateArtistProfile() {
           <TextInput
             value={tiktokUrl}
             onChangeText={setTiktokUrl}
-            placeholder="https://tiktok.com/@yourhandle"
+            placeholder="@yourhandle or profile link"
             placeholderTextColor={C.textMuted}
             autoCapitalize="none"
             keyboardType="url"

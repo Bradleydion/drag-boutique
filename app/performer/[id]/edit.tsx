@@ -289,11 +289,11 @@ export default function EditPerformerProfile() {
         <View style={{ height: 24 }} />
         <Text style={sectionLabel}>Social Links</Text>
 
-        <Text style={labelStyle}>Instagram URL</Text>
+        <Text style={labelStyle}>Instagram</Text>
         <TextInput
           value={instagramUrl}
           onChangeText={setInstagramUrl}
-          placeholder="https://instagram.com/yourhandle"
+          placeholder="@yourhandle or profile link"
           placeholderTextColor={C.textMuted}
           autoCapitalize="none"
           keyboardType="url"
@@ -301,11 +301,11 @@ export default function EditPerformerProfile() {
         />
 
         <View style={{ height: 14 }} />
-        <Text style={labelStyle}>TikTok URL</Text>
+        <Text style={labelStyle}>TikTok</Text>
         <TextInput
           value={tiktokUrl}
           onChangeText={setTiktokUrl}
-          placeholder="https://tiktok.com/@yourhandle"
+          placeholder="@yourhandle or profile link"
           placeholderTextColor={C.textMuted}
           autoCapitalize="none"
           keyboardType="url"

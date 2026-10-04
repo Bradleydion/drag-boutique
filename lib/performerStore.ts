@@ -268,8 +268,8 @@ export async function createPerformerProfile(input: {
     bio:                 input.bio ?? null,
     photo_url:           photoUrl ?? null,
     booking_info:        input.bookingInfo ?? null,
-    instagram_url:       input.instagramUrl ?? null,
-    tiktok_url:          input.tiktokUrl ?? null,
+    instagram_url:       normalizeSocialUrl(input.instagramUrl, 'instagram'),
+    tiktok_url:          normalizeSocialUrl(input.tiktokUrl, 'tiktok'),
     website_url:         input.websiteUrl ?? null,
     commissions_enabled: input.commissionsEnabled ?? false,
     commission_blurb:    input.commissionBlurb ?? null,
@@ -288,6 +288,26 @@ export async function createPerformerProfile(input: {
   const record = rowToPerformer(data);
   _performers = [record, ..._performers];
   return record;
+}
+
+/**
+ * Turn whatever a performer typed into a working profile link.
+ * Accepts "@handle", "handle", "instagram.com/handle" or a full URL.
+ * Instagram links never contain "@"; TikTok links always do.
+ */
+export function normalizeSocialUrl(
+  raw: string | null | undefined,
+  network: 'instagram' | 'tiktok',
+): string | null {
+  const v = (raw ?? '').trim();
+  if (!v) return null;
+  const m = v.match(/^(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|tiktok\.com)\/(.+)$/i);
+  if (!m && /^https?:\/\//i.test(v)) return v; // a link to some other site: keep as typed
+  const handle = (m ? m[1] : v).split(/[/?#\s]/)[0].replace(/^@+/, '');
+  if (!handle) return null;
+  return network === 'instagram'
+    ? `https://instagram.com/${handle}`
+    : `https://tiktok.com/@${handle}`;
 }
 
 /** Update the current user's performer profile. */
@@ -309,8 +329,8 @@ export async function updatePerformerProfile(
   if (patch.bio !== undefined)                payload.bio                 = patch.bio;
   if (photoUrl !== undefined)                 payload.photo_url           = photoUrl;
   if (patch.bookingInfo !== undefined)        payload.booking_info        = patch.bookingInfo;
-  if (patch.instagramUrl !== undefined)       payload.instagram_url       = patch.instagramUrl;
-  if (patch.tiktokUrl !== undefined)          payload.tiktok_url          = patch.tiktokUrl;
+  if (patch.instagramUrl !== undefined)       payload.instagram_url       = normalizeSocialUrl(patch.instagramUrl, 'instagram');
+  if (patch.tiktokUrl !== undefined)          payload.tiktok_url          = normalizeSocialUrl(patch.tiktokUrl, 'tiktok');
   if (patch.websiteUrl !== undefined)         payload.website_url         = patch.websiteUrl;
   if (patch.commissionsEnabled !== undefined) payload.commissions_enabled = patch.commissionsEnabled;
   if (patch.commissionBlurb !== undefined)    payload.commission_blurb    = patch.commissionBlurb;
