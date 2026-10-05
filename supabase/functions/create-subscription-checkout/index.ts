@@ -79,8 +79,11 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    // Already an active/trialing pro subscriber -- nothing to do.
-    if (existingSub?.tier === 'pro' && ['active', 'trialing'].includes(existingSub.status)) {
+    // Already Pro (paid, or a comp that hasn't ended) -- nothing to do.
+    // Uses the same rule as the events tier trigger, so an expired founding-member
+    // comp can upgrade to paid instead of being told it's "already Pro".
+    const { data: activePro } = await supabaseAdmin.rpc('has_active_pro', { p_user_id: userId });
+    if (activePro === true) {
       return new Response(JSON.stringify({ alreadyPro: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });

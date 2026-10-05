@@ -18,6 +18,8 @@ export type Subscription = {
   tier: SubscriptionTier;
   status: string; // 'inactive' | Stripe subscription status ('active','trialing','past_due','canceled', etc.)
   currentPeriodEnd?: string;
+  // true when billed through Stripe; false for a comped (free) Pro, e.g. a founding member
+  stripeBacked?: boolean;
 };
 
 const FREE_SUB: Subscription = { tier: 'free', status: 'inactive' };
@@ -30,7 +32,17 @@ let _subscription: Subscription = FREE_SUB;
 let _loaded = false;
 
 export function getSubscription(): Subscription { return _subscription; }
-export function isPro(): boolean { return _subscription.tier === 'pro' && ['active', 'trialing'].includes(_subscription.status); }
+// Mirrors public.has_active_pro() in the database (migration 20261005_pro_respects_end_date):
+// comps end exactly at currentPeriodEnd (and need one); paid subscriptions get 3 days of grace
+// past currentPeriodEnd in case the renewal webhook is late.
+const PAID_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+export function isPro(): boolean {
+  const s = _subscription;
+  if (s.tier !== 'pro' || !['active', 'trialing'].includes(s.status)) return false;
+  const end = s.currentPeriodEnd ? new Date(s.currentPeriodEnd).getTime() : null;
+  if (!s.stripeBacked) return end !== null && end > Date.now();
+  return end === null || end + PAID_GRACE_MS > Date.now();
+}
 export function subscriptionLoaded(): boolean { return _loaded; }
 
 export async function loadSubscription(): Promise<void> {
@@ -39,7 +51,7 @@ export async function loadSubscription(): Promise<void> {
 
   const { data, error } = await supabase
     .from('subscriptions')
-    .select('tier, status, current_period_end')
+    .select('tier, status, current_period_end, stripe_subscription_id')
     .eq('user_id', session.user.id)
     .maybeSingle();
 
@@ -48,6 +60,7 @@ export async function loadSubscription(): Promise<void> {
       tier: data.tier === 'pro' ? 'pro' : 'free',
       status: data.status,
       currentPeriodEnd: data.current_period_end ?? undefined,
+      stripeBacked: !!data.stripe_subscription_id,
     };
   } else {
     _subscription = FREE_SUB;

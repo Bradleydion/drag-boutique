@@ -123,6 +123,8 @@ export default function SubscriptionScreen() {
   }
 
   const pro = isPro();
+  // Comped Pro (founding members): no Stripe subscription, so nothing to renew or manage.
+  const comped = pro && !sub.stripeBacked;
   const renewalDate = sub.currentPeriodEnd
     ? new Date(sub.currentPeriodEnd).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
     : undefined;
@@ -158,7 +160,9 @@ export default function SubscriptionScreen() {
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
                 {pro
-                  ? `You're all set with unlimited events and weekly recurring shows.${renewalDate ? ` Renews ${renewalDate}.` : ''}`
+                  ? comped
+                    ? `Founding member: Pro is free through ${renewalDate}. Unlimited events and weekly recurring shows until then.`
+                    : `You're all set with unlimited events and weekly recurring shows.${renewalDate ? ` Renews ${renewalDate}.` : ''}`
                   : eventsThisMonth != null
                   ? `${eventsThisMonth} of 1 event posted this month · monthly recurring only`
                   : 'Limited to 1 new event per month, monthly recurring only.'}
@@ -188,6 +192,7 @@ export default function SubscriptionScreen() {
               </View>
             )}
 
+            {!comped && (
             <Pressable
               onPress={pro ? handleManage : handleUpgrade}
               disabled={working}
@@ -209,6 +214,7 @@ export default function SubscriptionScreen() {
                 </Text>
               )}
             </Pressable>
+            )}
 
             {!pro && (
               <Pressable onPress={() => goBack('/(tabs)/profile')} hitSlop={12} style={{ marginTop: 16, alignItems: 'center' }}>
