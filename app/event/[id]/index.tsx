@@ -18,6 +18,8 @@ import { buyTicket, createPaymentIntent, getTicketQuote, hasTicket, loadTickets,
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { colors } from '../../../src/theme/colors';
+import { ReportBlockMenu } from '../../../components/ReportBlockMenu';
+import { goBack } from '../../../lib/nav';
 
 function formatDate(iso?: string) {
   if (!iso) return 'Date TBD';
@@ -211,6 +213,16 @@ export default function EventDetail() {
           headerStyle: { backgroundColor: colors.navy },
           headerTitleStyle: { color: colors.textPrimary },
           headerTintColor: colors.teal,
+          headerRight: () => (
+            <ReportBlockMenu
+              targetType="event"
+              targetId={event.id}
+              targetLabel={event.title}
+              ownerId={event.hostId}
+              ownerName={event.hostName}
+              onHidden={() => goBack('/(tabs)/discover')}
+            />
+          ),
         }}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>

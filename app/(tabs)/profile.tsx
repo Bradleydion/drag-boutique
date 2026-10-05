@@ -829,6 +829,29 @@ export default function ProfileTab() {
             <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
           </Pressable>
 
+          {!isGuest() && (
+          <Pressable
+            onPress={() => router.push('/blocked' as any)}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: colors.border,
+              gap: 14,
+            }}
+          >
+            <Text style={{ fontSize: 22 }}>🚫</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>Blocked accounts</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>People you've blocked on Sequins</Text>
+            </View>
+            <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+          </Pressable>
+          )}
+
           <Pressable
             onPress={handleOpenLegal}
             style={{

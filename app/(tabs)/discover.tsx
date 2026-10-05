@@ -23,6 +23,7 @@ import { loadPerformers, getPerformers, type PerformerRecord } from '@/lib/perfo
 import { roleEmoji, roleLabel } from '@/lib/eventRolesStore';
 import { isCurrentlyPromoted } from '@/lib/promotionStore';
 import { isGuest } from '@/lib/authStore';
+import { filterBlockedEvents, filterBlockedPerformers, loadModeration } from '@/lib/moderationStore';
 import { getRole } from '@/lib/userStore';
 import { colors } from '../../src/theme/colors';
 
@@ -153,9 +154,11 @@ export default function Discover() {
     const [evData] = await Promise.all([
       loadEvents(),
       loadPerformers(),
+      loadModeration().catch(() => {}),
     ]);
-    setAllEvents(evData);
-    setAllTalent(getPerformers());
+    // Hide anything from accounts I blocked, and anything I reported.
+    setAllEvents(filterBlockedEvents(evData));
+    setAllTalent(filterBlockedPerformers(getPerformers()));
     if (isRefresh) setRefreshing(false);
     else setLoading(false);
   }

@@ -19,6 +19,7 @@ import {
   getListings,
   loadListings,
 } from '../../lib/marketplaceStore';
+import { filterBlockedListings, loadModeration } from '../../lib/moderationStore';
 import { colors } from '../../src/theme/colors';
 
 const CATEGORIES: { id: ListingCategory | 'all'; label: string; emoji: string }[] = [
@@ -39,11 +40,12 @@ export default function MarketplaceTab() {
   useFocusEffect(
     useCallback(() => {
       setRole(getRole());
-      loadListings().then(() => setRefresh(n => n + 1));
+      Promise.all([loadListings(), loadModeration().catch(() => {})]).then(() => setRefresh(n => n + 1));
     }, []),
   );
 
-  const rawListings = activeCategory === 'all' ? getListings() : getListings(activeCategory);
+  // Hide listings from accounts I blocked, and listings I reported.
+  const rawListings = filterBlockedListings(activeCategory === 'all' ? getListings() : getListings(activeCategory));
   // Pad to even count so the last row always has 2 columns
   const listings = rawListings.length % 2 !== 0
     ? [...rawListings, { id: '__spacer__' } as any]

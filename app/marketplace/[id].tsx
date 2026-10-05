@@ -16,6 +16,7 @@ import {
 } from '../../lib/marketplaceStore';
 import { getSession, isGuest } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
+import { ReportBlockMenu } from '../../components/ReportBlockMenu';
 import { goBack } from '../../lib/nav';
 
 export default function ListingDetail() {
@@ -121,6 +122,16 @@ export default function ListingDetail() {
         headerStyle: { backgroundColor: colors.navy },
         headerTitleStyle: { color: colors.textPrimary },
         headerTintColor: colors.teal,
+        headerRight: () => (
+          <ReportBlockMenu
+            targetType="listing"
+            targetId={listing.id}
+            targetLabel={listing.title}
+            ownerId={listing.sellerId}
+            ownerName={listing.sellerName}
+            onHidden={() => goBack('/(tabs)/marketplace')}
+          />
+        ),
       }} />
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
 

@@ -32,7 +32,7 @@ as $$
 $$;
 
 revoke all on function public.has_active_pro(uuid) from public, anon;
-grant execute on function public.has_active_pro(uuid) to authenticated, service_role;
+grant execute on function public.has_active_pro(uuid) to service_role; -- trigger runs as definer; the app checks client-side
 
 create or replace function public.enforce_event_tier_limits()
  returns trigger

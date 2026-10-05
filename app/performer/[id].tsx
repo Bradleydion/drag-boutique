@@ -16,6 +16,7 @@ import {
 } from '@/lib/followStore';
 import { createTipIntent } from '@/lib/tipStore';
 import { goBack } from '@/lib/nav';
+import { ReportBlockMenu } from '@/components/ReportBlockMenu';
 import { useStripe } from '@stripe/stripe-react-native';
 import * as Linking from 'expo-linking';
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
@@ -220,7 +221,16 @@ export default function PerformerProfile() {
                   <Text style={{ color: colors.teal, fontSize: 15, fontWeight: '700' }}>Edit</Text>
                 </Pressable>
               )
-            : undefined,
+            : () => (
+                <ReportBlockMenu
+                  targetType="performer"
+                  targetId={p.id}
+                  targetLabel={p.stageName}
+                  ownerId={p.userId}
+                  ownerName={p.stageName}
+                  onHidden={() => goBack('/(tabs)/discover')}
+                />
+              ),
         }}
       />
 
