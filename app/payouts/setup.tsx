@@ -13,6 +13,7 @@ import {
   payoutAccountLoaded,
   startPayoutOnboarding,
   type PayoutAccount,
+  type PayoutCountry,
 } from '../../lib/payoutStore';
 import { getRole } from '../../lib/userStore';
 import { getSession } from '../../lib/authStore';
@@ -25,6 +26,7 @@ export default function PayoutSetupScreen() {
   const [account, setAccount] = useState<PayoutAccount | null>(getPayoutAccount());
   const [loading, setLoading] = useState(!payoutAccountLoaded());
   const [starting, setStarting] = useState(false);
+  const [country, setCountry] = useState<PayoutCountry>('US');
   const [volume, setVolume] = useState<number | null>(null);
   const [owed, setOwed] = useState(0);
   const role = getRole();
@@ -55,7 +57,7 @@ export default function PayoutSetupScreen() {
   async function handleSetUp() {
     setStarting(true);
     try {
-      const result = await startPayoutOnboarding();
+      const result = await startPayoutOnboarding(country);
       if (result.status === 'complete') {
         Alert.alert('You’re all set!', 'Stripe has verified your account -- payouts are ready to go.');
       } else if (result.status === 'incomplete') {
@@ -119,6 +121,34 @@ export default function PayoutSetupScreen() {
                   : `Sequins uses Stripe to securely send your ${roleContext} to your bank account. It takes a few minutes -- you'll need your bank details and a government ID.`}
               </Text>
             </View>
+
+            {!account && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: 8 }}>
+                  Where's your bank account?
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {([['US', '🇺🇸 United States'], ['CA', '🇨🇦 Canada']] as const).map(([code, label]) => {
+                    const on = country === code;
+                    return (
+                      <Pressable
+                        key={code}
+                        onPress={() => setCountry(code)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
+                          borderWidth: 1, borderColor: on ? colors.teal : colors.border,
+                          backgroundColor: on ? colors.teal + '22' : colors.surface,
+                        }}
+                      >
+                        <Text style={{ color: colors.textPrimary, fontWeight: on ? '800' : '500' }}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             <Pressable
               onPress={handleSetUp}

@@ -58,14 +58,20 @@ export type OnboardingResult =
  * Opens Stripe's hosted onboarding flow in an in-app browser and waits for
  * the user to return, then re-fetches the payout account status.
  */
-export async function startPayoutOnboarding(): Promise<OnboardingResult> {
+export type PayoutCountry = 'US' | 'CA';
+
+/**
+ * country only matters the first time (it's fixed on the Stripe account once
+ * created). Sequins is available in the US and Canada.
+ */
+export async function startPayoutOnboarding(country: PayoutCountry = 'US'): Promise<OnboardingResult> {
   const session = getSession();
   if (!session || isGuest()) throw new Error('Must be signed in to set up payouts.');
 
   const redirectUrl = Linking.createURL('payouts/return');
 
   const { data, error } = await supabase.functions.invoke('create-connect-account', {
-    body: { returnUrl: redirectUrl },
+    body: { returnUrl: redirectUrl, country },
   });
 
   if (error) throw new Error(error.message ?? 'Could not start payout setup.');

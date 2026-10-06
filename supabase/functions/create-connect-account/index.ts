@@ -26,7 +26,12 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { returnUrl } = await req.json().catch(() => ({ returnUrl: undefined }));
+    const body = await req.json().catch(() => ({}));
+    const returnUrl: string | undefined = body.returnUrl;
+    // Sequins is available in the US and Canada. Canadian accounts get paid via
+    // Stripe cross-border payouts (destination charges without on_behalf_of),
+    // which only allow the `transfers` capability on the connected account.
+    const country: 'US' | 'CA' = body.country === 'CA' ? 'CA' : 'US';
 
     // Identify the calling user from the verified JWT (Supabase already
     // verified it before invoking this function since verify_jwt=true).
@@ -59,11 +64,11 @@ Deno.serve(async (req: Request) => {
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',
+        country,
         email: userEmail,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
+        capabilities: country === 'US'
+          ? { card_payments: { requested: true }, transfers: { requested: true } }
+          : { transfers: { requested: true } },
         // Pre-fill the business details so Stripe doesn't ask performers
         // and hosts (most of whom have no website) for a site or description.
         business_profile: {
