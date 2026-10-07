@@ -485,28 +485,20 @@ export async function fetchEventById(eventId: string): Promise<EventRecord | nul
   return rowToEvent(data);
 }
 
-/** Marks an event as promoted for `days` days after a successful one-time
- *  Stripe payment (see lib/promotionStore.ts). Same trust model as
- *  buyTicket/buyListing in this codebase: the client marks the row paid
- *  right after the payment sheet reports success, no webhook round-trip. */
+/** Applies a paid boost after the Stripe payment sheet reports success.
+ *  The server checks the payment and sets promoted_until (the app can't
+ *  write those columns any more). `days` is kept for the old signature. */
 export async function markEventPromoted(
   eventId: string,
   paymentIntentId: string,
-  days: number,
+  _days: number,
 ): Promise<EventRecord> {
-  const promotedUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  const { data: res, error: fnErr } = await supabase.functions.invoke('confirm-promotion', {
+    body: { paymentIntentId },
+  });
+  if (fnErr || res?.error) throw new Error(res?.error ?? fnErr?.message ?? 'Could not apply the boost.');
 
-  const { data, error } = await supabase
-    .from('events')
-    .update({
-      is_promoted: true,
-      promoted_until: promotedUntil,
-      promotion_payment_intent_id: paymentIntentId,
-    })
-    .eq('id', eventId)
-    .select()
-    .single();
-
+  const { data, error } = await supabase.from('events').select('*').eq('id', eventId).single();
   if (error) throw new Error(error.message);
 
   const record = rowToEvent(data);

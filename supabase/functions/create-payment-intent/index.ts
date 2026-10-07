@@ -177,6 +177,17 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'This is a free event, so there is nothing to pay.' }, 400);
     }
 
+    // Sold out? Checked before the card is charged. Free tickets are stopped
+    // by the tickets_enforce_capacity trigger instead (migration 20261006).
+    const { data: seatsLeft, error: seatsErr } = await supabaseAdmin.rpc('event_seats_remaining', {
+      p_event_id: String(eventId),
+      p_occurrence: occurrenceStart ?? null,
+    });
+    if (seatsErr) console.error('create-payment-intent: capacity check failed', seatsErr);
+    if (typeof seatsLeft === 'number' && seatsLeft <= 0) {
+      return json({ error: 'This show is sold out.', soldOut: true }, 409);
+    }
+
     const { data: payoutAccount } = await supabaseAdmin
       .from('payout_accounts')
       .select('stripe_account_id, payouts_enabled')

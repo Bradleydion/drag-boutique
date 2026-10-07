@@ -564,23 +564,16 @@ export async function fetchPerformerUpcomingShows(performerId: string): Promise<
     .slice(0, 5);
 }
 
-/** Marks a performer profile as promoted for `days` days after a successful
- *  one-time Stripe payment (see lib/promotionStore.ts). */
+/** Applies a paid boost after the Stripe payment sheet reports success.
+ *  The server checks the payment and sets promoted_until (the app can't
+ *  write those columns any more). */
 export async function markPerformerPromoted(
-  performerId: string,
+  _performerId: string,
   paymentIntentId: string,
-  days: number,
+  _days: number,
 ): Promise<void> {
-  const promotedUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-
-  const { error } = await supabase
-    .from('performers')
-    .update({
-      is_promoted: true,
-      promoted_until: promotedUntil,
-      promotion_payment_intent_id: paymentIntentId,
-    })
-    .eq('id', performerId);
-
-  if (error) throw new Error(error.message);
+  const { data: res, error } = await supabase.functions.invoke('confirm-promotion', {
+    body: { paymentIntentId },
+  });
+  if (error || res?.error) throw new Error(res?.error ?? error?.message ?? 'Could not apply the boost.');
 }

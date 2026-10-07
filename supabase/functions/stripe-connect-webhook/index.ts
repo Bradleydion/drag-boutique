@@ -10,7 +10,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Setup (Stripe Dashboard -> Developers -> Workbench -> Webhooks). Two event
 // destinations, same endpoint URL
 // https://vrlsphktnvxrbuwwuvpk.supabase.co/functions/v1/stripe-connect-webhook :
-//   1. "Your account": customer.subscription.created/updated/deleted
+//   1. "Your account": customer.subscription.created/updated/deleted,
+//      payment_intent.succeeded (boosts), charge.dispute.created/updated/closed
 //      -> signing secret in Supabase secret STRIPE_CONNECT_WEBHOOK_SECRET
 //   2. "Connected accounts": account.updated (hosts'/performers' Express
 //      onboarding status) -> signing secret in STRIPE_CONNECTED_ACCOUNTS_WEBHOOK_SECRET
@@ -41,6 +42,92 @@ const supabaseAdmin = createClient(
 
 function tierForStatus(status: string): 'pro' | 'free' {
   return status === 'active' || status === 'trialing' ? 'pro' : 'free';
+}
+
+// ── Boosts (payment_intent.succeeded) ─────────────────────────────────────────
+// Same logic as confirm-promotion. The app calls that function right after
+// paying; this is the backup (old app builds, app closed mid-payment).
+async function applyPromotion(pi: Stripe.PaymentIntent) {
+  const m = pi.metadata ?? {};
+  const table = m.target_type === 'event' ? 'events' : m.target_type === 'performer' ? 'performers' : null;
+  if (!table || !m.target_id) return;
+  const days = Number(m.promotion_days ?? '7') || 7;
+  const { data: row } = await supabaseAdmin
+    .from(table)
+    .select('id, promoted_until, promotion_payment_intent_id')
+    .eq('id', m.target_id)
+    .maybeSingle();
+  if (!row || row.promotion_payment_intent_id === pi.id) return;
+  const base = Math.max(Date.now(), row.promoted_until ? new Date(row.promoted_until).getTime() : 0);
+  const { error } = await supabaseAdmin
+    .from(table)
+    .update({
+      is_promoted: true,
+      promoted_until: new Date(base + days * 24 * 60 * 60 * 1000).toISOString(),
+      promotion_payment_intent_id: pi.id,
+    })
+    .eq('id', m.target_id);
+  if (error) console.error('Failed to apply promotion:', error);
+}
+
+// ── Chargebacks (charge.dispute.*) ────────────────────────────────────────────
+function disputeKind(m: Record<string, string>): string {
+  if (m.type === 'promotion') return 'promotion';
+  if (m.event_id) return 'ticket';
+  if (m.listing_id) return 'listing';
+  if (m.performer_id || m.type === 'tip') return 'tip';
+  return m.type || 'unknown';
+}
+
+async function recordDispute(dispute: Stripe.Dispute, isNew: boolean) {
+  const piId = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : dispute.payment_intent?.id ?? null;
+  let meta: Record<string, string> = {};
+  if (piId) {
+    try { meta = (await stripe.paymentIntents.retrieve(piId)).metadata ?? {}; } catch { /* ignore */ }
+  }
+  const kind = disputeKind(meta);
+  const row = {
+    stripe_dispute_id: dispute.id,
+    stripe_charge_id: typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id ?? null,
+    payment_intent_id: piId,
+    amount: dispute.amount / 100,
+    currency: dispute.currency,
+    reason: dispute.reason,
+    status: dispute.status,
+    evidence_due_by: dispute.evidence_details?.due_by ? new Date(dispute.evidence_details.due_by * 1000).toISOString() : null,
+    kind,
+    related_id: meta.event_id || meta.listing_id || meta.target_id || meta.performer_id || null,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseAdmin.from('payment_disputes').upsert(row, { onConflict: 'stripe_dispute_id' });
+  if (error) console.error('Failed to save dispute:', error);
+  if (!isNew) return;
+
+  const key = Deno.env.get('RESEND_API_KEY');
+  if (!key) return;
+  const to = Deno.env.get('MODERATION_EMAIL') ?? 'bradleydion@thebradleyproject.com';
+  const text = [
+    `A customer disputed a Sequins payment (chargeback). Sequins pays for disputes, so respond in Stripe before the deadline.`,
+    ``,
+    `Amount: $${(dispute.amount / 100).toFixed(2)} ${dispute.currency.toUpperCase()}`,
+    `Reason: ${dispute.reason}`,
+    `What it was for: ${kind}${meta.event_title ? ` (${meta.event_title})` : ''}`,
+    `Evidence due: ${row.evidence_due_by ?? 'see Stripe'}`,
+    `Payment: ${piId ?? 'unknown'}`,
+    ``,
+    `Open it: https://dashboard.stripe.com/disputes/${dispute.id}`,
+  ].join('\n');
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'Sequins Payments <noreply@thebradleyproject.com>',
+      to: [to],
+      subject: `[Sequins] Payment disputed: $${(dispute.amount / 100).toFixed(2)}`,
+      text,
+    }),
+  });
+  if (!res.ok) console.error('Dispute email failed:', res.status, await res.text());
 }
 
 Deno.serve(async (req: Request) => {
@@ -109,6 +196,19 @@ Deno.serve(async (req: Request) => {
         .eq('stripe_subscription_id', subscription.id);
 
       if (error) console.error('Failed to update subscriptions:', error);
+    }
+
+    if (event.type === 'payment_intent.succeeded') {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      if (pi.metadata?.type === 'promotion') await applyPromotion(pi);
+    }
+
+    if (
+      event.type === 'charge.dispute.created' ||
+      event.type === 'charge.dispute.updated' ||
+      event.type === 'charge.dispute.closed'
+    ) {
+      await recordDispute(event.data.object as Stripe.Dispute, event.type === 'charge.dispute.created');
     }
 
     return new Response(JSON.stringify({ received: true }), {
