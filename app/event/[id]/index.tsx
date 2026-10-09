@@ -14,7 +14,7 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchEventById, rollToNextOccurrence, type EventRecord } from '../../../lib/eventsStore';
 import { isGuest } from '../../../lib/authStore';
-import { buyTicket, createPaymentIntent, getTicketQuote, hasTicket, loadTickets, type TicketPriceBreakdown } from '../../../lib/ticketStore';
+import { buyTicket, confirmPaidTicket, createPaymentIntent, getTicketQuote, hasTicket, loadTickets, type TicketPriceBreakdown } from '../../../lib/ticketStore';
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { PrimaryButton } from '../../../components/PrimaryButton';
 import { colors } from '../../../src/theme/colors';
@@ -107,7 +107,7 @@ export default function EventDetail() {
         //    charge: Sequins' service fee + the host's payout, split automatically)
         //    The fan pays ticket price + service fee; the host gets the full ticket price.
         const paid = await createPaymentIntent(event.id, event.title, event.datetimeStart);
-        const { clientSecret, paymentIntentId, platformFeePercent, platformFeeAmount } = paid;
+        const { clientSecret, paymentIntentId } = paid;
         setQuote(paid);
 
         // 2. Initialise Stripe payment sheet
@@ -141,13 +141,20 @@ export default function EventDetail() {
           throw new Error(presentError.message);
         }
 
-        // 4. Payment succeeded — record the ticket
-        await buyTicket(event.id, paid.ticketPrice, paymentIntentId, platformFeePercent, platformFeeAmount, event.datetimeStart);
+        // 4. Payment succeeded — the server verifies it and creates the ticket
+        const confirmed = await confirmPaidTicket(paymentIntentId);
+        if (confirmed.refunded) {
+          setTicketed(!!confirmed.ticket);
+          Alert.alert('Payment refunded', confirmed.message ?? 'Your payment was refunded.');
+          return;
+        }
         setTicketed(true);
 
         Alert.alert(
           '🎉 Ticket Confirmed!',
-          `You paid $${paid.total.toFixed(2)} ($${paid.ticketPrice.toFixed(2)} ticket + $${paid.serviceFee.toFixed(2)} service fee). See you at the show!`,
+          confirmed.ticket
+            ? `You paid $${paid.total.toFixed(2)} ($${paid.ticketPrice.toFixed(2)} ticket + $${paid.serviceFee.toFixed(2)} service fee). See you at the show!`
+            : `Payment received ($${paid.total.toFixed(2)}). Your ticket will appear in your Tickets tab in a minute or two.`,
           [
             { text: 'View Tickets', onPress: () => router.push('/(tabs)/tickets') },
             { text: 'Stay Here', style: 'cancel' },

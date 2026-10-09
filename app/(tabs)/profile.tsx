@@ -187,8 +187,8 @@ export default function ProfileTab() {
                     try {
                       await deleteAccount();
                       router.replace('/auth');
-                    } catch {
-                      Alert.alert('Error', 'Could not delete account. Please try again or contact support.');
+                    } catch (e: any) {
+                      Alert.alert('Account not deleted', e?.message ?? 'Could not delete account. Please try again or contact support.');
                     }
                   },
                 },

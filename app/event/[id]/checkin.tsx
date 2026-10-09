@@ -41,6 +41,7 @@ const REASON_LABELS: Record<string, string> = {
   not_found:          'Ticket not found',
   wrong_event:        'Ticket is for a different event',
   already_checked_in: 'Already checked in',
+  not_paid:           'Not a valid ticket (unpaid or refunded)',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

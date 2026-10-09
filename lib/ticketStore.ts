@@ -5,10 +5,12 @@
 // Payment flow:
 //   1. App calls createPaymentIntent(amount, eventId) → gets Stripe clientSecret
 //   2. App presents Stripe payment sheet (handled in the screen)
-//   3. On payment success, app calls buyTicket(eventId, price, paymentIntentId)
-//   4. Ticket is recorded in Supabase with payment_status = 'paid'
+//   3. On payment success, app calls confirmPaidTicket(paymentIntentId)
+//   4. The confirm-ticket Edge Function checks the payment with Stripe and
+//      creates the 'paid' ticket server-side (the app can't insert paid
+//      tickets itself; the Stripe webhook does the same as a backup).
 //
-// Free tickets skip steps 1-3 entirely.
+// Free tickets skip steps 1-3 and use buyTicket(eventId, 0).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSession, isGuest } from './authStore';
@@ -37,7 +39,7 @@ export type Ticket = {
 
 export type CheckInResult =
   | { ok: true;  ticket: Ticket }
-  | { ok: false; reason: 'not_found' | 'wrong_event' | 'already_checked_in' };
+  | { ok: false; reason: 'not_found' | 'wrong_event' | 'already_checked_in' | 'not_paid' };
 
 // Local cache
 let _tickets: Ticket[] = [];
@@ -191,8 +193,8 @@ export async function createPaymentIntent(
 /**
  * Record a ticket in Supabase after payment is confirmed.
  *
- * For FREE events:    call with price=0, no paymentIntentId needed.
- * For PAID events:    call after Stripe payment sheet succeeds, pass paymentIntentId.
+ * FREE events only. Paid tickets go through confirmPaidTicket() — the
+ * database turns any app-inserted ticket for a paid show into 'pending'.
  */
 export async function buyTicket(
   eventId: string,
@@ -258,6 +260,38 @@ export async function buyTicket(
   return ticket;
 }
 
+/**
+ * Paid tickets: call right after the Stripe payment sheet succeeds.
+ * The server verifies the payment and creates the ticket. Retries a few
+ * times (network blips); if it still can't confirm, the Stripe webhook will
+ * create the ticket shortly, so we return null and the caller tells the fan
+ * to check their Tickets tab.
+ */
+export async function confirmPaidTicket(
+  paymentIntentId: string,
+): Promise<{ ticket: Ticket | null; refunded?: boolean; message?: string }> {
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { data, error } = await supabase.functions.invoke('confirm-ticket', { body: { paymentIntentId } });
+      if (error) throw new Error(error.message ?? 'Could not confirm ticket.');
+      if (data?.error) throw new Error(data.error);
+      const ticket = (data?.ticket ?? null) as Ticket | null;
+      if (ticket) {
+        _tickets = [ticket, ..._tickets.filter(t => t.id !== ticket.id)];
+        persistTickets();
+      }
+      return { ticket, refunded: !!data?.refunded, message: data?.message };
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  console.warn('[ticketStore] confirmPaidTicket failed, webhook will finish it:', lastErr);
+  await loadTickets().catch(() => {});
+  return { ticket: null };
+}
+
 // ─── Door check-in ───────────────────────────────────────────────────────────
 
 export async function checkInTicket(
@@ -275,6 +309,9 @@ export async function checkInTicket(
   const ticket = data as Ticket;
   if (ticket.event_id !== eventId)   return { ok: false, reason: 'wrong_event' };
   if (ticket.checked_in_at)          return { ok: false, reason: 'already_checked_in' };
+  if (!['free', 'paid', 'refund_requested'].includes(ticket.payment_status)) {
+    return { ok: false, reason: 'not_paid' };
+  }
 
   const now = new Date().toISOString();
   const { error: updateError } = await supabase
@@ -282,7 +319,10 @@ export async function checkInTicket(
     .update({ checked_in_at: now })
     .eq('id', ticketId);
 
-  if (updateError) return { ok: false, reason: 'not_found' };
+  if (updateError) {
+    if (/TICKET_NOT_VALID/.test(updateError.message ?? '')) return { ok: false, reason: 'not_paid' };
+    return { ok: false, reason: 'not_found' };
+  }
   return { ok: true, ticket: { ...ticket, checked_in_at: now } };
 }
 

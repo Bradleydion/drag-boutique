@@ -134,8 +134,19 @@ export async function signOut(): Promise<void> {
  * to /auth.
  */
 export async function deleteAccount(): Promise<void> {
-  const { error } = await supabase.rpc('delete_user');
-  if (error) throw error;
+  // Server-side: cancels Sequins Pro, takes upcoming shows off sale, removes
+  // the performer profile and unsold Shop listings, keeps other people's
+  // ticket/sale records, then deletes the login. Throws with a message the
+  // user can act on (e.g. "cancel your upcoming shows first").
+  const { data, error } = await supabase.functions.invoke('delete-account', { body: {} });
+  if (error || data?.error) {
+    let message = data?.error as string | undefined;
+    if (!message && error && 'context' in error) {
+      try { message = (await (error as any).context.json())?.error; } catch { /* ignore */ }
+    }
+    throw new Error(message ?? 'Could not delete account. Please try again or contact support.');
+  }
+  try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* user is already gone */ }
   _session = null;
   _isGuest = false;
 }
