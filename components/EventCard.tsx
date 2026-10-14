@@ -1,5 +1,6 @@
 // components/EventCard.tsx
 // Accepts EventRecord from eventsStore (Supabase shape).
+import { formatEventShort } from '../lib/eventTime';
 import { View, Text, Image } from 'react-native';
 import type { EventRecord } from '../lib/eventsStore';
 import { isCurrentlyPromoted } from '../lib/promotionStore';
@@ -15,11 +16,7 @@ export function EventCard({ event }: { event: EventRecord }) {
   const city = event.venue?.city ?? '';
   const state = event.venue?.state ?? '';
   const location = [city, state].filter(Boolean).join(', ');
-  const dateStr = event.datetimeStart
-    ? new Date(event.datetimeStart).toLocaleString(undefined, {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-      })
-    : '';
+  const dateStr = formatEventShort(event.datetimeStart, event.timezone);
 
   return (
     <View

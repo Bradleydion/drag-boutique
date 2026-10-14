@@ -17,6 +17,7 @@ import {
 } from '@/lib/followStore';
 import { createTipIntent } from '@/lib/tipStore';
 import { goBack } from '@/lib/nav';
+import { sharePerformer } from '@/lib/share';
 import { ReportBlockMenu } from '@/components/ReportBlockMenu';
 import { useStripe } from '@stripe/stripe-react-native';
 import * as Linking from 'expo-linking';
@@ -214,23 +215,33 @@ export default function PerformerProfile() {
           headerTitleStyle: { color: colors.textPrimary },
           headerRight: isOwner
             ? () => (
-                <Pressable
-                  onPress={() => router.push(`/performer/${p.id}/edit` as any)}
-                  hitSlop={10}
-                  style={{ marginRight: 4 }}
-                >
-                  <Text style={{ color: colors.teal, fontSize: 15, fontWeight: '700' }}>Edit</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <Pressable onPress={() => sharePerformer(p)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share my profile">
+                    <Ionicons name="share-outline" size={22} color={colors.teal} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push(`/performer/${p.id}/edit` as any)}
+                    hitSlop={10}
+                    style={{ marginRight: 4 }}
+                  >
+                    <Text style={{ color: colors.teal, fontSize: 15, fontWeight: '700' }}>Edit</Text>
+                  </Pressable>
+                </View>
               )
             : () => (
-                <ReportBlockMenu
-                  targetType="performer"
-                  targetId={p.id}
-                  targetLabel={p.stageName}
-                  ownerId={p.userId}
-                  ownerName={p.stageName}
-                  onHidden={() => goBack('/(tabs)/discover')}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Pressable onPress={() => sharePerformer(p)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share this profile" style={{ padding: 4 }}>
+                    <Ionicons name="share-outline" size={22} color={colors.teal} />
+                  </Pressable>
+                  <ReportBlockMenu
+                    targetType="performer"
+                    targetId={p.id}
+                    targetLabel={p.stageName}
+                    ownerId={p.userId}
+                    ownerName={p.stageName}
+                    onHidden={() => goBack('/(tabs)/discover')}
+                  />
+                </View>
               ),
         }}
       />

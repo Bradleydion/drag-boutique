@@ -1,4 +1,5 @@
 // app/(tabs)/tickets.tsx
+import { formatEventDay, formatEventClock } from '../../lib/eventTime';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Image, Modal, Platform, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
@@ -37,10 +38,10 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
   const imageUrl  = event?.imageUrl;
 
   const dateStr = dateStart
-    ? new Date(dateStart).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    ? formatEventDay(dateStart, event?.timezone)
     : '';
   const timeStr = dateStart
-    ? new Date(dateStart).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    ? formatEventClock(dateStart, event?.timezone)
     : '';
 
   const shortId = ticket.id.slice(0, 8).toUpperCase();

@@ -2,6 +2,8 @@
 // Talent-facing event night call sheet.
 // Shown when a confirmed talent taps their gig from the invites screen.
 
+import { formatEventDay, formatEventClock } from '../../../lib/eventTime';
+import { openDirections } from '../../../lib/maps';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -26,12 +28,9 @@ import { goBack } from '../../../lib/nav';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDateTime(iso?: string) {
+function formatDateTime(iso?: string, tz?: string | null) {
   if (!iso) return 'Date TBD';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  }) + '\n' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return formatEventDay(iso, tz) + '\n' + formatEventClock(iso, tz);
 }
 
 function timeUntil(iso?: string): string | null {
@@ -47,10 +46,7 @@ function timeUntil(iso?: string): string | null {
 }
 
 function openMaps(address: string) {
-  const encoded = encodeURIComponent(address);
-  Linking.openURL(`https://maps.apple.com/?q=${encoded}`).catch(() =>
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encoded}`),
-  );
+  openDirections(address);
 }
 
 // ─── Crew row (other confirmed staff) ────────────────────────────────────────
@@ -265,7 +261,7 @@ export default function GigScreen() {
         <View style={card}>
           <Text style={sectionLabel}>Date & Time</Text>
           <Text style={{ color: C.textPrimary, fontSize: 16, fontWeight: '700', lineHeight: 24, marginTop: 4 }}>
-            {formatDateTime(event.datetimeStart)}
+            {formatDateTime(event.datetimeStart, event.timezone)}
           </Text>
           {event.timezone && (
             <Text style={{ color: C.textMuted, fontSize: 12, marginTop: 4 }}>{event.timezone}</Text>

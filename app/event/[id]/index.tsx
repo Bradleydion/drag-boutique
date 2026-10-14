@@ -20,16 +20,11 @@ import { PrimaryButton } from '../../../components/PrimaryButton';
 import { colors } from '../../../src/theme/colors';
 import { ReportBlockMenu } from '../../../components/ReportBlockMenu';
 import { goBack } from '../../../lib/nav';
+import { formatEventLong, formatEventMoment } from '../../../lib/eventTime';
+import { shareEvent } from '../../../lib/share';
+import { openDirections } from '../../../lib/maps';
+import { Ionicons } from '@expo/vector-icons';
 
-function formatDate(iso?: string) {
-  if (!iso) return 'Date TBD';
-  const d = new Date(iso);
-  return (
-    d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) +
-    ' at ' +
-    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  );
-}
 
 export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -212,12 +207,7 @@ export default function EventDetail() {
   const GOLD   = '#F59E0B';
 
   // Why tickets can't be bought right now (null = on sale).
-  const fmtSaleTime = (iso?: string) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  };
+  const fmtSaleTime = (iso?: string) => formatEventMoment(iso, event.timezone);
   const salesStartMs = event.ticketing?.salesStart ? new Date(event.ticketing.salesStart).getTime() : NaN;
   const salesEndMs   = event.ticketing?.salesEnd   ? new Date(event.ticketing.salesEnd).getTime()   : NaN;
   const notOnSaleReason: string | null =
@@ -239,14 +229,25 @@ export default function EventDetail() {
           headerTitleStyle: { color: colors.textPrimary },
           headerTintColor: colors.teal,
           headerRight: () => (
-            <ReportBlockMenu
-              targetType="event"
-              targetId={event.id}
-              targetLabel={event.title}
-              ownerId={event.hostId}
-              ownerName={event.hostName}
-              onHidden={() => goBack('/(tabs)/discover')}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Pressable
+                onPress={() => shareEvent(event)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Share this show"
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="share-outline" size={22} color={colors.teal} />
+              </Pressable>
+              <ReportBlockMenu
+                targetType="event"
+                targetId={event.id}
+                targetLabel={event.title}
+                ownerId={event.hostId}
+                ownerName={event.hostName}
+                onHidden={() => goBack('/(tabs)/discover')}
+              />
+            </View>
           ),
         }}
       />
@@ -281,7 +282,7 @@ export default function EventDetail() {
           </Text>
 
           <Text style={{ color: colors.teal, marginTop: 6, fontWeight: '600', fontSize: 15 }}>
-            🗓 {formatDate(event.datetimeStart)}
+            🗓 {formatEventLong(event.datetimeStart, event.timezone)}
           </Text>
 
           {event.venue?.name && (
@@ -291,6 +292,20 @@ export default function EventDetail() {
               {event.venue.state ? `, ${event.venue.state}` : ''}
             </Text>
           )}
+          {(() => {
+            const v = event.venue;
+            const street = v?.address?.trim();
+            if (!street && !v?.name) return null;
+            const full = [street || v?.name, v?.city, [v?.state, v?.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+            return (
+              <Pressable onPress={() => openDirections(full)} hitSlop={6} accessibilityRole="link" style={{ marginTop: 4 }}>
+                {street ? (
+                  <Text style={{ color: colors.textMuted, fontSize: 13, marginLeft: 22 }}>{full}</Text>
+                ) : null}
+                <Text style={{ color: colors.teal, fontSize: 13, fontWeight: '700', marginLeft: 22, marginTop: 2 }}>Get directions →</Text>
+              </Pressable>
+            );
+          })()}
 
           {event.hostName && (
             <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 13 }}>
