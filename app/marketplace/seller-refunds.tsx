@@ -15,12 +15,14 @@ import {
   type Listing,
 } from '../../lib/marketplaceStore';
 import { colors } from '../../src/theme/colors';
+import { ContactSheet } from '../../components/ContactSheet';
 import { goBack } from '../../lib/nav';
 
 export default function SellerRefundsScreen() {
   const [requests, setRequests] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [contactFor, setContactFor] = useState<Listing | null>(null);
 
   const refresh = useCallback(async () => {
     const sellerId = getSession()?.user?.id;
@@ -125,6 +127,9 @@ export default function SellerRefundsScreen() {
                 {listing.refundReason && (
                   <Text style={{ color: colors.textSecondary, fontSize: 13 }}>"{listing.refundReason}"</Text>
                 )}
+                <Pressable onPress={() => setContactFor(listing)} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
+                  <Text style={{ color: colors.teal, fontSize: 13, fontWeight: '700' }}>✉️ Message the buyer</Text>
+                </Pressable>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   <Pressable
                     onPress={() => handleDeny(listing)}
@@ -152,6 +157,15 @@ export default function SellerRefundsScreen() {
           <Text style={{ color: colors.teal, fontWeight: '700' }}>← Back</Text>
         </Pressable>
       </ScrollView>
+      <ContactSheet
+        visible={!!contactFor}
+        onClose={() => setContactFor(null)}
+        targetType="listing_buyer"
+        targetId={contactFor?.id ?? ''}
+        recipientName="the buyer"
+        about={contactFor?.title}
+        placeholder="Ask about the refund, or offer an exchange…"
+      />
     </SafeAreaView>
   );
 }

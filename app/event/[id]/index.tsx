@@ -13,7 +13,8 @@ import {
 import { useStripe } from '@stripe/stripe-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchEventById, rollToNextOccurrence, type EventRecord } from '../../../lib/eventsStore';
-import { isGuest } from '../../../lib/authStore';
+import { getSession, isGuest } from '../../../lib/authStore';
+import { ContactSheet } from '../../../components/ContactSheet';
 import { buyTicket, confirmPaidTicket, createPaymentIntent, getTicketQuote, hasTicket, loadTickets, type TicketPriceBreakdown } from '../../../lib/ticketStore';
 import { fetchPerformerById } from '../../../lib/performerStore';
 import { PrimaryButton } from '../../../components/PrimaryButton';
@@ -35,6 +36,7 @@ export default function EventDetail() {
   const [ticketed,   setTicketed]   = useState(false);
   const [buying,     setBuying]     = useState(false);
   const [quote,      setQuote]      = useState<TicketPriceBreakdown | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
   const [performers, setPerformers] = useState<
     { id: string; stageName: string; photoUrl?: string }[]
   >([]);
@@ -312,6 +314,18 @@ export default function EventDetail() {
               Hosted by {event.hostName}
             </Text>
           )}
+          {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.hostId ?? '') &&
+            event.hostId !== getSession()?.user?.id && (
+            <Pressable
+              onPress={() => setContactOpen(true)}
+              accessibilityRole="button"
+              hitSlop={8}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, alignSelf: 'flex-start' }}
+            >
+              <Ionicons name="mail-outline" size={15} color={colors.teal} />
+              <Text style={{ color: colors.teal, fontSize: 13, fontWeight: '700' }}>Message the host</Text>
+            </Pressable>
+          )}
 
           {event.isRecurring && event.recurringFrequency && (
             <View style={{
@@ -471,6 +485,15 @@ export default function EventDetail() {
 
         </View>
       </ScrollView>
+      <ContactSheet
+        visible={contactOpen}
+        onClose={() => setContactOpen(false)}
+        targetType="event_host"
+        targetId={event.id}
+        recipientName={event.hostName || 'the host'}
+        about={event.title}
+        placeholder="Questions about the show, your booking, or the lineup…"
+      />
     </SafeAreaView>
   );
 }

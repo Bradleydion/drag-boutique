@@ -17,6 +17,7 @@ import {
 import { getSession, isGuest } from '../../lib/authStore';
 import { colors } from '../../src/theme/colors';
 import { ReportBlockMenu } from '../../components/ReportBlockMenu';
+import { ContactSheet } from '../../components/ContactSheet';
 import { goBack } from '../../lib/nav';
 
 export default function ListingDetail() {
@@ -26,6 +27,7 @@ export default function ListingDetail() {
   const [buying, setBuying] = useState(false);
   const [justBought, setJustBought] = useState(false);
   const [quote, setQuote] = useState<ListingPriceBreakdown | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Priced, unsold listings: load the all-in price (item + service fee) up front.
   useEffect(() => {
@@ -45,11 +47,7 @@ export default function ListingDetail() {
   const cat = CATEGORY_META[listing.category];
 
   function handleContact() {
-    Alert.alert(
-      listing.type === 'commission' ? 'Request a Quote' : 'Contact Seller',
-      `In-app messaging is coming soon. For now, reach out to ${listing.sellerName} directly.`,
-      [{ text: 'OK' }]
-    );
+    setContactOpen(true);
   }
 
   async function handleBuyNow() {
@@ -248,11 +246,13 @@ export default function ListingDetail() {
                 </Text>
               </>
             ) : null}
-            <PrimaryButton
-              title={listing.type === 'commission' ? 'Request a Quote' : listing.type === 'swap' ? 'Propose a Swap' : 'Contact Seller'}
-              variant={listing.price > 0 ? 'ghost' : undefined}
-              onPress={handleContact}
-            />
+            {listing.sellerId !== getSession()?.user?.id && (
+              <PrimaryButton
+                title={listing.type === 'commission' ? 'Request a Quote' : listing.type === 'swap' ? 'Propose a Swap' : 'Contact Seller'}
+                variant={listing.price > 0 ? 'ghost' : undefined}
+                onPress={handleContact}
+              />
+            )}
             <PrimaryButton
               title="Back to Marketplace"
               variant="ghost"
@@ -262,6 +262,16 @@ export default function ListingDetail() {
 
         </View>
       </ScrollView>
+      <ContactSheet
+        visible={contactOpen}
+        onClose={() => setContactOpen(false)}
+        targetType="listing"
+        targetId={listing.id}
+        recipientName={listing.sellerName || 'the seller'}
+        about={listing.title}
+        title={listing.type === 'commission' ? `Request a quote from ${listing.sellerName}` : listing.type === 'swap' ? `Propose a swap to ${listing.sellerName}` : undefined}
+        placeholder={listing.type === 'commission' ? 'What would you like made? Sizes, colors, timeline, budget…' : listing.type === 'swap' ? 'What would you like to swap?' : 'Ask about sizing, condition, pickup or shipping…'}
+      />
     </SafeAreaView>
   );
 }

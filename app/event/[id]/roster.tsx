@@ -39,6 +39,7 @@ import { createStaffPaymentIntent, markInvitePaid } from '../../../lib/eventRole
 import { loadPerformers, getPerformers, type PerformerRecord } from '../../../lib/performerStore';
 import { colors as C } from '../../../src/theme/colors';
 import { goBack } from '../../../lib/nav';
+import { ContactSheet } from '../../../components/ContactSheet';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -406,6 +407,7 @@ function TalentRow({
   const hasPhone   = !!invite.phoneNumber;
   const isPaid     = invite.paymentStatus === 'paid';
   const [paying, setPaying] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   function handlePay() {
@@ -556,9 +558,22 @@ function TalentRow({
         )}
       </View>
 
-      {/* Contact row — only shown if phone is available */}
-      {hasPhone && isActive && (
+      {/* Contact row — email via Sequins always; SMS/WhatsApp when they shared a phone */}
+      {isActive && (
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, marginLeft: 48 }}>
+          <Pressable
+            onPress={() => setContactOpen(true)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: C.teal + '18', borderRadius: 8,
+              paddingHorizontal: 10, paddingVertical: 5,
+              borderWidth: 1, borderColor: C.teal + '44',
+            }}
+          >
+            <Text style={{ fontSize: 12 }}>✉️</Text>
+            <Text style={{ color: C.teal, fontWeight: '700', fontSize: 11 }}>Message</Text>
+          </Pressable>
+          {hasPhone && (<>
           <Pressable
             onPress={() => openSMS(invite.phoneNumber!, `Hi! This is about ${eventTitle}.`)}
             style={{
@@ -583,8 +598,18 @@ function TalentRow({
             <Text style={{ fontSize: 12 }}>📱</Text>
             <Text style={{ color: '#25D366', fontWeight: '700', fontSize: 11 }}>WhatsApp</Text>
           </Pressable>
+          </>)}
         </View>
       )}
+      <ContactSheet
+        visible={contactOpen}
+        onClose={() => setContactOpen(false)}
+        targetType="event_talent"
+        targetId={invite.id}
+        recipientName={invite.stageName ?? 'this person'}
+        about={eventTitle}
+        placeholder="Call time, set length, music, parking…"
+      />
     </View>
   );
 }

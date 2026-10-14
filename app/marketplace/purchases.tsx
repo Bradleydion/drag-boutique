@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { keptServiceFee } from '../../lib/feeTiers';
 import { loadMyPurchases, requestListingRefund, type Listing } from '../../lib/marketplaceStore';
 import { colors } from '../../src/theme/colors';
+import { ContactSheet } from '../../components/ContactSheet';
 
 function isRefundEligible(listing: Listing): boolean {
   if (listing.paymentStatus !== 'paid') return false;
@@ -25,6 +26,7 @@ export default function MyPurchasesScreen() {
   const [purchases, setPurchases] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestingId, setRequestingId] = useState<string | null>(null);
+  const [contactFor, setContactFor] = useState<Listing | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -117,6 +119,9 @@ export default function MyPurchasesScreen() {
                   <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
                     ${listing.price} · from {listing.sellerName}
                   </Text>
+                  <Pressable onPress={() => setContactFor(listing)} hitSlop={6} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                    <Text style={{ color: colors.teal, fontSize: 12, fontWeight: '700' }}>✉️ Message {listing.sellerName || 'seller'}</Text>
+                  </Pressable>
 
                   {listing.paymentStatus === 'refund_requested' && (
                     <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '700', marginTop: 6 }}>
@@ -147,6 +152,15 @@ export default function MyPurchasesScreen() {
           </View>
         )}
       </ScrollView>
+      <ContactSheet
+        visible={!!contactFor}
+        onClose={() => setContactFor(null)}
+        targetType="listing"
+        targetId={contactFor?.id ?? ''}
+        recipientName={contactFor?.sellerName || 'the seller'}
+        about={contactFor?.title}
+        placeholder="Shipping, pickup, or a question about your order…"
+      />
     </SafeAreaView>
   );
 }
