@@ -7,6 +7,8 @@ import { supabase } from './supabase';
 import { getSession, isGuest } from './authStore';
 import { markEventPromoted } from './eventsStore';
 import { markPerformerPromoted } from './performerStore';
+import { iapAvailable, buyBoostInApp } from './purchases';
+import { colors as themeColors } from '../src/theme/colors';
 
 // Placeholder -- mirror of the price/duration set server-side in
 // create-promotion-checkout (PROMOTION_PRICE_USD_CENTS / PROMOTION_DAYS).
@@ -42,6 +44,53 @@ export async function startPromotionCheckout(
     paymentIntentId: data.paymentIntentId,
     promotionDays: data.promotionDays ?? PROMOTION_DAYS,
   };
+}
+
+type StripeSheet = {
+  initPaymentSheet: (params: any) => Promise<{ error?: { message: string } }>;
+  presentPaymentSheet: () => Promise<{ error?: { code: string; message: string } }>;
+};
+
+/**
+ * Buy a 7-day boost for an event or performer profile. Uses Apple / Google
+ * in-app purchase when available (required on iOS for digital features),
+ * otherwise the Stripe payment sheet. Resolves 'done' once the boost is
+ * applied on the server, or 'cancelled' if the buyer backed out.
+ */
+export async function purchaseBoost(
+  targetType: PromotionTarget,
+  targetId: string,
+  stripe: StripeSheet,
+): Promise<'done' | 'cancelled'> {
+  const session = getSession();
+  if (!session || isGuest()) throw new Error('Must be signed in to promote.');
+
+  if (iapAvailable()) {
+    const r = await buyBoostInApp(session.user.id, targetType, targetId);
+    return r.status;
+  }
+
+  const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout(targetType, targetId);
+  const { error: initError } = await stripe.initPaymentSheet({
+    merchantDisplayName: 'Sequins',
+    paymentIntentClientSecret: clientSecret,
+    appearance: {
+      colors: {
+        primary: themeColors.teal, background: themeColors.navy, componentBackground: themeColors.surface,
+        componentBorder: themeColors.border, primaryText: themeColors.textPrimary, componentText: themeColors.textPrimary,
+        icon: themeColors.textSecondary, secondaryText: themeColors.textSecondary, placeholderText: themeColors.textMuted,
+      },
+    },
+  });
+  if (initError) throw new Error(initError.message);
+  const { error: presentError } = await stripe.presentPaymentSheet();
+  if (presentError) {
+    if (presentError.code === 'Canceled') return 'cancelled';
+    throw new Error(presentError.message);
+  }
+  if (targetType === 'event') await markEventPromoted(targetId, paymentIntentId, promotionDays);
+  else await markPerformerPromoted(targetId, paymentIntentId, promotionDays);
+  return 'done';
 }
 
 export async function confirmEventPromotion(eventId: string, paymentIntentId: string, days: number) {

@@ -30,7 +30,7 @@ import {
 import { getSession, updateDisplayName } from '../../../lib/authStore';
 import { AccessRestricted } from '../../../components/AccessRestricted';
 import { type RoleKey } from '../../../lib/eventRolesStore';
-import { startPromotionCheckout, confirmPerformerPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
+import { purchaseBoost, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
 import { goBack } from '../../../lib/nav';
@@ -385,27 +385,11 @@ export default function EditPerformerProfile() {
               if (!id) return;
               setPromoting(true);
               try {
-                const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout('performer', id);
-                const { error: initError } = await initPaymentSheet({
-                  merchantDisplayName: 'Sequins',
-                  paymentIntentClientSecret: clientSecret,
-                  appearance: {
-                    colors: {
-                      primary: C.teal, background: C.navy, componentBackground: C.surface,
-                      componentBorder: C.border, primaryText: C.textPrimary, componentText: C.textPrimary, icon: C.textSecondary,
-                      secondaryText: C.textSecondary, placeholderText: C.textMuted,
-                    },
-                  },
-                });
-                if (initError) throw new Error(initError.message);
-                const { error: presentError } = await presentPaymentSheet();
-                if (presentError) {
-                  if (presentError.code === 'Canceled') return;
-                  throw new Error(presentError.message);
-                }
-                await confirmPerformerPromotion(id, paymentIntentId, promotionDays);
-                setPromotedUntil(new Date(Date.now() + promotionDays * 24 * 60 * 60 * 1000).toISOString());
-                Alert.alert('✦ Promoted!', `Your profile is now boosted for ${promotionDays} days.`);
+                const r = await purchaseBoost('performer', id, { initPaymentSheet, presentPaymentSheet });
+                if (r === 'cancelled') return;
+                const base = Math.max(Date.now(), promotedUntil ? new Date(promotedUntil).getTime() : 0);
+                setPromotedUntil(new Date(base + PROMOTION_DAYS * 24 * 60 * 60 * 1000).toISOString());
+                Alert.alert('✦ Promoted!', `Your profile is now boosted for ${PROMOTION_DAYS} days.`);
               } catch (err) {
                 Alert.alert('Error', err instanceof Error ? err.message : 'Could not start promotion.');
               } finally {

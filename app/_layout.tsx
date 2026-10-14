@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { supabase } from '../lib/supabase';
+import { setPurchasesUser } from '../lib/purchases';
 import { hasRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
 import { DismissKeyboard } from '../components/DismissKeyboard';
@@ -85,7 +86,9 @@ export default Sentry.wrap(function RootLayout() {
     const linkSub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
 
     // Supabase session events — redirect to auth on sign-out; register push on sign-in.
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Keep the Apple/Google purchases customer matched to the signed-in user.
+      setPurchasesUser(session?.user?.id ?? null).catch(() => {});
       if (event === 'SIGNED_OUT') {
         unregisterPushToken(); // remove this device's token on logout
         router.replace('/auth');

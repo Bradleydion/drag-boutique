@@ -6,9 +6,10 @@
 
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import { iapAvailable, buyProInApp, restorePurchasesInApp, manageStoreSubscription, getStorePrice } from '../../lib/purchases';
 import { useStripe } from '@stripe/stripe-react-native';
 import {
   getSubscription,
@@ -36,7 +37,10 @@ export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(!subscriptionLoaded());
   const [eventsThisMonth, setEventsThisMonth] = useState<number | null>(null);
   const [working, setWorking] = useState(false);
+  const [storePrice, setStorePrice] = useState<string | null>(null);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const useIap = iapAvailable();
+  const priceLabel = storePrice ? `${storePrice}/mo` : PRO_PRICE_LABEL;
 
   useFocusEffect(
     useCallback(() => {
@@ -47,6 +51,7 @@ export default function SubscriptionScreen() {
         loadSubscription(),
         userId ? getHostEventCountThisMonth(userId) : Promise.resolve(0),
       ]).then(([, count]) => {
+        if (useIap && userId) getStorePrice('pro', userId).then(p => { if (!cancelled) setStorePrice(p); });
         if (!cancelled) {
           setSub(getSubscription());
           setEventsThisMonth(count);
@@ -60,6 +65,15 @@ export default function SubscriptionScreen() {
   async function handleUpgrade() {
     setWorking(true);
     try {
+      const userId = getSession()?.user?.id;
+      if (useIap && userId) {
+        const r = await buyProInApp(userId);
+        if (r.status === 'cancelled') return;
+        await loadSubscription();
+        setSub(getSubscription());
+        Alert.alert('🎉 Welcome to Sequins Pro!', 'Unlimited shows and weekly repeating events are unlocked.');
+        return;
+      }
       const result = await startProCheckout();
       if ('alreadyPro' in result) {
         Alert.alert('You’re already Pro!', 'Your subscription is already active.');
@@ -108,9 +122,30 @@ export default function SubscriptionScreen() {
     }
   }
 
+  async function handleRestore() {
+    const userId = getSession()?.user?.id;
+    if (!userId) return;
+    setWorking(true);
+    try {
+      const pro = await restorePurchasesInApp(userId);
+      await loadSubscription();
+      setSub(getSubscription());
+      Alert.alert(pro ? 'Purchases restored' : 'Nothing to restore', pro ? 'Sequins Pro is active on this account.' : 'We didn’t find an active Sequins Pro subscription for this Apple/Google account.');
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not restore purchases.');
+    } finally {
+      setWorking(false);
+    }
+  }
+
   async function handleManage() {
     setWorking(true);
     try {
+      const userId = getSession()?.user?.id;
+      if (sub.store && userId) {
+        await manageStoreSubscription(userId);
+        return;
+      }
       const url = await getBillingPortalUrl();
       await WebBrowser.openBrowserAsync(url);
       await loadSubscription();
@@ -181,7 +216,7 @@ export default function SubscriptionScreen() {
                 }}
               >
                 <Text style={{ color: colors.textPrimary, fontWeight: '900', fontSize: 16, marginBottom: 12 }}>
-                  What you get with Pro — {PRO_PRICE_LABEL}
+                  What you get with Pro — {priceLabel}
                 </Text>
                 {PRO_BENEFITS.map(b => (
                   <View key={b} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
@@ -210,10 +245,25 @@ export default function SubscriptionScreen() {
                 <ActivityIndicator color={pro ? colors.textPrimary : colors.navy} />
               ) : (
                 <Text style={{ color: pro ? colors.textPrimary : colors.navy, fontWeight: '800', fontSize: 16 }}>
-                  {pro ? 'Manage Subscription' : `Upgrade to Pro — ${PRO_PRICE_LABEL}`}
+                  {pro ? 'Manage Subscription' : `Upgrade to Pro — ${priceLabel}`}
                 </Text>
               )}
             </Pressable>
+            )}
+
+            {!pro && useIap && (
+              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 18 }}>
+                {priceLabel.replace('/mo', ' a month')}, renews automatically until you cancel. Cancel anytime in your {sub.store === 'play_store' || (!sub.store && Platform.OS === 'android') ? 'Google Play' : 'App Store'} settings at least 24 hours before it renews.{' '}
+                <Text style={{ color: colors.teal }} onPress={() => WebBrowser.openBrowserAsync('https://www.thebradleyproject.com/terms')}>Terms</Text>
+                {' · '}
+                <Text style={{ color: colors.teal }} onPress={() => WebBrowser.openBrowserAsync('https://www.thebradleyproject.com/privacy')}>Privacy</Text>
+              </Text>
+            )}
+
+            {useIap && !comped && (
+              <Pressable onPress={handleRestore} disabled={working} hitSlop={12} style={{ marginTop: 16, alignItems: 'center' }}>
+                <Text style={{ color: colors.teal, fontSize: 13, fontWeight: '700' }}>Restore Purchases</Text>
+              </Pressable>
             )}
 
             {!pro && (

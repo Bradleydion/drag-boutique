@@ -3,12 +3,13 @@ import Stripe from 'npm:stripe@16';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 // Starts (or resumes) a Sequins Pro subscription for the calling host.
-// Placeholder price: $9.99/mo -- Bradley hasn't set a final number yet, easy
-// to change in one place (PRO_PRICE_USD_CENTS below). The underlying Stripe
+// Price: $12.99/mo (set by Bradley 10/11, matches the App Store / Play price).
+// Change it in one place (PRO_PRICE_USD_CENTS below), then clear the cached
+// 'stripe_pro_price_id' row in platform_settings so a new Stripe Price is made. The underlying Stripe
 // Product/Price is created once and cached in platform_settings so we never
 // spam Stripe with duplicate Products.
 
-const PRO_PRICE_USD_CENTS = 999; // $9.99/mo -- placeholder, confirm with Bradley
+const PRO_PRICE_USD_CENTS = 1299; // $12.99/mo
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2024-06-20',

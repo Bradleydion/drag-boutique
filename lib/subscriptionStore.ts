@@ -18,15 +18,18 @@ export type Subscription = {
   tier: SubscriptionTier;
   status: string; // 'inactive' | Stripe subscription status ('active','trialing','past_due','canceled', etc.)
   currentPeriodEnd?: string;
-  // true when billed through Stripe; false for a comped (free) Pro, e.g. a founding member
+  // true when billed (Stripe, Apple or Google); false for a comped (free) Pro, e.g. a founding member
   stripeBacked?: boolean;
+  // 'app_store' | 'play_store' when billed through Apple / Google; null otherwise
+  store?: 'app_store' | 'play_store' | null;
 };
 
 const FREE_SUB: Subscription = { tier: 'free', status: 'inactive' };
 
-// Placeholder -- mirror of the price set server-side in
-// create-subscription-checkout (PRO_PRICE_USD_CENTS). Keep these in sync.
-export const PRO_PRICE_LABEL = '$9.99/mo';
+// Mirror of the price in App Store Connect / Play Console (sequins_pro_monthly)
+// and in create-subscription-checkout (PRO_PRICE_USD_CENTS). Keep these in sync.
+// Screens that can, show the store's own localized price instead.
+export const PRO_PRICE_LABEL = '$12.99/mo';
 
 let _subscription: Subscription = FREE_SUB;
 let _loaded = false;
@@ -51,7 +54,7 @@ export async function loadSubscription(): Promise<void> {
 
   const { data, error } = await supabase
     .from('subscriptions')
-    .select('tier, status, current_period_end, stripe_subscription_id')
+    .select('tier, status, current_period_end, stripe_subscription_id, store')
     .eq('user_id', session.user.id)
     .maybeSingle();
 
@@ -60,7 +63,8 @@ export async function loadSubscription(): Promise<void> {
       tier: data.tier === 'pro' ? 'pro' : 'free',
       status: data.status,
       currentPeriodEnd: data.current_period_end ?? undefined,
-      stripeBacked: !!data.stripe_subscription_id,
+      stripeBacked: !!data.stripe_subscription_id || !!data.store,
+      store: data.store ?? null,
     };
   } else {
     _subscription = FREE_SUB;

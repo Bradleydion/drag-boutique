@@ -25,7 +25,7 @@ import { fetchEventById, updateEvent } from '../../../lib/eventsStore';
 import { getSession } from '../../../lib/authStore';
 import { AccessRestricted } from '../../../components/AccessRestricted';
 import { canUseRecurringFrequency, parseTierLimitError, loadSubscription } from '../../../lib/subscriptionStore';
-import { startPromotionCheckout, confirmEventPromotion, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
+import { purchaseBoost, isCurrentlyPromoted, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
 import { goBack } from '../../../lib/nav';
@@ -440,27 +440,11 @@ export default function EditEventScreen() {
             onPress={async () => {
               setPromoting(true);
               try {
-                const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout('event', eventId);
-                const { error: initError } = await initPaymentSheet({
-                  merchantDisplayName: 'Sequins',
-                  paymentIntentClientSecret: clientSecret,
-                  appearance: {
-                    colors: {
-                      primary: C.teal, background: C.navy, componentBackground: C.surface,
-                      componentBorder: C.border, primaryText: C.textPrimary,
-                      secondaryText: C.textSecondary, placeholderText: C.textMuted,
-                    },
-                  },
-                });
-                if (initError) throw new Error(initError.message);
-                const { error: presentError } = await presentPaymentSheet();
-                if (presentError) {
-                  if (presentError.code === 'Canceled') return;
-                  throw new Error(presentError.message);
-                }
-                const record = await confirmEventPromotion(eventId, paymentIntentId, promotionDays);
-                setPromotedUntil(record.promotedUntil ?? null);
-                Alert.alert('✦ Promoted!', `Your event is now boosted for ${promotionDays} days.`);
+                const r = await purchaseBoost('event', eventId, { initPaymentSheet, presentPaymentSheet });
+                if (r === 'cancelled') return;
+                const record = await fetchEventById(eventId);
+                setPromotedUntil(record?.promotedUntil ?? null);
+                Alert.alert('✦ Promoted!', `Your event is now boosted for ${PROMOTION_DAYS} days.`);
               } catch (err) {
                 Alert.alert('Error', err instanceof Error ? err.message : 'Could not start promotion.');
               } finally {

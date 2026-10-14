@@ -8,7 +8,7 @@ import { PrimaryButton } from '../../../components/PrimaryButton';
 import { getDraft, resetDraft, updateDraft } from '../../../lib/createEventStore';
 import { publishDraft } from '../../../lib/eventsStore';
 import { parseTierLimitError } from '../../../lib/subscriptionStore';
-import { startPromotionCheckout, confirmEventPromotion, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
+import { purchaseBoost, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
 import { checkPayoutsBeforePaidPublish } from '../../../lib/payoutStore';
 import { saveEventRoles, inviteTalentToRole, roleLabel } from '../../../lib/eventRolesStore';
@@ -98,24 +98,8 @@ export default function CreateEvent_Review() {
       if (promoted && event?.id) {
         promotionOutcome = 'skipped';
         try {
-          const { clientSecret, paymentIntentId, promotionDays } = await startPromotionCheckout('event', event.id);
-          const { error: initError } = await initPaymentSheet({
-            merchantDisplayName: 'Sequins',
-            paymentIntentClientSecret: clientSecret,
-            appearance: {
-              colors: {
-                primary: C.teal, background: C.navy, componentBackground: C.surface,
-                componentBorder: C.border, primaryText: C.textPrimary,
-                secondaryText: C.textSecondary, placeholderText: C.textMuted,
-              },
-            },
-          });
-          if (initError) throw new Error(initError.message);
-          const { error: presentError } = await presentPaymentSheet();
-          if (!presentError) {
-            await confirmEventPromotion(event.id, paymentIntentId, promotionDays);
-            promotionOutcome = 'success';
-          }
+          const r = await purchaseBoost('event', event.id, { initPaymentSheet, presentPaymentSheet });
+          if (r === 'done') promotionOutcome = 'success';
         } catch (_) {
           // Promotion failure is non-blocking -- the event still published.
         }
