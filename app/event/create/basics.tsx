@@ -2,6 +2,7 @@
 //
 // Requires: npx expo install expo-image-picker
 //
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { PrimaryButton } from '../../../components/PrimaryButton';
@@ -13,7 +14,6 @@ import { DateTimeField } from '../../../components/DateTimeField';
 import {
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -164,19 +164,10 @@ export default function CreateEvent_Basics() {
         }}
       />
 
-      <KeyboardAvoidingView
+      <View style={{ flex: 1 }}>
 
 
-        style={{ flex: 1 }}
-
-
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-
-
-      >
-
-
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+        <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>Event basics</Text>
         <Text style={{ color: C.textMuted, marginTop: 4 }}>
           These details appear on the public event page.
@@ -417,8 +408,8 @@ export default function CreateEvent_Basics() {
             Cancel
           </Text>
         </Pressable>
-      </ScrollView>
-        </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+        </View>
     </SafeAreaView>
   );
 }

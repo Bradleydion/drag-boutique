@@ -1,6 +1,7 @@
 // app/event/create/roles.tsx
 // Step 4 of event creation: define needed roles, set pay, invite talent.
 // Sits between Ticketing and Review.
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -361,7 +362,7 @@ export default function CreateEvent_Roles() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
 
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900', marginBottom: 4 }}>
           Lineup & Roles
@@ -409,7 +410,7 @@ export default function CreateEvent_Roles() {
             Skip — I'll staff this later
           </Text>
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* ── Role type picker overlay ── */}
       {showRolePicker && (

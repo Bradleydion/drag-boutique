@@ -3,6 +3,7 @@ import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { supabase } from '../lib/supabase';
 import { hasRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
@@ -107,6 +108,10 @@ export default Sentry.wrap(function RootLayout() {
   return (
     <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.app.sequins">
       <StatusBar style="light" />
+      {/* Keyboard handling that works the same on iPhone and Android (edge-to-edge).
+          Form screens use KeyboardAwareScrollView so the focused field scrolls
+          above the keyboard and you can tap straight into the next field. */}
+      <KeyboardProvider>
       <DismissKeyboard>
         {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
         <Stack
@@ -130,6 +135,7 @@ export default Sentry.wrap(function RootLayout() {
           <Stack.Screen name="notifications" options={{ headerBackTitle: 'Back' }} />
         </Stack>
       </DismissKeyboard>
+      </KeyboardProvider>
     </StripeProvider>
   );
 });

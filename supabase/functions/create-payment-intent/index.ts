@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
     // The ticket price always comes from the database, never from the app.
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, host_id, ticket_price, cancelled_at, cancelled_occurrences')
+      .select('id, host_id, ticket_price, cancelled_at, cancelled_occurrences, sales_start, sales_end')
       .eq('id', eventId)
       .maybeSingle();
 
@@ -171,7 +171,31 @@ Deno.serve(async (req: Request) => {
       tierName: tier.name,
     };
 
-    if (quoteOnly) return json(breakdown);
+    // Can this host take money yet? (Stripe payouts finished.) Checked for
+    // quotes too, so the event page can say "not on sale yet" instead of
+    // showing a Buy button that fails.
+    const { data: payoutAccount } = await supabaseAdmin
+      .from('payout_accounts')
+      .select('stripe_account_id, payouts_enabled')
+      .eq('user_id', event.host_id)
+      .maybeSingle();
+    const hostPayoutsReady = !!(payoutAccount?.stripe_account_id && payoutAccount.payouts_enabled);
+
+    // Ticket sales window set by the host.
+    const now = Date.now();
+    const salesNotOpenYet = !!event.sales_start && now < new Date(event.sales_start).getTime();
+    const salesClosed = !!event.sales_end && now > new Date(event.sales_end).getTime();
+
+    if (quoteOnly) {
+      return json({
+        ...breakdown,
+        hostPayoutsReady,
+        salesStart: event.sales_start ?? null,
+        salesEnd: event.sales_end ?? null,
+        salesNotOpenYet,
+        salesClosed,
+      });
+    }
 
     if (priceCents <= 0) {
       return json({ error: 'This is a free event, so there is nothing to pay.' }, 400);
@@ -188,15 +212,17 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'This show is sold out.', soldOut: true }, 409);
     }
 
-    const { data: payoutAccount } = await supabaseAdmin
-      .from('payout_accounts')
-      .select('stripe_account_id, payouts_enabled')
-      .eq('user_id', event.host_id)
-      .maybeSingle();
+    if (salesNotOpenYet) {
+      return json({ error: 'Ticket sales for this show haven’t opened yet.', salesNotOpenYet: true }, 400);
+    }
+    if (salesClosed) {
+      return json({ error: 'Ticket sales for this show have closed.', salesClosed: true }, 400);
+    }
 
-    if (!payoutAccount?.stripe_account_id || !payoutAccount.payouts_enabled) {
+    if (!hostPayoutsReady || !payoutAccount?.stripe_account_id) {
       return json({
-        error: 'This host hasn’t finished setting up payouts yet, so ticket sales are paused for this event.',
+        error: 'Tickets for this show aren’t on sale yet. The host still needs to finish setting up payouts.',
+        hostPayoutsReady: false,
       }, 400);
     }
 

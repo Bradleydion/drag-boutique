@@ -1,9 +1,9 @@
 // app/marketplace/create.tsx
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -149,15 +149,9 @@ export default function CreateListingScreen() {
         headerTitleStyle: { color: colors.textPrimary },
         headerTintColor: colors.teal,
       }} />
-      <KeyboardAvoidingView
+      <View style={{ flex: 1 }}>
 
-        style={{ flex: 1 }}
-
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-
-      >
-
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+        <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
 
         <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '900', marginBottom: 4 }}>
           Create a Listing
@@ -302,8 +296,8 @@ export default function CreateListingScreen() {
           <PrimaryButton title={submitting ? 'Publishing…' : 'Publish Listing ✦'} onPress={handleSubmit} />
         </View>
 
-      </ScrollView>
-        </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+        </View>
     </SafeAreaView>
   );
 }

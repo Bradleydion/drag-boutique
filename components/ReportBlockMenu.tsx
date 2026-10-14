@@ -2,9 +2,10 @@
 // The "•••" button on performer profiles, events and Shop listings:
 // Report this… / Block <name>. App Store Guideline 1.2.
 
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useState } from 'react';
 import {
-  ActionSheetIOS, ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform,
+  ActionSheetIOS, ActivityIndicator, Alert, Modal, Platform,
   Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import { getSession, isGuest } from '../lib/authStore';

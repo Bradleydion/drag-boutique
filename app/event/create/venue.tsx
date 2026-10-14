@@ -1,4 +1,5 @@
 // app/event/create/venue.tsx
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import * as Linking from 'expo-linking';
 import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -59,7 +60,7 @@ export default function CreateEvent_Venue() {
         }}
       />
 
-      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={{ color: s.text, fontSize: 22, fontWeight: '900' }}>Venue details</Text>
         <Text style={{ color: s.muted, marginTop: 4 }}>Add the location so fans can get directions.</Text>
 
@@ -122,7 +123,7 @@ export default function CreateEvent_Venue() {
             Cancel
           </Text>
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

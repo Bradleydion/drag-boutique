@@ -36,3 +36,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false, // must be false for React Native
   },
 });
+
+// ── Readable Edge Function errors ────────────────────────────────────────────
+// When a function answers with a non-2xx status, supabase-js hides the body and
+// sets error.message to "Edge Function returned a non-2xx status code". Our
+// functions always send { error: "<plain-English reason>" }, so pull that out
+// and use it as the message everyone sees. The parsed body is kept on
+// error.body for callers that need flags like soldOut.
+const rawInvoke = supabase.functions.invoke.bind(supabase.functions);
+(supabase.functions as any).invoke = async (name: string, options?: any) => {
+  const res: any = await rawInvoke(name, options);
+  const ctx = res?.error?.context;
+  if (ctx && typeof ctx.clone === 'function') {
+    try {
+      const body = await ctx.clone().json();
+      if (body && typeof body.error === 'string' && body.error) {
+        res.error.message = body.error;
+      }
+      res.error.body = body;
+    } catch {
+      // body wasn't JSON — keep supabase-js's message
+    }
+  }
+  return res;
+};

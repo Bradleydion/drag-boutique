@@ -6,6 +6,7 @@
 // doesn't return them on refunds). Free shows: no money moves; ticket holders
 // are just told. All of the work happens in the cancel-event Edge Function.
 
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -125,7 +126,7 @@ export default function CancelShowScreen() {
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen options={{ title: 'Cancel Show' }} />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
         {loading && !quote ? (
           <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
         ) : loadError || !quote ? (
@@ -286,7 +287,7 @@ export default function CancelShowScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

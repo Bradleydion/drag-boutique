@@ -10,6 +10,7 @@ import { publishDraft } from '../../../lib/eventsStore';
 import { parseTierLimitError } from '../../../lib/subscriptionStore';
 import { startPromotionCheckout, confirmEventPromotion, PROMOTION_PRICE_LABEL, PROMOTION_DAYS } from '../../../lib/promotionStore';
 import { useStripe } from '@stripe/stripe-react-native';
+import { checkPayoutsBeforePaidPublish } from '../../../lib/payoutStore';
 import { saveEventRoles, inviteTalentToRole, roleLabel } from '../../../lib/eventRolesStore';
 import { colors as C } from '../../../src/theme/colors';
 
@@ -80,6 +81,12 @@ export default function CreateEvent_Review() {
     setPublishing(true);
     try {
       const draft = getDraft();
+
+      // Paid show but no payouts yet? Fans couldn't buy tickets, so ask first.
+      const payoutCheck = await checkPayoutsBeforePaidPublish(Alert, Number(draft.ticketPrice ?? 0), 'publish');
+      if (payoutCheck === 'setup') { router.push('/payouts/setup' as any); return; }
+      if (payoutCheck === 'stop') return;
+
       const event = await publishDraft(draft);
       resetDraft();
 

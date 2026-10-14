@@ -1,4 +1,5 @@
 // app/event/create/ticketing.tsx
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useEffect, useState } from 'react';
 import { DateTimeField } from '@/components/DateTimeField';
 import { View, Text, TextInput, Alert, ScrollView, Pressable, Switch } from 'react-native';
@@ -75,7 +76,7 @@ export default function CreateEvent_Ticketing() {
   };
 
   return (
-    <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: C.navy }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+    <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" style={{ flex: 1, backgroundColor: C.navy }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       <Stack.Screen
         options={{
           title: 'Create Event • Ticketing',
@@ -169,6 +170,6 @@ export default function CreateEvent_Ticketing() {
           Cancel
         </Text>
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

@@ -1,5 +1,6 @@
 // app/event/[id]/edit.tsx
 // Edit an existing event — pre-populated with the event's current values.
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,7 @@ import { startPromotionCheckout, confirmEventPromotion, isCurrentlyPromoted, PRO
 import { useStripe } from '@stripe/stripe-react-native';
 import { colors as C } from '../../../src/theme/colors';
 import { goBack } from '../../../lib/nav';
+import { checkPayoutsBeforePaidPublish } from '../../../lib/payoutStore';
 
 type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 const FREQ_OPTIONS: { value: Frequency; label: string }[] = [
@@ -127,6 +129,10 @@ export default function EditEventScreen() {
 
   async function handleSave() {
     if (errors.length > 0) { Alert.alert('Fix errors', errors.join('\n')); return; }
+    const price = ticketPrice ? parseFloat(ticketPrice) : 0;
+    const payoutCheck = await checkPayoutsBeforePaidPublish(Alert, isNaN(price) ? 0 : price, 'save');
+    if (payoutCheck === 'stop') return;
+    // 'setup': save first so their edits aren't lost, then go set up payouts.
     setSaving(true);
     try {
       await updateEvent(eventId, {
@@ -153,6 +159,10 @@ export default function EditEventScreen() {
           ? null
           : (refundWindowDays.trim() === '' ? null : parseInt(refundWindowDays, 10)),
       });
+      if (payoutCheck === 'setup') {
+        router.replace('/payouts/setup' as any);
+        return;
+      }
       Alert.alert('✅ Saved', 'Your event has been updated.', [
         { text: 'Done', onPress: () => router.back() },
       ]);
@@ -216,7 +226,7 @@ export default function EditEventScreen() {
         }}
       />
 
-      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>Edit event</Text>
         <Text style={{ color: C.textMuted, marginTop: 4, marginBottom: 20 }}>Changes save immediately to your live event.</Text>
 
@@ -489,7 +499,7 @@ export default function EditEventScreen() {
             Cancel
           </Text>
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

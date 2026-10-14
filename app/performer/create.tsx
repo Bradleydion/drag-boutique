@@ -1,6 +1,7 @@
 // app/performer/create.tsx
 // New artist profile creation screen.
 // Accessible from onboarding (artist role) or Profile tab → "Become an Artist" CTA.
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router } from 'expo-router';
@@ -9,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -172,13 +172,9 @@ export default function CreateArtistProfile() {
 
       {/* KeyboardAvoidingView ensures inputs near the bottom aren't hidden by
           the software keyboard, especially on Android. */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
+      <View style={{ flex: 1 }}>
+        <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
-          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
 
@@ -466,8 +462,8 @@ export default function CreateArtistProfile() {
               Not now
             </Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }

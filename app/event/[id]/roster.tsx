@@ -2,6 +2,7 @@
 // Host-only event roster: shows every role, who's filled it, open slots, pay status.
 // Allows host to remove staff and invite new staff without leaving the screen.
 
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -982,7 +983,7 @@ export default function RosterScreen() {
         onInvited={handleInviteAdded}
       />
 
-      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive"
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
         contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
       >
@@ -1080,7 +1081,7 @@ export default function RosterScreen() {
           </View>
         )}
 
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

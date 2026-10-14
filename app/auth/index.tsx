@@ -1,9 +1,9 @@
 // app/auth/index.tsx
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -131,13 +131,9 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
+      <View style={{ flex: 1 }}>
+        <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 28, paddingBottom: 48 }}
-          keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
           <Text style={{ color: colors.coral, fontSize: 32, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>
@@ -284,8 +280,8 @@ export default function AuthScreen() {
             </>
           )}
 
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }

@@ -1,5 +1,6 @@
 // app/performer/[id]/book.tsx
 // Booking / commission request form. Saves to Supabase `booking_requests` table.
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -121,7 +122,7 @@ export default function BookingForm() {
         }}
       />
 
-      <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         <Text style={{ color: C.textPrimary, fontSize: 22, fontWeight: '900' }}>{title}</Text>
         <Text style={{ color: C.textMuted, marginTop: 4, marginBottom: 24, lineHeight: 20 }}>
           {requestType === 'commission'
@@ -196,7 +197,7 @@ export default function BookingForm() {
         <Pressable onPress={() => goBack('/(tabs)/profile')} hitSlop={12} accessibilityRole="button">
           <Text style={{ color: C.textSecondary, textAlign: 'center', textDecorationLine: 'underline' }}>Cancel</Text>
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

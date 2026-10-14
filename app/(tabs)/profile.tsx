@@ -1,4 +1,5 @@
 // app/(tabs)/profile.tsx
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -232,7 +233,7 @@ export default function ProfileTab() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
 
         {/* Avatar + name card */}
         <View style={{
@@ -938,7 +939,7 @@ export default function ProfileTab() {
           </Pressable>
         </View>
 
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

@@ -211,6 +211,24 @@ export default function EventDetail() {
   const isFree = price === 0;
   const GOLD   = '#F59E0B';
 
+  // Why tickets can't be bought right now (null = on sale).
+  const fmtSaleTime = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+  const salesStartMs = event.ticketing?.salesStart ? new Date(event.ticketing.salesStart).getTime() : NaN;
+  const salesEndMs   = event.ticketing?.salesEnd   ? new Date(event.ticketing.salesEnd).getTime()   : NaN;
+  const notOnSaleReason: string | null =
+    (quote?.salesNotOpenYet || (!isNaN(salesStartMs) && Date.now() < salesStartMs))
+      ? `Tickets go on sale ${fmtSaleTime(event.ticketing?.salesStart)}.`
+    : (quote?.salesClosed || (!isNaN(salesEndMs) && Date.now() > salesEndMs))
+      ? 'Ticket sales for this show have closed.'
+    : (!isFree && quote?.hostPayoutsReady === false)
+      ? 'Tickets aren’t on sale yet. The host is still finishing their payout setup. Check back soon!'
+    : null;
+
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.navy }}>
       <Stack.Screen
@@ -401,6 +419,12 @@ export default function EventDetail() {
 
             {ticketed ? (
               <PrimaryButton title="View My Ticket" onPress={() => router.push('/(tabs)/tickets')} />
+            ) : notOnSaleReason ? (
+              <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 14, paddingHorizontal: 16 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '700', textAlign: 'center', lineHeight: 20 }}>
+                  {notOnSaleReason}
+                </Text>
+              </View>
             ) : (
               <PrimaryButton
                 title={
@@ -422,9 +446,9 @@ export default function EventDetail() {
 
             {(event.ticketing?.salesStart || event.ticketing?.salesEnd) && (
               <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-                {event.ticketing.salesStart ? `Sales open: ${event.ticketing.salesStart}` : ''}
+                {event.ticketing.salesStart ? `Sales open ${fmtSaleTime(event.ticketing.salesStart)}` : ''}
                 {event.ticketing.salesStart && event.ticketing.salesEnd ? '  ·  ' : ''}
-                {event.ticketing.salesEnd ? `Closes: ${event.ticketing.salesEnd}` : ''}
+                {event.ticketing.salesEnd ? `Close ${fmtSaleTime(event.ticketing.salesEnd)}` : ''}
               </Text>
             )}
           </View>

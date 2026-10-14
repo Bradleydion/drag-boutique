@@ -2,6 +2,7 @@
 // Door check-in screen for hosts and door staff.
 // Supports live QR camera scanning (tap the camera icon) or manual text entry.
 
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -10,7 +11,6 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,

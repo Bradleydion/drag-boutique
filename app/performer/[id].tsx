@@ -1,4 +1,5 @@
 // app/performer/[id].tsx
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { isGuest, getSession } from '@/lib/authStore';
@@ -234,7 +235,7 @@ export default function PerformerProfile() {
         }}
       />
 
-      <ScrollView style={{ backgroundColor: colors.navy }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" style={{ backgroundColor: colors.navy }} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* ── Hero photo ────────────────────────────────────────────────── */}
         {p.photoUrl ? (
@@ -470,7 +471,7 @@ export default function PerformerProfile() {
           )}
 
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

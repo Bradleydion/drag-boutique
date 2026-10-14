@@ -1,5 +1,6 @@
 // app/performer/[id]/edit.tsx
 // Profile edit screen — only reachable by the profile owner.
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -8,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -190,19 +190,10 @@ export default function EditPerformerProfile() {
         }}
       />
 
-      <KeyboardAvoidingView
+      <View style={{ flex: 1 }}>
 
 
-        style={{ flex: 1 }}
-
-
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-
-
-      >
-
-
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+        <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
 
         {/* ── Profile photo ─────────────────────────────────────────────── */}
         <View style={{ alignItems: 'center', marginBottom: 28 }}>
@@ -449,8 +440,8 @@ export default function EditPerformerProfile() {
           </Text>
         </Pressable>
 
-      </ScrollView>
-        </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+        </View>
     </SafeAreaView>
   );
 }

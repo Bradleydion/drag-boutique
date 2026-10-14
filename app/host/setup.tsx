@@ -10,12 +10,12 @@
 // performer profile shares the same user ID so the two records are implicitly
 // linked without any extra join table.
 
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -139,14 +139,10 @@ export default function HostSetupScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Keep the fields and Next button above the keyboard (TestFlight feedback 9/24). */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-      <ScrollView
+      <View style={{ flex: 1 }}>
+      <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 24, paddingBottom: 56 }}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
@@ -328,8 +324,8 @@ export default function HostSetupScreen() {
         }}>
           You can update this anytime from your profile.
         </Text>
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }

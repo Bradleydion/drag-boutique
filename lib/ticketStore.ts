@@ -127,6 +127,10 @@ export type TicketPriceBreakdown = {
   platformFeePercent: number;
   platformFeeAmount: number;
   tierName: string;
+  /** Quotes only: false when the host hasn't finished Stripe payouts, so tickets can't be sold yet. */
+  hostPayoutsReady?: boolean;
+  salesNotOpenYet?: boolean;
+  salesClosed?: boolean;
 };
 
 function toBreakdown(data: any): TicketPriceBreakdown {
@@ -137,6 +141,9 @@ function toBreakdown(data: any): TicketPriceBreakdown {
     platformFeePercent: Number(data.platformFeePercent ?? 0),
     platformFeeAmount: Number(data.platformFeeAmount ?? 0),
     tierName: data.tierName ?? '',
+    hostPayoutsReady: typeof data.hostPayoutsReady === 'boolean' ? data.hostPayoutsReady : undefined,
+    salesNotOpenYet: typeof data.salesNotOpenYet === 'boolean' ? data.salesNotOpenYet : undefined,
+    salesClosed: typeof data.salesClosed === 'boolean' ? data.salesClosed : undefined,
   };
 }
 
