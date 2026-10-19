@@ -7,7 +7,7 @@ appId: com.thebradleyproject.sequins
 - inputText: ${SEQUINS_EMAIL}
 - tapOn: "••••••••"
 - inputText: ${SEQUINS_PASSWORD}
-- hideKeyboard
+- tapOn: "Welcome back"
 - tapOn: "Sign In"
 - runFlow:
     when:
@@ -16,5 +16,5 @@ appId: com.thebradleyproject.sequins
       - tapOn: ${SEQUINS_ROLE}
       - tapOn: "Get Started.*"
 - extendedWaitUntil:
-    visible: "Discover"
+    visible: "Discover(,.*)?"
     timeout: 20000

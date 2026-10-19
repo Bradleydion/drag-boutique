@@ -2,7 +2,22 @@ appId: com.thebradleyproject.sequins
 ---
 - launchApp:
     clearState: true
-- tapOn: "Continue as Guest"
+- extendedWaitUntil:
+    visible: ".*Continue as Guest.*"
+    timeout: 15000
+# The guest link is the right-hand words of one sentence; tap on the words themselves.
+- tapOn:
+    point: "61%,60%"
+- runFlow:
+    when:
+      visible: ".*Continue as Guest.*"
+    commands:
+      - tapOn:
+          id: "guest-button"
+          optional: true
+- extendedWaitUntil:
+    visible: "(Get Started.*|Discover(,.*)?)"
+    timeout: 15000
 - runFlow:
     when:
       visible: "Get Started.*"
@@ -10,5 +25,5 @@ appId: com.thebradleyproject.sequins
       - tapOn: "Fan"
       - tapOn: "Get Started.*"
 - extendedWaitUntil:
-    visible: "Discover"
+    visible: "Discover(,.*)?"
     timeout: 15000

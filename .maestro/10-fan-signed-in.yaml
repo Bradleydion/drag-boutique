@@ -7,10 +7,10 @@ tags: [signed-in]
     env:
       SEQUINS_ROLE: Fan
 - takeScreenshot: 10-discover-signed-in
-- tapOn: "Tickets"
+- tapOn: "Tickets(,.*)?"
 - assertNotVisible: "Sign in to see your tickets"
 - takeScreenshot: 10-tickets
-- tapOn: "Shop"
+- tapOn: "Shop(,.*)?"
 - takeScreenshot: 10-shop
 - runFlow:
     when:
@@ -21,7 +21,7 @@ tags: [signed-in]
       - swipe:
           start: 2%, 50%
           end: 80%, 50%
-- tapOn: "Profile"
+- tapOn: "Profile(,.*)?"
 - takeScreenshot: 10-profile
 - scrollUntilVisible:
     element: "Legal"

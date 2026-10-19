@@ -1,0 +1,12 @@
+appId: com.thebradleyproject.sequins
+name: "Tap check: can the bot tap and type at all?"
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "you@example.com"
+    timeout: 15000
+- tapOn: "you@example.com"
+- inputText: "bottest"
+- takeScreenshot: tapcheck-typed
+- assertVisible: "bottest"

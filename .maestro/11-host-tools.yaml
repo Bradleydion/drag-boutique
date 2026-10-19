@@ -6,7 +6,7 @@ tags: [signed-in, host]
     file: shared/sign-in.yaml
     env:
       SEQUINS_ROLE: Host
-- tapOn: "Profile"
+- tapOn: "Profile(,.*)?"
 - runFlow:
     when:
       visible: "Payout Setup"
@@ -35,7 +35,7 @@ tags: [signed-in, host]
       - swipe:
           start: 2%, 50%
           end: 80%, 50%
-- tapOn: "Create"
+- tapOn: "Create(,.*)?"
 - takeScreenshot: 11-organize
 - tapOn: "✦ New Event"
 - runFlow:
@@ -44,5 +44,4 @@ tags: [signed-in, host]
     commands:
       - tapOn: "e.g., Queen of the Night"
       - inputText: "Maestro Test Show (do not publish)"
-      - hideKeyboard
       - takeScreenshot: 11-new-event-basics

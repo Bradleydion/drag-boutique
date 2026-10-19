@@ -11,16 +11,14 @@
 //
 // Public SDK keys are meant to ship inside the app (they can only read the
 // signed-in customer and start purchases), so they live here. A platform with
-// no key falls back to the old Stripe checkout (e.g. Android until the Play
-// products and the Google key exist).
+// no key falls back to the old Stripe checkout.
 
 import { Linking, Platform } from 'react-native';
 import Purchases, { PRODUCT_CATEGORY, type PurchasesStoreProduct } from 'react-native-purchases';
 import { supabase } from './supabase';
 
 const RC_APPLE_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || 'appl_JFfQHkMpznkstCjhcewZiCXALah';
-// Android: add the goog_ key here once the Play app is set up in RevenueCat.
-const RC_GOOGLE_KEY = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY || '';
+const RC_GOOGLE_KEY = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY || 'goog_uapjKZENKjbkBcuSgyNexwAWHXD';
 
 export const PRO_PRODUCT_ID = 'sequins_pro_monthly';
 export const BOOST_PRODUCT_ID = 'boost_7_days';

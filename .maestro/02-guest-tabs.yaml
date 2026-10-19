@@ -2,12 +2,12 @@ appId: com.thebradleyproject.sequins
 name: "02 Guest: every tab loads, guest prompts make sense"
 ---
 - runFlow: shared/start-guest.yaml
-- tapOn: "Shop"
+- tapOn: "Shop(,.*)?"
 - takeScreenshot: 02-shop
-- tapOn: "Tickets"
+- tapOn: "Tickets(,.*)?"
 - assertVisible: "Sign in to see your tickets"
 - takeScreenshot: 02-tickets-guest
-- tapOn: "Profile"
+- tapOn: "Profile(,.*)?"
 - takeScreenshot: 02-profile-guest
-- tapOn: "Discover"
+- tapOn: "Discover(,.*)?"
 - assertVisible: "Search events, venues, cities…"

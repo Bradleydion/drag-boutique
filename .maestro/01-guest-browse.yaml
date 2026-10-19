@@ -6,12 +6,12 @@ name: "01 Guest: browse, search, open a show"
 # Search
 - tapOn: "Search events, venues, cities…"
 - inputText: "Portland"
-- hideKeyboard
+- pressKey: Enter
 - assertVisible: ".*Portland.*"
 - takeScreenshot: 01-search-portland
 - tapOn: "Search events, venues, cities…"
 - eraseText: 20
-- hideKeyboard
+- pressKey: Enter
 # Scroll the feed
 - scroll
 - scroll

@@ -269,7 +269,7 @@ export default function AuthScreen() {
               {/* Apple / Google sign-in removed until they're actually built (Apple 4.8 requires both together). */}
               <View style={{ height: 8 }} />
 
-              <Pressable onPress={handleGuest} style={{ marginTop: 28 }}>
+              <Pressable onPress={handleGuest} style={{ marginTop: 28 }} testID="guest-button" accessibilityRole="button" accessibilityLabel="Continue as Guest">
                 <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 14 }}>
                   Skip for now —{' '}
                   <Text style={{ color: colors.textSecondary, textDecorationLine: 'underline' }}>
