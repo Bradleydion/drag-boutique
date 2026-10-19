@@ -1,0 +1,14 @@
+appId: com.thebradleyproject.sequins
+---
+- launchApp:
+    clearState: true
+- tapOn: "Continue as Guest"
+- runFlow:
+    when:
+      visible: "Get Started.*"
+    commands:
+      - tapOn: "Fan"
+      - tapOn: "Get Started.*"
+- extendedWaitUntil:
+    visible: "Discover"
+    timeout: 15000

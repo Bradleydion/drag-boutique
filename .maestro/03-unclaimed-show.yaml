@@ -1,0 +1,20 @@
+appId: com.thebradleyproject.sequins
+name: "03 Unclaimed show: Is this you? card, no ticket button (needs the new build)"
+---
+- runFlow: shared/start-guest.yaml
+- scrollUntilVisible:
+    element: "Venue tickets"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    text: "Venue tickets"
+    index: 0
+- extendedWaitUntil:
+    visible: "Unofficial listing"
+    timeout: 15000
+- assertNotVisible: "Reserve My Spot"
+- assertNotVisible: "Message the host"
+- scrollUntilVisible:
+    element: "Is this you\\? Claim this show"
+    direction: DOWN
+- takeScreenshot: 03-unclaimed-card

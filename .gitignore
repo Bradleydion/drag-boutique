@@ -46,3 +46,7 @@ Claude outputs/
 
 .env.local
 _to_delete/
+
+# Maestro test output
+maestro-results/
+maestro-report.xml

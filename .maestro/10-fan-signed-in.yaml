@@ -1,0 +1,38 @@
+appId: com.thebradleyproject.sequins
+name: "10 Signed in: tickets, profile, legal, blocked list, shop purchases"
+tags: [signed-in]
+---
+- runFlow:
+    file: shared/sign-in.yaml
+    env:
+      SEQUINS_ROLE: Fan
+- takeScreenshot: 10-discover-signed-in
+- tapOn: "Tickets"
+- assertNotVisible: "Sign in to see your tickets"
+- takeScreenshot: 10-tickets
+- tapOn: "Shop"
+- takeScreenshot: 10-shop
+- runFlow:
+    when:
+      visible: "My Purchases"
+    commands:
+      - tapOn: "My Purchases"
+      - takeScreenshot: 10-my-purchases
+      - swipe:
+          start: 2%, 50%
+          end: 80%, 50%
+- tapOn: "Profile"
+- takeScreenshot: 10-profile
+- scrollUntilVisible:
+    element: "Legal"
+    direction: DOWN
+- tapOn: "Blocked accounts"
+- takeScreenshot: 10-blocked
+- swipe:
+    start: 2%, 50%
+    end: 80%, 50%
+- scrollUntilVisible:
+    element: "Legal"
+    direction: DOWN
+- tapOn: "Legal"
+- takeScreenshot: 10-legal

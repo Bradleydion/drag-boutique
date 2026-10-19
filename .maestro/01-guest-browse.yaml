@@ -1,0 +1,32 @@
+appId: com.thebradleyproject.sequins
+name: "01 Guest: browse, search, open a show"
+---
+- runFlow: shared/start-guest.yaml
+- takeScreenshot: 01-discover
+# Search
+- tapOn: "Search events, venues, cities…"
+- inputText: "Portland"
+- hideKeyboard
+- assertVisible: ".*Portland.*"
+- takeScreenshot: 01-search-portland
+- tapOn: "Search events, venues, cities…"
+- eraseText: 20
+- hideKeyboard
+# Scroll the feed
+- scroll
+- scroll
+- takeScreenshot: 01-discover-scrolled
+- scrollUntilVisible:
+    element: "(Free|Venue tickets)"
+    direction: DOWN
+    timeout: 20000
+# Open a show
+- tapOn:
+    text: "(Free|Venue tickets)"
+    index: 0
+- extendedWaitUntil:
+    visible: "(Reserve My Spot|Unofficial listing|Buy Ticket.*|Tickets go on sale.*|View My Ticket)"
+    timeout: 15000
+- takeScreenshot: 01-event-page
+- scroll
+- takeScreenshot: 01-event-page-bottom

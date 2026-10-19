@@ -1,0 +1,5 @@
+# Maestro test suite for Sequins. Run: maestro test .maestro
+flows:
+  - "*.yaml"
+executionOrder:
+  continueOnFailure: true

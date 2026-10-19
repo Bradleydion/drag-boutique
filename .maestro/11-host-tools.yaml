@@ -1,0 +1,48 @@
+appId: com.thebradleyproject.sequins
+name: "11 Host: payouts, subscription paywall, rankings, new-event form"
+tags: [signed-in, host]
+---
+- runFlow:
+    file: shared/sign-in.yaml
+    env:
+      SEQUINS_ROLE: Host
+- tapOn: "Profile"
+- runFlow:
+    when:
+      visible: "Payout Setup"
+    commands:
+      - tapOn: "Payout Setup"
+      - takeScreenshot: 11-payouts
+      - swipe:
+          start: 2%, 50%
+          end: 80%, 50%
+- runFlow:
+    when:
+      visible: "Subscription"
+    commands:
+      - tapOn: "Subscription"
+      - extendedWaitUntil:
+          visible: "Restore Purchases"
+          timeout: 15000
+      - takeScreenshot: 11-subscription-paywall
+      - tapOn: "Maybe later"
+- runFlow:
+    when:
+      visible: "Your Rankings"
+    commands:
+      - tapOn: "Your Rankings"
+      - takeScreenshot: 11-rankings
+      - swipe:
+          start: 2%, 50%
+          end: 80%, 50%
+- tapOn: "Create"
+- takeScreenshot: 11-organize
+- tapOn: "✦ New Event"
+- runFlow:
+    when:
+      visible: "e.g., Queen of the Night"
+    commands:
+      - tapOn: "e.g., Queen of the Night"
+      - inputText: "Maestro Test Show (do not publish)"
+      - hideKeyboard
+      - takeScreenshot: 11-new-event-basics

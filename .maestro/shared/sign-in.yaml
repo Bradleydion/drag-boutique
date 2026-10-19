@@ -1,0 +1,20 @@
+# Needs SEQUINS_EMAIL and SEQUINS_PASSWORD passed with -e (never stored in this repo).
+appId: com.thebradleyproject.sequins
+---
+- launchApp:
+    clearState: true
+- tapOn: "you@example.com"
+- inputText: ${SEQUINS_EMAIL}
+- tapOn: "••••••••"
+- inputText: ${SEQUINS_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign In"
+- runFlow:
+    when:
+      visible: "Get Started.*"
+    commands:
+      - tapOn: ${SEQUINS_ROLE}
+      - tapOn: "Get Started.*"
+- extendedWaitUntil:
+    visible: "Discover"
+    timeout: 20000
