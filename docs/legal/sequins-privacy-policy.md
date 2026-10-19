@@ -72,6 +72,10 @@ Tips and event-staff payments are passed through in full — Sequins does not ta
 
 We retain your account and content data for as long as your account is active, or as needed to provide the Service, comply with our legal obligations, resolve disputes, and enforce our agreements. If you delete your account, we will delete or de-identify your personal information within a reasonable period, except where we are required or permitted to retain it (for example, transaction records needed for tax, accounting, or legal purposes).
 
+If you sign up but never confirm your email address, we automatically delete that unconfirmed account after 30 days.
+
+When you use "Message" or "Contact Seller" in the app, we email your note to the other person with your email address as the reply-to, so they can answer you directly. We keep a record of who messaged whom, when, and what was sent, to prevent spam and investigate reports. That record is deleted when either account is deleted.
+
 ---
 
 ## 6. Your Rights and Choices

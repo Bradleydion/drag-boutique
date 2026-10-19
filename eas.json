@@ -31,6 +31,13 @@
         "buildType": "app-bundle"
       },
       "autoIncrement": true
+    },
+    "simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      },
+      "environment": "production"
     }
   },
   "submit": {

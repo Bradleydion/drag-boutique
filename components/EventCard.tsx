@@ -2,7 +2,7 @@
 // Accepts EventRecord from eventsStore (Supabase shape).
 import { formatEventShort } from '../lib/eventTime';
 import { View, Text, Image } from 'react-native';
-import type { EventRecord } from '../lib/eventsStore';
+import { isUnclaimedHost, type EventRecord } from '../lib/eventsStore';
 import { isCurrentlyPromoted } from '../lib/promotionStore';
 import { colors } from '../src/theme/colors';
 
@@ -67,7 +67,7 @@ export function EventCard({ event }: { event: EventRecord }) {
         paddingVertical: 4, paddingHorizontal: 10,
       }}>
         <Text style={{ color: promoted ? '#1C1917' : colors.offWhite, fontWeight: '800', fontSize: 13 }}>
-          {price === 0 ? 'Free' : `$${price.toFixed(2)}`}
+          {isUnclaimedHost(event.hostId) ? 'Venue tickets' : price === 0 ? 'Free' : `$${price.toFixed(2)}`}
         </Text>
       </View>
 

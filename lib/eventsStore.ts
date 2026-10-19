@@ -602,3 +602,8 @@ export async function getHostBalanceOwed(hostId: string): Promise<number> {
   const paid = (collections ?? []).reduce((s: number, c: { amount: number }) => s + Number(c.amount), 0);
   return Math.max(0, Math.round((owed - paid) * 100) / 100);
 }
+
+/** Shows Sequins listed from public info that no host has claimed yet. */
+export function isUnclaimedHost(hostId?: string | null): boolean {
+  return !hostId || hostId === 'seed-data-placeholder' || hostId.startsWith('00000000-0000-0000-0000-');
+}

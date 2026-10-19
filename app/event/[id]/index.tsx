@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -12,7 +13,7 @@ import {
 } from 'react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchEventById, rollToNextOccurrence, type EventRecord } from '../../../lib/eventsStore';
+import { fetchEventById, isUnclaimedHost, rollToNextOccurrence, type EventRecord } from '../../../lib/eventsStore';
 import { getSession, isGuest } from '../../../lib/authStore';
 import { ContactSheet } from '../../../components/ContactSheet';
 import { buyTicket, confirmPaidTicket, createPaymentIntent, getTicketQuote, hasTicket, loadTickets, type TicketPriceBreakdown } from '../../../lib/ticketStore';
@@ -206,6 +207,15 @@ export default function EventDetail() {
 
   const price  = event.ticketing?.price ?? 0;
   const isFree = price === 0;
+  // Shows Sequins listed from public info, before anyone has claimed them.
+  const isUnclaimed = isUnclaimedHost(event.hostId);
+  const venueIg = event.venue?.instagram?.replace(/^@/, '').trim();
+  function claimShow() {
+    const subject = encodeURIComponent(`Claim my show: ${event!.title}`);
+    const body = encodeURIComponent(`Hi Sequins! This is my show and I'd like to manage it in the app.\n\nShow: ${event!.title}\nMy name / drag name:\nMy Instagram:\nThe email I use in Sequins:\n`);
+    Linking.openURL(`mailto:bradleydion@thebradleyproject.com?subject=${subject}&body=${body}`)
+      .catch(() => Alert.alert('Claim this show', 'Email bradleydion@thebradleyproject.com with the show name and your Instagram, and we\'ll hand it over.'));
+  }
   const GOLD   = '#F59E0B';
 
   // Why tickets can't be bought right now (null = on sale).
@@ -314,7 +324,7 @@ export default function EventDetail() {
               Hosted by {event.hostName}
             </Text>
           )}
-          {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.hostId ?? '') &&
+          {!isUnclaimed && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.hostId ?? '') &&
             event.hostId !== getSession()?.user?.id && (
             <Pressable
               onPress={() => setContactOpen(true)}
@@ -380,7 +390,31 @@ export default function EventDetail() {
           )}
 
           {/* Ticket card */}
-          {event.cancelledAt ? (
+          {isUnclaimed && !event.cancelledAt ? (
+            <View style={{
+              marginTop: 28, backgroundColor: colors.surface, borderRadius: 16,
+              padding: 20, borderWidth: 1, borderColor: colors.border,
+            }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 16 }}>Unofficial listing</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8, lineHeight: 20 }}>
+                Sequins listed this show from public info so fans can find it. Tickets and the latest details are with the venue, so check with them before you go.
+              </Text>
+              {!!venueIg && (
+                <Pressable
+                  onPress={() => Linking.openURL(`https://instagram.com/${venueIg}`)}
+                  accessibilityRole="link" hitSlop={6} style={{ marginTop: 10, alignSelf: 'flex-start' }}
+                >
+                  <Text style={{ color: colors.teal, fontSize: 14, fontWeight: '700' }}>@{venueIg} on Instagram →</Text>
+                </Pressable>
+              )}
+              <View style={{ marginTop: 16 }}>
+                <PrimaryButton title="Is this you? Claim this show" onPress={claimShow} />
+              </View>
+              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 10, lineHeight: 18 }}>
+                Hosts and performers can claim it for free, then sell tickets and take tips right in the app.
+              </Text>
+            </View>
+          ) : event.cancelledAt ? (
             <View style={{
               marginTop: 28,
               backgroundColor: colors.danger + '14',
