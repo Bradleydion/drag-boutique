@@ -44,6 +44,19 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
     ? formatEventClock(dateStart, event?.timezone)
     : '';
 
+  // A ticket's QR only works for an upcoming show. Past, cancelled or refunded
+  // tickets stay in the list as a keepsake, but tapping them doesn't open a
+  // scannable code. "Past" = the show's end time (same length as the event,
+  // or 6 hours if no end time) has gone by.
+  const startMs = dateStart ? new Date(dateStart).getTime() : NaN;
+  const lengthMs = event?.datetimeStart && event?.datetimeEnd
+    ? Math.max(0, new Date(event.datetimeEnd).getTime() - new Date(event.datetimeStart).getTime())
+    : 6 * 60 * 60 * 1000;
+  const isPast = Number.isFinite(startMs) && Date.now() > startMs + (lengthMs || 6 * 60 * 60 * 1000);
+  const isRefunded = ticket.payment_status === 'refunded';
+  const canShowQr = !isPast && !showCancelled && !isRefunded;
+  const tapLabel = canShowQr ? 'Tap to show QR \u2192' : isRefunded ? 'Refunded' : showCancelled ? 'Cancelled' : 'Show has ended';
+
   const shortId = ticket.id.slice(0, 8).toUpperCase();
   const qrData  = `SEQ-TICKET:${ticket.id}`;
   const refundEligible = isRefundEligible(ticket, event);
@@ -174,8 +187,9 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
 
       {/* ── Ticket card ─────────────────────────────────────────────────── */}
       <Pressable
-        onPress={() => setModalVisible(true)}
+        onPress={() => { if (canShowQr) setModalVisible(true); }}
         style={{
+          opacity: canShowQr ? 1 : 0.6,
           backgroundColor: colors.surface,
           borderRadius: 18,
           overflow: 'hidden',
@@ -238,8 +252,8 @@ function TicketCard({ ticket, event, onRefunded }: { ticket: Ticket; event: Even
             <Text style={{ color: colors.textMuted, fontSize: 11, fontFamily: 'monospace', letterSpacing: 1 }}>
               #{shortId}
             </Text>
-            <Text style={{ color: colors.teal, fontSize: 12, fontWeight: '600' }}>
-              Tap to show QR →
+            <Text style={{ color: canShowQr ? colors.teal : colors.textMuted, fontSize: 12, fontWeight: '600' }}>
+              {tapLabel}
             </Text>
           </View>
 

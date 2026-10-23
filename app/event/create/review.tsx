@@ -276,7 +276,7 @@ export default function CreateEvent_Review() {
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 20 }}>✦</Text>
+                  <Text style={{ fontSize: 20, color: GOLD }}>✦</Text>
                   <Text style={{ color: promoted ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
                     Promote this event — {PROMOTION_PRICE_LABEL}
                   </Text>

@@ -426,7 +426,7 @@ export default function EditEventScreen() {
           marginTop: 4,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Text style={{ fontSize: 18 }}>✦</Text>
+            <Text style={{ fontSize: 18, color: GOLD }}>✦</Text>
             <Text style={{ color: isCurrentlyPromoted(true, promotedUntil) ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
               {isCurrentlyPromoted(true, promotedUntil) ? 'Currently promoted' : 'Promote this event'}
             </Text>

@@ -171,6 +171,21 @@ export default function SubscriptionScreen() {
           title: 'Subscription',
           headerStyle: { backgroundColor: colors.navy },
           headerTintColor: colors.textPrimary,
+          // A real Back button. When this screen is opened from inside the
+          // create-event flow, iOS draws the default back button as an empty
+          // grey pill that doesn't respond, so we draw our own.
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any))}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              style={{ paddingHorizontal: 4, paddingVertical: 6 }}
+            >
+              <Text style={{ color: colors.teal, fontSize: 17, fontWeight: '600' }}>{'\u2039 Back'}</Text>
+            </Pressable>
+          ),
         }}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
