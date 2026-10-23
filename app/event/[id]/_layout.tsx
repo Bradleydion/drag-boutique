@@ -4,6 +4,7 @@ import { router, Stack } from 'expo-router';
 import { Pressable } from 'react-native';
 import { colors } from '../../../src/theme/colors';
 import { goBack } from '../../../lib/nav';
+import { headerBack } from '../../../components/HeaderBack';
 
 export default function EventLayout() {
   return (
@@ -13,6 +14,8 @@ export default function EventLayout() {
         headerTitleStyle: { color: colors.textPrimary, fontWeight: '800' },
         headerTintColor: colors.teal,
         headerBackTitle: 'Back',
+        headerBackVisible: false,
+        headerLeft: headerBack('/(tabs)/discover'),
       }}
     >
       {/* Index is the first screen in this nested Stack — it has no inner-Stack

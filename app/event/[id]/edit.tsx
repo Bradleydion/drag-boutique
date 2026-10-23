@@ -78,7 +78,7 @@ export default function EditEventScreen() {
 
   useEffect(() => {
     fetchEventById(eventId).then(event => {
-      if (!event) { Alert.alert('Error', 'Event not found.'); router.back(); return; }
+      if (!event) { Alert.alert('Error', 'Event not found.'); goBack('/(tabs)/organize'); return; }
       setTitle(event.title ?? '');
       setDescription(event.description ?? '');
       setDatetimeStart(event.datetimeStart ?? '');
@@ -164,7 +164,7 @@ export default function EditEventScreen() {
         return;
       }
       Alert.alert('✅ Saved', 'Your event has been updated.', [
-        { text: 'Done', onPress: () => router.back() },
+        { text: 'Done', onPress: () => goBack('/(tabs)/organize') },
       ]);
     } catch (e: any) {
       const tierLimit = parseTierLimitError(e?.message ?? '');

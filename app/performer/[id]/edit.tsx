@@ -66,7 +66,7 @@ export default function EditPerformerProfile() {
   useEffect(() => {
     if (!id) return;
     fetchPerformerById(id).then((p: PerformerRecord | null) => {
-      if (!p) { router.back(); return; }
+      if (!p) { goBack('/(tabs)/profile'); return; }
       setStageName(p.stageName ?? '');
       setBio(p.bio ?? '');
       setBookingInfo(p.bookingInfo ?? '');
@@ -140,7 +140,7 @@ export default function EditPerformerProfile() {
       await updateDisplayName(stageName.trim()).catch(() => {});
       await saveTalentRoles(id, selectedRoles);
       Alert.alert('Saved!', 'Your profile has been updated.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => goBack('/(tabs)/profile') },
       ]);
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Could not save. Please try again.');

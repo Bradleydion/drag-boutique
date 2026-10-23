@@ -1,6 +1,7 @@
 // app/event/create/_layout.tsx
 import { Stack } from 'expo-router';
 import { colors } from '../../../src/theme/colors';
+import { headerBack } from '../../../components/HeaderBack';
 
 export default function CreateEventLayout() {
   return (
@@ -10,6 +11,8 @@ export default function CreateEventLayout() {
         headerTitleStyle: { color: colors.textPrimary },
         headerTintColor: colors.teal,
         headerBackTitle: 'Back',
+        headerBackVisible: false,
+        headerLeft: headerBack('/(tabs)/organize'),
         contentStyle: { backgroundColor: colors.navy },
       }}
     >

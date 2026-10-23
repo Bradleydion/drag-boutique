@@ -11,6 +11,7 @@
 // linked without any extra join table.
 
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { goBack } from '../../lib/nav';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -90,7 +91,7 @@ export default function HostSetupScreen() {
       });
 
       if (isEdit) {
-        router.back();
+        goBack('/(tabs)/profile');
         return;
       }
 
@@ -110,7 +111,7 @@ export default function HostSetupScreen() {
 
   function skip() {
     if (isEdit) {
-      router.back();
+      goBack('/(tabs)/profile');
       return;
     }
     router.replace('/(tabs)/organize');

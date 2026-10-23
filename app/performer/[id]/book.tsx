@@ -90,7 +90,7 @@ export default function BookingForm() {
       Alert.alert(
         '✅ Request Sent!',
         'Your request has been sent. The artist will be in touch if they\'re available.',
-        [{ text: 'OK', onPress: () => router.back() }],
+        [{ text: 'OK', onPress: () => goBack('/(tabs)/discover') }],
       );
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Could not send request. Please try again.');

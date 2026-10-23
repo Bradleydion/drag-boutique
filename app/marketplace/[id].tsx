@@ -103,7 +103,7 @@ export default function ListingDetail() {
       Alert.alert(
         '🎉 Purchase complete!',
         `You paid $${paid.total.toFixed(2)} for "${listing.title}" ($${paid.itemPrice.toFixed(2)} + $${paid.serviceFee.toFixed(2)} service fee). Reach out to ${listing.sellerName} to arrange delivery or pickup.`,
-        [{ text: 'Back to Marketplace', onPress: () => router.back() }],
+        [{ text: 'Back to Marketplace', onPress: () => goBack('/(tabs)/marketplace') }],
       );
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Could not complete purchase. Please try again.');

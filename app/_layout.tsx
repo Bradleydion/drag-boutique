@@ -9,6 +9,7 @@ import { setPurchasesUser } from '../lib/purchases';
 import { hasRole } from '../lib/userStore';
 import { colors } from '../src/theme/colors';
 import { DismissKeyboard } from '../components/DismissKeyboard';
+import { headerBack } from '../components/HeaderBack';
 import { SplashScreen } from '../components/SplashScreen';
 import {
   registerForPushNotificationsAsync,
@@ -120,6 +121,9 @@ export default Sentry.wrap(function RootLayout() {
         <Stack
           screenOptions={{
             headerBackTitle: 'Back', // never show internal route names like "(tabs)"
+            // Our own Back button everywhere (system one can render as a dead grey pill).
+            headerBackVisible: false,
+            headerLeft: headerBack('/(tabs)/discover'),
             headerShown: true,
             headerStyle: { backgroundColor: colors.navy },
             headerTitleStyle: { color: colors.textPrimary },

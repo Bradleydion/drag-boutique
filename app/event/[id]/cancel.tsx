@@ -7,6 +7,7 @@
 // are just told. All of the work happens in the cancel-event Edge Function.
 
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { goBack } from '../../../lib/nav';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -283,7 +284,7 @@ export default function CancelShowScreen() {
                 variant="danger"
                 onPress={working ? () => {} : confirm}
               />
-              <PrimaryButton title="Keep the show" variant="ghost" onPress={() => router.back()} />
+              <PrimaryButton title="Keep the show" variant="ghost" onPress={() => goBack('/(tabs)/organize')} />
             </View>
           </>
         )}
