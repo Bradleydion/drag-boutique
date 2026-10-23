@@ -210,19 +210,19 @@ export async function loadListings(): Promise<void> {
 
 // ── Reads ─────────────────────────────────────────────────────────────────────
 
-/** All active listings — real DB listings first, then seeds for any not already covered. */
+/** All active (unsold) listings from the database. */
 export function getListings(category?: ListingCategory): Listing[] {
   const dbArr = Array.from(_dbListings.values());
   // Merge: show DB listings + seed listings whose id doesn't collide
-  const dbIds = new Set(dbArr.map(l => l.id));
-  const seeds = SEED_LISTINGS.filter(s => !dbIds.has(s.id) && !s.sold);
-  const all = [...dbArr, ...seeds];
+  // Launch: real listings only. The SEED_LISTINGS demo items are no longer shown
+  // (they weren't real and couldn't be bought).
+  const all = dbArr.filter(l => !l.sold);
   if (category) return all.filter(l => l.category === category);
   return all;
 }
 
 export function getListing(id: string): Listing | undefined {
-  return _dbListings.get(id) ?? SEED_LISTINGS.find(l => l.id === id);
+  return _dbListings.get(id);
 }
 
 /** Listings created by the current authenticated user. */
