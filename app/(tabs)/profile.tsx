@@ -717,7 +717,7 @@ export default function ProfileTab() {
                   gap: 6,
                 }}
               >
-                <Text style={{ fontSize: 24 }}>✦</Text>
+                <Text style={{ fontSize: 24, color: '#F59E0B' }}>✦</Text>
                 <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 14 }}>List Something</Text>
                 <Text style={{ color: colors.textMuted, fontSize: 12 }}>Post wigs, costumes, commissions & more</Text>
               </Pressable>

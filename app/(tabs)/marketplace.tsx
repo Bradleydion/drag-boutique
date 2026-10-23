@@ -75,7 +75,7 @@ export default function MarketplaceTab() {
             gap: 8,
           }}
         >
-          <Text style={{ fontSize: 16 }}>✦</Text>
+          <Text style={{ fontSize: 16, color: '#F59E0B' }}>✦</Text>
           <Text style={{ color: colors.offWhite, fontWeight: '800', fontSize: 15 }}>
             List Something
           </Text>

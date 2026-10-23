@@ -367,7 +367,7 @@ export default function EditPerformerProfile() {
           padding: 16,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Text style={{ fontSize: 18 }}>✦</Text>
+            <Text style={{ fontSize: 18, color: GOLD }}>✦</Text>
             <View>
               <Text style={{ color: isCurrentlyPromoted(true, promotedUntil) ? GOLD : C.textPrimary, fontWeight: '900', fontSize: 15 }}>
                 {isCurrentlyPromoted(true, promotedUntil) ? 'Currently promoted' : 'Promote my profile'}
